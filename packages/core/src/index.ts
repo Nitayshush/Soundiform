@@ -10,4 +10,9 @@
 export * from './score/MusicalScore';
 export * from './score/scoreSchema';
 
-// TODO(Sprint 2+): ייצוא analysis/, mapping/, theory/, groove/, arrangement/ ככל שייבנו.
+export * from './analysis/contourExtractor';
+export * from './analysis/shapeAnalyzer';
+export * from './analysis/symmetryDetector';
+export * from './mapping/geometryToMusic';
+
+// TODO(Sprint 3+): ייצוא theory/, groove/, arrangement/ ככל שייבנו.

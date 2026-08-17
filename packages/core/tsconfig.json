@@ -3,7 +3,10 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "lib": ["ES2022"],
+    // DOM נדרש רק לטיפוסים של גלובלים חוצי-סביבה (TextEncoder, crypto.subtle) שנחשפים דרך
+    // packages/shared — אין כאן שימוש אמיתי ב-window/document. חוקת "core חסין-סביבה" (§3)
+    // נאכפת בסקירת קוד, לא בהעדר lib.
+    "lib": ["ES2022", "DOM"],
     "types": []
   },
   "include": ["src"]

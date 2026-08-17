@@ -4,6 +4,9 @@
     "outDir": "dist",
     "rootDir": "src",
     "resolveJsonModule": true,
+    // DOM נדרש רק לטיפוסי גלובלים חוצי-סביבה (TextEncoder, crypto.subtle) שנחשפים דרך
+    // @shape-sound/core → @shape-sound/shared. אין כאן שימוש אמיתי ב-window/document.
+    "lib": ["ES2022", "DOM"],
     "types": []
   },
   "include": ["src"]

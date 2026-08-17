@@ -12,6 +12,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@shape-sound/shared": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {
