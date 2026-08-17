@@ -1,0 +1,22 @@
+{
+  "name": "@shape-sound/audio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "⭐ מקור הצליל + מיקס. חסין-סביבה: אין window/document/fs/process. תלוי רק ב-core, shared.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@shape-sound/core": "workspace:*",
+    "tone": "^15.1.22"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
+  }
+}

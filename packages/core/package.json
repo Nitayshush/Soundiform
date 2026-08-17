@@ -1,0 +1,21 @@
+{
+  "name": "@shape-sound/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "⭐⭐ מנוע ההמרה — ליבת הפרויקט. חסין-סביבה: אין window/document/fs/process. ראה docs/PROJECT.md §3.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
+  }
+}

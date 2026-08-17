@@ -1,0 +1,27 @@
+{
+  "name": "@shape-sound/db",
+  "version": "0.1.0",
+  "private": true,
+  "description": "סכימה ומיגרציות (Drizzle ORM על Supabase Postgres). ראה docs/PROJECT.md §6.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
+  }
+}

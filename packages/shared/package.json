@@ -1,0 +1,21 @@
+{
+  "name": "@shape-sound/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "טיפוסים, קבועים, וסכימות Zod משותפות בין כל שאר החבילות. ראה docs/PROJECT.md §3.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
+  }
+}
