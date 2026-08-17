@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
     '@shape-sound/shared',
     '@shape-sound/ui',
   ],
+  // paper.js מזהה סביבת Node (כולל ב-SSR של קומפוננטות client) ומנסה לטעון שכבת חיקוי
+  // מבוססת jsdom שלא מותקנת אצלנו בכוונה — אנחנו משתמשים בו רק למתמטיקה וקטורית בדפדפן.
+  serverExternalPackages: ['paper'],
 };
 
 export default nextConfig;

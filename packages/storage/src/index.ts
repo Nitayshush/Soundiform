@@ -7,5 +7,5 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-export * from './StorageProvider.js';
-export * from './R2Provider.js';
+export * from './StorageProvider';
+export * from './R2Provider';

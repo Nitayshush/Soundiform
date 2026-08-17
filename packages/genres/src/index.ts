@@ -7,6 +7,6 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-export * from './schema.js';
+export * from './schema';
 
 // TODO(Sprint 5): ייצוא loader.ts כשיושלם.

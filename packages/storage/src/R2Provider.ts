@@ -26,7 +26,7 @@ import type {
   ObjectMetadata,
   StorageProvider,
   UploadUrlOptions,
-} from './StorageProvider.js';
+} from './StorageProvider';
 
 const DEFAULT_URL_TTL_SECONDS = 900; // 15 דקות — §7
 

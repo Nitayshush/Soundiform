@@ -7,7 +7,7 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-export * from './score/MusicalScore.js';
-export * from './score/scoreSchema.js';
+export * from './score/MusicalScore';
+export * from './score/scoreSchema';
 
 // TODO(Sprint 2+): ייצוא analysis/, mapping/, theory/, groove/, arrangement/ ככל שייבנו.

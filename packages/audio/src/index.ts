@@ -7,6 +7,6 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-export * from './providers/InstrumentProvider.js';
+export * from './providers/InstrumentProvider';
 
 // TODO(Sprint 4+): ייצוא synths/, mixing/, render/ ככל שייבנו.

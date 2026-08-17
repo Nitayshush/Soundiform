@@ -7,6 +7,6 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-// TODO: טיפוסים/קבועים/סכימות משותפות יתווספו כאן לפי צורך, בלי לנחש מראש מה יידרש.
-
-export {};
+export * from './shape/ShapeData';
+export * from './shape/shapeSchema';
+export * from './shape/shapeHash';

@@ -1,0 +1,61 @@
+/**
+ * @file        shapeStore.ts
+ * @description ⭐ מצב הצורה הנוכחית + התמדה ב-localStorage (§11 Sprint 1 "שמירה ב-localStorage").
+ * @author      Shape-to-Sound
+ * @created     2026-08-17
+ *
+ * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * למה ה-store הוא מקור האמת ל-paths/shapeHash ולא useShapeCapture:
+ * זה מה שמאפשר לצורה לשרוד רענון דף — useShapeCapture אחראי רק על אינטראקציית הציור החיה
+ * (מסלול שטרם הושלם לא נשמר — הוא לא צורה תקפה עדיין).
+ */
+
+'use client';
+
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { computeShapeHash, type ShapeData, type ShapePath } from '@shape-sound/shared';
+
+const SHAPE_VERSION = '1.0.0';
+const STORAGE_KEY = 'shape-sound:current-shape';
+
+interface ShapeStoreState {
+  paths: ShapePath[];
+  shapeHash: string | null;
+  addPath: (path: ShapePath) => void;
+  clear: () => void;
+}
+
+function toShapeData(paths: ShapePath[]): ShapeData {
+  return { version: SHAPE_VERSION, paths };
+}
+
+export const useShapeStore = create<ShapeStoreState>()(
+  persist(
+    (set, get) => ({
+      paths: [],
+      shapeHash: null,
+      addPath: (path) => {
+        const nextPaths = [...get().paths, path];
+        set({ paths: nextPaths });
+        computeShapeHash(toShapeData(nextPaths))
+          .then((hash) => {
+            set({ shapeHash: hash });
+          })
+          .catch((error: unknown) => {
+            // אין הודעת שגיאה למשתמש עדיין (אין UI לכך) — לפחות לא נבלע בשקט (§0.3/§0.4).
+            console.error('shapeStore: computeShapeHash נכשל', error);
+          });
+      },
+      clear: () => {
+        set({ paths: [], shapeHash: null });
+      },
+    }),
+    {
+      name: STORAGE_KEY,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ paths: state.paths, shapeHash: state.shapeHash }),
+    },
+  ),
+);
