@@ -9,17 +9,7 @@
 
 import type { ShapePoint } from '@shape-sound/shared';
 
-/**
- * גישה בטוחה למערך עם שגיאה מפורשת אם האינדקס מחוץ לתחום —
- * מונע `!` (non-null assertion אסור, §0.3) גם כשהאינדקס תמיד תקף לוגית מתוך הלולאה הקוראת.
- */
-export function at<T>(array: readonly T[], index: number): T {
-  const value = array[index];
-  if (value === undefined) {
-    throw new Error(`at: אינדקס ${String(index)} מחוץ לתחום המערך (אורך ${String(array.length)})`);
-  }
-  return value;
-}
+export { at } from '../internal/arrayUtils';
 
 export function distance(a: ShapePoint, b: ShapePoint): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
