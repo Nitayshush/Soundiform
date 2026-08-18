@@ -41,6 +41,9 @@ importers:
       '@shape-sound/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      bullmq:
+        specifier: ^6.1.2
+        version: 6.1.2(ioredis@6.0.0)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -50,6 +53,9 @@ importers:
       dompurify:
         specifier: ^3.4.13
         version: 3.4.13
+      ioredis:
+        specifier: ^6.0.0
+        version: 6.0.0
       lucide-react:
         specifier: ^1.31.0
         version: 1.31.0(react@19.2.8)
@@ -181,6 +187,9 @@ importers:
       '@shape-sound/core':
         specifier: workspace:*
         version: link:../core
+      node-web-audio-api:
+        specifier: ^2.2.0
+        version: 2.2.0
       tone:
         specifier: ^15.1.22
         version: 15.1.22

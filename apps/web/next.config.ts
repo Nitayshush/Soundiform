@@ -14,7 +14,9 @@ const nextConfig: NextConfig = {
   // מבוססת jsdom שלא מותקנת אצלנו בכוונה — אנחנו משתמשים בו רק למתמטיקה וקטורית בדפדפן.
   // tone/pixi.js נוספו מראש (Sprint 4) מאותה סיבה עקרונית — ספריות Web Audio/WebGL שלא
   // אמורות להיבנות עבור ה-SSR target כלל; שתיהן נטענות רק דרך import() דינמי בתוך useEffect.
-  serverExternalPackages: ['paper', 'tone', 'pixi.js'],
+  // bullmq/ioredis (Sprint 6): שרת-בלבד (api/render/route.ts), עם dynamic requires פנימיים —
+  // לא אמורות לעבור דרך bundler הצד-לקוח כלל.
+  serverExternalPackages: ['paper', 'tone', 'pixi.js', 'bullmq', 'ioredis'],
 };
 
 export default nextConfig;

@@ -55,3 +55,35 @@ export function computeNormalizationGainDb(
   }
   return targetLufs - measuredLufs;
 }
+
+/**
+ * מפעיל gain (dB) על כל הערוצים — צעד הנרמול בפועל לפני קידוד קובץ סופי (Sprint 6).
+ * לא עושה clipping-protection בעצמו: הבטחת "ללא קליפינג" (§4.3) ממומשת ב-encoders/wav.ts
+ * (clamp ל-[-1,1] בהמרה ל-PCM 16-bit).
+ */
+export function applyGainDb(channels: readonly Float32Array[], gainDb: number): Float32Array[] {
+  const gainFactor = Math.pow(10, gainDb / 20);
+  return channels.map((channel) => {
+    const output = new Float32Array(channel.length);
+    for (let index = 0; index < channel.length; index += 1) {
+      output[index] = (channel[index] ?? 0) * gainFactor;
+    }
+    return output;
+  });
+}
+
+/** מודד LUFS על ה-buffer השלם (כל הערוצים ביחד) ומחזיר את הערוצים אחרי נרמול ל-targetLufs. */
+export function normalizeToTargetLufs(
+  channels: readonly Float32Array[],
+  targetLufs: number = TARGET_LUFS,
+): Float32Array[] {
+  const combined = new Float32Array(channels.reduce((sum, channel) => sum + channel.length, 0));
+  let offset = 0;
+  for (const channel of channels) {
+    combined.set(channel, offset);
+    offset += channel.length;
+  }
+  const measuredLufs = estimateLoudnessLufs(combined);
+  const gainDb = computeNormalizationGainDb(measuredLufs, targetLufs);
+  return applyGainDb(channels, gainDb);
+}

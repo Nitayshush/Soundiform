@@ -15,13 +15,17 @@
  *   instrument.output → panner ─────────────────────────→ outputGain → destination (master)
  *                              ├─ reverbSendGain → reverb ↗
  *                              └─ delaySendGain  → delay  ↗
- * reverb/delay נוצרים רק אם ה-send המתאים גדול מאפס — נמנע מיצירת Reverb (יקר, אסינכרוני)
- * לטראקים כמו בס שאין להם שום send.
+ * reverb/delay נוצרים רק אם ה-send המתאים גדול מאפס — נמנע מיצירת reverb (יקר) לטראקים
+ * כמו בס שאין להם שום send.
+ *
+ * ⭐ reverbSeed: קובע את ה-impulse response של הריוורב הדטרמיניסטי (ראה deterministicReverb.ts) —
+ * חובה להעביר ערך יציב לכל טראק (למשל `${score.seed}:${track.role}`), אחרת נשבר §1.
  */
 
-import { FeedbackDelay, Gain, Panner, Reverb } from 'tone';
+import { FeedbackDelay, Gain, Panner } from 'tone';
 import type { InputNode } from 'tone';
 import type { MixSettings } from '@shape-sound/core';
+import { createDeterministicReverb } from './deterministicReverb';
 
 export interface MixCharacterConfig {
   reverbDecaySeconds: number;
@@ -36,7 +40,7 @@ export const DEFAULT_MIX_CHARACTER: MixCharacterConfig = {
   delayFeedback: 0.25,
 };
 
-/** מתחת לסף הזה, send נחשב "כבוי" — לא שווה להקים אפקט (עלות CPU/זמן ready של Reverb). */
+/** מתחת לסף הזה, send נחשב "כבוי" — לא שווה להקים אפקט (עלות CPU של בניית ה-impulse response). */
 const SEND_EPSILON = 0.001;
 
 export interface MixChainHandle {
@@ -47,11 +51,12 @@ export interface MixChainHandle {
 
 /**
  * בונה שרשרת מיקס עבור טראק בודד ומחבר אותה ל-destination (בדרך כלל אפיק המאסטר).
- * אסינכרוני כי Tone.Reverb מייצר Impulse Response ברקע (`reverb.ready`).
  */
+// eslint-disable-next-line @typescript-eslint/require-await -- Promise<MixChainHandle> נשמר כחלק מהחוזה הציבורי (קוראים תמיד עם await); אין await אמיתי כרגע כש-reverb/delay נבנים סינכרונית.
 export async function buildMixChain(
   mixSettings: MixSettings,
   destination: InputNode,
+  reverbSeed: string,
   character: MixCharacterConfig = DEFAULT_MIX_CHARACTER,
 ): Promise<MixChainHandle> {
   const panner = new Panner(mixSettings.pan);
@@ -60,16 +65,14 @@ export async function buildMixChain(
   outputGain.connect(destination);
 
   const disposables: { dispose(): void }[] = [panner, outputGain];
-  const readyPromises: Promise<void>[] = [];
 
   if (mixSettings.reverbSend > SEND_EPSILON) {
-    const reverb = new Reverb(character.reverbDecaySeconds);
+    const reverb = createDeterministicReverb(reverbSeed, character.reverbDecaySeconds);
     const reverbSendGain = new Gain(mixSettings.reverbSend);
     panner.connect(reverbSendGain);
     reverbSendGain.connect(reverb);
     reverb.connect(outputGain);
     disposables.push(reverb, reverbSendGain);
-    readyPromises.push(reverb.ready);
   }
 
   if (mixSettings.delaySend > SEND_EPSILON) {
@@ -80,8 +83,6 @@ export async function buildMixChain(
     delay.connect(outputGain);
     disposables.push(delay, delaySendGain);
   }
-
-  await Promise.all(readyPromises);
 
   return {
     input: panner,

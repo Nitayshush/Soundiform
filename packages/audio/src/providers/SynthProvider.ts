@@ -34,10 +34,15 @@ export interface SynthPresetConfig {
   polyphonic: boolean;
 }
 
+// ⚠️ polyphonic: true בכוונה — זו ברירת המחדל שחלה על *כל* role שחסר ב-GenrePack.synthMap
+// (z.partialRecord, ראה DECISIONS.md). buildPadTrack (harmonyEngine.ts) מייצר תמיד טריאדות —
+// כמה תווים באותו startTick על אותו track — ו-Synth מונופוני זורק "Start time must be
+// strictly greater than previous start time" ברגע שני התווים הבו-זמניים. PolySynth מנגן
+// גם קווים חד-קוליים (bass/lead) נכון לחלוטין, כך שאין חיסרון שמיעתי בברירת מחדל פוליפונית.
 export const DEFAULT_SYNTH_PRESET: SynthPresetConfig = {
   oscillatorType: 'triangle',
   envelope: { attack: 0.02, decay: 0.15, sustain: 0.6, release: 0.3 },
-  polyphonic: false,
+  polyphonic: true,
 };
 
 type ToneVoice = Synth | PolySynth;
