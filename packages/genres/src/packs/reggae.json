@@ -1,0 +1,65 @@
+{
+  "id": "reggae",
+  "displayName": { "he": "רגאיי", "en": "Reggae" },
+  "tempo": { "min": 65, "max": 80, "default": 72 },
+  "grid": { "subdivision": 16, "swingAmount": 0.18 },
+  "allowedModes": ["mixolydian"],
+  "defaultMode": "mixolydian",
+  "harmonicTendency": "diatonic",
+  "roles": ["bass", "skank", "lead", "drums"],
+  "rhythmPatterns": {
+    "bass": [
+      {
+        "name": "one-drop",
+        "stepsPerBar": 16,
+        "hits": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+      }
+    ],
+    "skank": [
+      {
+        "name": "skank-2-and-4",
+        "stepsPerBar": 16,
+        "hits": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+      }
+    ],
+    "lead": [
+      {
+        "name": "vocal-line",
+        "stepsPerBar": 16,
+        "hits": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]
+      }
+    ],
+    "drums": [
+      {
+        "name": "one-drop-kit",
+        "stepsPerBar": 16,
+        "hits": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+      }
+    ]
+  },
+  "synthMap": {
+    "bass": {
+      "oscillatorType": "sine",
+      "envelope": { "attack": 0.02, "decay": 0.2, "sustain": 0.8, "release": 0.3 },
+      "polyphonic": false
+    },
+    "skank": {
+      "oscillatorType": "square",
+      "envelope": { "attack": 0.001, "decay": 0.08, "sustain": 0.05, "release": 0.05 },
+      "polyphonic": true
+    },
+    "lead": {
+      "oscillatorType": "triangle",
+      "envelope": { "attack": 0.02, "decay": 0.15, "sustain": 0.6, "release": 0.2 },
+      "polyphonic": false
+    },
+    "drums": {
+      "oscillatorType": "triangle",
+      "envelope": { "attack": 0.001, "decay": 0.15, "sustain": 0, "release": 0.05 },
+      "polyphonic": false
+    }
+  },
+  "mixChain": { "reverbDecaySeconds": 2.5, "delayTime": "8n.", "delayFeedback": 0.45 },
+  "arrangement": { "sectionOrder": ["loop"] },
+  "requiresSamples": true
+}

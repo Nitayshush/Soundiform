@@ -4,58 +4,50 @@
  * @author      Shape-to-Sound
  * @created     2026-08-16
  *
- * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ * ⭐ Sprint 5: סוג הקול נגזר מ-SynthPresetConfig (מגיע מ-GenrePack.synthMap, §5.1) — לא מ-role
+ * קשיח כמו קודם. packages/audio לא יכול לייבא GenrePack ישירות (§3: audio → core, shared
+ * בלבד) — apps/web הוא זה שממיר GenrePack.synthMap[role] ל-SynthPresetConfig ומעביר לכאן.
+ * אם לא סופק preset מפורש, נופלים לברירת מחדל סבירה (DEFAULT_SYNTH_PRESET).
  *
- * למה בחירת סוג הסינתיסייזר תלויה ב-role ולא ב-instrumentId:
- * עדיין אין GenrePack (Sprint 5) עם synthMap אמיתי — instrumentId מגיע מ-harmonyEngine.ts
- * כערך placeholder ('default-lead' וכו'). ה-role (bass/lead/pad/drums/skank) הוא המידע
- * המוזיקלי היחיד שבאמת קיים כרגע כדי לבחור סוג קול סביר.
+ * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import { Gain, MembraneSynth, NoiseSynth, PolySynth, Synth } from 'tone';
+import { Gain, PolySynth, Synth } from 'tone';
 import type { OutputNode } from 'tone';
 import type { Note, TrackRole } from '@shape-sound/core';
 import type { InstrumentProvider } from './InstrumentProvider';
 import { midiToHz, ticksToSeconds } from '../internal/audioUtils';
 
-type MonoVoice = Synth | MembraneSynth | NoiseSynth;
-type ToneVoice = MonoVoice | PolySynth;
+export type OscillatorType = 'sine' | 'triangle' | 'sawtooth' | 'square';
 
-function createVoiceForRole(role: TrackRole): ToneVoice {
-  switch (role) {
-    case 'bass':
-      return new Synth({
-        oscillator: { type: 'triangle' },
-        envelope: { attack: 0.02, decay: 0.15, sustain: 0.6, release: 0.3 },
-      });
-    case 'lead':
-      return new Synth({
-        oscillator: { type: 'sawtooth' },
-        envelope: { attack: 0.01, decay: 0.1, sustain: 0.7, release: 0.2 },
-      });
-    case 'pad':
-      return new PolySynth(Synth, {
-        oscillator: { type: 'sine' },
-        envelope: { attack: 0.4, decay: 0.3, sustain: 0.8, release: 1.2 },
-      });
-    case 'skank':
-      // ⚠️ placeholder — Reggae דורש דגימות אמיתיות (§5.2), מוסתר ב-V1 ממילא (requiresSamples).
-      return new PolySynth(Synth, {
-        oscillator: { type: 'square' },
-        envelope: { attack: 0.005, decay: 0.08, sustain: 0.1, release: 0.1 },
-      });
-    case 'drums':
-      // ⚠️ placeholder — דפוסי תופים אמיתיים הם Sprint 5 (GenrePack.rhythmPatterns).
-      return new MembraneSynth();
-    default: {
-      const exhaustiveCheck: never = role;
-      throw new Error(`SynthProvider: role לא מוכר ${String(exhaustiveCheck)}`);
-    }
-  }
+export interface SynthEnvelopeConfig {
+  attack: number;
+  decay: number;
+  sustain: number;
+  release: number;
 }
 
-function isPolySynth(voice: ToneVoice): voice is PolySynth {
-  return voice instanceof PolySynth;
+export interface SynthPresetConfig {
+  oscillatorType: OscillatorType;
+  envelope: SynthEnvelopeConfig;
+  /** האם הקול הזה מתנגן פוליפונית (טריאדה בו-זמנית) — בדרך כלל true ל-pad/skank. */
+  polyphonic: boolean;
+}
+
+export const DEFAULT_SYNTH_PRESET: SynthPresetConfig = {
+  oscillatorType: 'triangle',
+  envelope: { attack: 0.02, decay: 0.15, sustain: 0.6, release: 0.3 },
+  polyphonic: false,
+};
+
+type ToneVoice = Synth | PolySynth;
+
+function createVoice(preset: SynthPresetConfig): ToneVoice {
+  const voiceOptions = {
+    oscillator: { type: preset.oscillatorType },
+    envelope: preset.envelope,
+  };
+  return preset.polyphonic ? new PolySynth(Synth, voiceOptions) : new Synth(voiceOptions);
 }
 
 /**
@@ -69,12 +61,14 @@ export class SynthProvider implements InstrumentProvider {
 
   private readonly role: TrackRole;
   private readonly tempoBpm: number;
+  private readonly preset: SynthPresetConfig;
   private readonly outputGain: Gain;
   private voice: ToneVoice | null = null;
 
-  constructor(role: TrackRole, tempoBpm: number) {
+  constructor(role: TrackRole, tempoBpm: number, preset: SynthPresetConfig = DEFAULT_SYNTH_PRESET) {
     this.role = role;
     this.tempoBpm = tempoBpm;
+    this.preset = preset;
     this.id = `synth-${role}`;
     this.outputGain = new Gain(1);
     this.output = this.outputGain;
@@ -82,7 +76,7 @@ export class SynthProvider implements InstrumentProvider {
 
   // eslint-disable-next-line @typescript-eslint/require-await -- load() חייב Promise לפי InstrumentProvider; אין await אמיתי כרגע (V1 בלי SamplerProvider/רשת).
   async load(_instrumentId: string): Promise<void> {
-    this.voice = createVoiceForRole(this.role);
+    this.voice = createVoice(this.preset);
     this.voice.connect(this.outputGain);
   }
 
@@ -92,14 +86,7 @@ export class SynthProvider implements InstrumentProvider {
     }
     const frequencyHz = midiToHz(note.pitch);
     const durationSeconds = ticksToSeconds(note.durationTicks, this.tempoBpm);
-
-    if (isPolySynth(this.voice)) {
-      this.voice.triggerAttackRelease(frequencyHz, durationSeconds, time, note.velocity);
-    } else if (this.voice instanceof NoiseSynth) {
-      this.voice.triggerAttackRelease(durationSeconds, time, note.velocity);
-    } else {
-      this.voice.triggerAttackRelease(frequencyHz, durationSeconds, time, note.velocity);
-    }
+    this.voice.triggerAttackRelease(frequencyHz, durationSeconds, time, note.velocity);
   }
 
   dispose(): void {

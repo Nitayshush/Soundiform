@@ -1,0 +1,65 @@
+{
+  "id": "trance",
+  "displayName": { "he": "טראנס", "en": "Trance" },
+  "tempo": { "min": 130, "max": 145, "default": 138 },
+  "grid": { "subdivision": 16, "swingAmount": 0 },
+  "allowedModes": ["aeolian", "dorian"],
+  "defaultMode": "aeolian",
+  "harmonicTendency": "modal",
+  "roles": ["bass", "lead", "pad", "drums"],
+  "rhythmPatterns": {
+    "bass": [
+      {
+        "name": "pulse-8th",
+        "stepsPerBar": 16,
+        "hits": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+      }
+    ],
+    "lead": [
+      {
+        "name": "arp-16th",
+        "stepsPerBar": 16,
+        "hits": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+      }
+    ],
+    "pad": [
+      {
+        "name": "sustained",
+        "stepsPerBar": 16,
+        "hits": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "drums": [
+      {
+        "name": "four-on-floor",
+        "stepsPerBar": 16,
+        "hits": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
+      }
+    ]
+  },
+  "synthMap": {
+    "bass": {
+      "oscillatorType": "sawtooth",
+      "envelope": { "attack": 0.01, "decay": 0.1, "sustain": 0.8, "release": 0.1 },
+      "polyphonic": false
+    },
+    "lead": {
+      "oscillatorType": "sawtooth",
+      "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.7, "release": 0.15 },
+      "polyphonic": false
+    },
+    "pad": {
+      "oscillatorType": "sawtooth",
+      "envelope": { "attack": 0.3, "decay": 0.2, "sustain": 0.8, "release": 0.8 },
+      "polyphonic": true
+    },
+    "drums": {
+      "oscillatorType": "triangle",
+      "envelope": { "attack": 0.001, "decay": 0.15, "sustain": 0, "release": 0.05 },
+      "polyphonic": false
+    }
+  },
+  "mixChain": { "reverbDecaySeconds": 3.5, "delayTime": "8n", "delayFeedback": 0.3 },
+  "arrangement": { "sectionOrder": ["loop"] },
+  "requiresSamples": false
+}

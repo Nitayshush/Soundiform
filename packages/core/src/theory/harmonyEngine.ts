@@ -7,18 +7,20 @@
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * ⚠️ Sprint 3 אין עדיין GenrePack (Sprint 5) — טמפו/מקצב-חתימה/סולם ברירת-מחדל נקבעים כאן,
- * ותוחלפו כשה-GenrePack ייכנס. השורש/מוד ברירת המחדל נגזרים דטרמיניסטית מ-seed (לא קבועים)
- * כדי ש"אותה צורה = אותו סאונד" יתקיים גם לפני שיש בחירת סגנון (§1).
+ * ⭐ Sprint 5: מקבל CompositionConfig (טמפו/מוד/גריד/סווינג) מהקורא — לא מ-GenrePack
+ * ישירות! §3 קובע "core → shared" בלבד, core לא תלוי ב-@shape-sound/genres. apps/web הוא
+ * זה שממיר GenrePack ל-CompositionConfig לפני הקריאה. השורש (pitch class) נשאר נגזר
+ * דטרמיניסטית מ-seed בכל הסגנונות — זה ה"תוכן" של הצורה (§4.5), לא ה"לבוש" של הסגנון.
  */
 
 import type { Mode, MusicalScore, Note, Section, Track } from '../score/MusicalScore';
 import { musicalScoreSchema } from '../score/scoreSchema';
 import type { RawMusicalIntent, SymmetryTransform } from '../mapping/geometryToMusic';
-import { ALL_MODES, scaleDegreeToMidiPitch, snapToScale } from './scales';
+import { scaleDegreeToMidiPitch, snapToScale } from './scales';
 import { buildTriad } from './chords';
 import { chooseSmoothVoicing, smoothMelodicLine } from './voiceLeading';
 import {
+  applySwing,
   quantizeToGrid,
   ticksPerGridUnit,
   TICKS_PER_BEAT,
@@ -29,10 +31,7 @@ import { createSeededRandom } from '../internal/seededRandom';
 import { at } from '../internal/arrayUtils';
 
 const SCORE_FORMAT_VERSION = '1.0.0';
-const DEFAULT_GENRE_ID = 'default';
-const DEFAULT_TEMPO_BPM = 120;
 const DEFAULT_TIME_SIGNATURE: [number, number] = [4, 4];
-const DEFAULT_GRID_SUBDIVISION: GridSubdivision = 16;
 /** מרכז אוקטבת השורש (MIDI) — C3-ish, בסיס נוח לכל שלושת הטראקים סביבו. */
 const ROOT_OCTAVE_BASE_MIDI = 48;
 /** כמה תווים "יושבים" בבר אחד לצורך חישוב durationBars מתוך motifSize. */
@@ -47,6 +46,19 @@ const BASS_DEGREE_OFFSET = -7;
 const HARMONIC_PROGRESSION_DEGREES: readonly number[] = [0, 5, 3, 4];
 
 const TICKS_PER_BAR = TICKS_PER_BEAT * DEFAULT_TIME_SIGNATURE[0];
+
+/**
+ * מה ש-composeMusicalScore צריך מסגנון (GenrePack) בלי לתלות ב-@shape-sound/genres.
+ * apps/web בונה את זה מ-GenrePack שנבחר; ברירת המחדל (ללא סגנון עדיין) היא באחריות הקורא.
+ */
+export interface CompositionConfig {
+  genreId: string;
+  tempoBpm: number;
+  mode: Mode;
+  gridSubdivision: GridSubdivision;
+  /** 0–1, ראה GenrePack.grid.swingAmount ב-§5.1. */
+  swingAmount: number;
+}
 
 function midiToFrequencyHz(midiPitch: number): number {
   return 440 * Math.pow(2, (midiPitch - 69) / 12);
@@ -159,6 +171,7 @@ function buildLeadTrack(
   mode: Mode,
   durationBars: number,
   hasSecondPhrase: boolean,
+  config: CompositionConfig,
   random: () => number,
 ): Track {
   const sampledY = sampleEvenly(intent.pitchContour, intent.motifSize);
@@ -176,14 +189,16 @@ function buildLeadTrack(
 
   const notes: Note[] = fullMelody.map((pitch, index) => {
     const rawStartTick = index * slotTicks;
-    const startTick = humanizeTiming(
-      quantizeToGrid(rawStartTick, DEFAULT_GRID_SUBDIVISION),
-      DEFAULT_TEMPO_BPM,
-      random,
+    const quantizedStartTick = quantizeToGrid(rawStartTick, config.gridSubdivision);
+    const swungStartTick = applySwing(
+      quantizedStartTick,
+      config.gridSubdivision,
+      config.swingAmount,
     );
+    const startTick = humanizeTiming(swungStartTick, config.tempoBpm, random);
     const durationTicks = Math.max(
-      ticksPerGridUnit(DEFAULT_GRID_SUBDIVISION),
-      quantizeToGrid(slotTicks * gapRatio, DEFAULT_GRID_SUBDIVISION),
+      ticksPerGridUnit(config.gridSubdivision),
+      quantizeToGrid(slotTicks * gapRatio, config.gridSubdivision),
     );
     const velocity = humanizeVelocity(0.4 + intent.velocityHint * 0.5, random);
 
@@ -201,11 +216,15 @@ function buildLeadTrack(
 /**
  * ⭐⭐ ממיר RawMusicalIntent ל-MusicalScore תקף — אוכף את §4.3 (סולם, קוונטיזציה,
  * voice leading) ומיישם את §4.4 (סימטריה → רטרוגרד/אינוורסיה) על מבנה היצירה בפועל.
+ * @param config  טמפו/מוד/גריד/סווינג מה-GenrePack שנבחר (הקורא ממיר GenrePack → CompositionConfig).
  */
-export function composeMusicalScore(intent: RawMusicalIntent): MusicalScore {
+export function composeMusicalScore(
+  intent: RawMusicalIntent,
+  config: CompositionConfig,
+): MusicalScore {
   const random = createSeededRandom(intent.seed);
   const rootPitchClass = Math.floor(random() * 12);
-  const mode = at(ALL_MODES, Math.floor(random() * ALL_MODES.length));
+  const mode = config.mode;
   const root = ROOT_OCTAVE_BASE_MIDI + rootPitchClass;
 
   const baseBars = Math.max(1, Math.ceil(intent.motifSize / NOTES_PER_BAR));
@@ -215,7 +234,7 @@ export function composeMusicalScore(intent: RawMusicalIntent): MusicalScore {
   const progressionDegrees = getHarmonicProgressionDegrees(durationBars);
 
   const tracks: Track[] = [
-    buildLeadTrack(intent, root, mode, durationBars, hasSecondPhrase, random),
+    buildLeadTrack(intent, root, mode, durationBars, hasSecondPhrase, config, random),
     buildBassTrack(root, mode, progressionDegrees),
     buildPadTrack(root, mode, progressionDegrees),
   ];
@@ -228,12 +247,12 @@ export function composeMusicalScore(intent: RawMusicalIntent): MusicalScore {
   const score: MusicalScore = {
     version: SCORE_FORMAT_VERSION,
     seed: intent.seed,
-    tempo: DEFAULT_TEMPO_BPM,
+    tempo: config.tempoBpm,
     timeSignature: DEFAULT_TIME_SIGNATURE,
     // key.root הוא pitch class (0–11) לפי scoreSchema — לא ה-MIDI המוחלט ששימש לייצור
     // (root, כולל אוקטבה). rootFrequencyHz למטה כן מבוסס על ה-MIDI המוחלט, כי היא תדירות אמיתית.
     key: { root: rootPitchClass, mode },
-    genreId: DEFAULT_GENRE_ID,
+    genreId: config.genreId,
     durationBars,
     tracks,
     sections,

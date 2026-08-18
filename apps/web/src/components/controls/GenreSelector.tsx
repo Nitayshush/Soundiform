@@ -9,8 +9,34 @@
 
 'use client';
 
-// TODO(Sprint 5): טעינת packages/genres, הצגת trance/house/chill/cinematic (reggae מוסתר ב-V1).
+import { loadActiveGenrePacks } from '@shape-sound/genres';
+import { useGenreStore } from '@/stores/genreStore';
+
+// reggae לא מופיע כאן בכלל — loadActiveGenrePacks כבר מסנן requiresSamples (§5.2).
+const ACTIVE_PACKS = loadActiveGenrePacks();
 
 export function GenreSelector() {
-  return null;
+  const genreId = useGenreStore((state) => state.genreId);
+  const setGenreId = useGenreStore((state) => state.setGenreId);
+
+  return (
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="סגנון מוזיקלי">
+      {ACTIVE_PACKS.map((pack) => (
+        <button
+          key={pack.id}
+          type="button"
+          role="radio"
+          aria-checked={pack.id === genreId}
+          onClick={() => {
+            setGenreId(pack.id);
+          }}
+          className={`rounded-full border px-3 py-1 text-sm ${
+            pack.id === genreId ? 'bg-foreground text-background' : ''
+          }`}
+        >
+          {pack.displayName.he}
+        </button>
+      ))}
+    </div>
+  );
 }

@@ -12,10 +12,10 @@
 import { DrawingCanvas } from '@/components/canvas/DrawingCanvas';
 import { MusicalGrid } from '@/components/canvas/MusicalGrid';
 import { Playhead } from '@/components/canvas/Playhead';
+import { RevealOverlay } from '@/components/canvas/RevealOverlay';
+import { GenreSelector } from '@/components/controls/GenreSelector';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useShapeStore } from '@/stores/shapeStore';
-
-// TODO(Sprint 5+): GenreSelector — עדיין אין GenrePack, פריוויו רץ על ברירת המחדל של harmonyEngine.ts.
 
 export default function StudioPage() {
   const shapeHash = useShapeStore((state) => state.shapeHash);
@@ -27,8 +27,9 @@ export default function StudioPage() {
 
   return (
     <main className="flex h-dvh flex-col">
-      <header className="flex items-center justify-between border-b p-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
         <h1 className="text-lg font-semibold">Studio</h1>
+        <GenreSelector />
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           {error && <span className="text-destructive">{error}</span>}
           <button
@@ -56,6 +57,7 @@ export default function StudioPage() {
         <DrawingCanvas />
         <MusicalGrid />
         <Playhead progress={progress} />
+        <RevealOverlay />
       </div>
     </main>
   );

@@ -35,3 +35,40 @@ export function distanceFromGrid(tick: number, subdivision: GridSubdivision = 16
   const remainder = ((tick % gridUnit) + gridUnit) % gridUnit;
   return Math.min(remainder, gridUnit - remainder);
 }
+
+/**
+ * מזיז tick שכבר מקוונטז (על step מדויק) לפי סווינג (§5.1 grid.swingAmount) — כל step שני
+ * ("off-beat") נדחה עד חצי יחידת-גריד, יחסית ל-swingAmount. swing הוא עדיין "מקוונטז" במובן
+ * המהותי של §4.3: התזמון נגזר לגמרי מהגריד + פרמטר קבוע, לא שרירותי.
+ */
+export function applySwing(
+  quantizedTick: number,
+  subdivision: GridSubdivision = 16,
+  swingAmount = 0,
+): number {
+  if (swingAmount <= 0) {
+    return quantizedTick;
+  }
+  const gridUnit = ticksPerGridUnit(subdivision);
+  const stepIndex = Math.round(quantizedTick / gridUnit);
+  const isOffBeatStep = ((stepIndex % 2) + 2) % 2 === 1;
+  if (!isOffBeatStep) {
+    return quantizedTick;
+  }
+  return quantizedTick + gridUnit * 0.5 * swingAmount;
+}
+
+/**
+ * המרחק בין tick בפועל לבין המיקום ה"מקוונטז-מוסווג" הצפוי שלו (הגריד הקרוב ביותר + סווינג) —
+ * גרסת rules.ts של applySwing, לבדיקת עמידה בגריד גם כשיש סווינג פעיל.
+ */
+export function distanceFromSwingGrid(
+  tick: number,
+  subdivision: GridSubdivision = 16,
+  swingAmount = 0,
+): number {
+  const gridUnit = ticksPerGridUnit(subdivision);
+  const rawGridTick = Math.round(tick / gridUnit) * gridUnit;
+  const swungTick = applySwing(rawGridTick, subdivision, swingAmount);
+  return Math.abs(tick - swungTick);
+}

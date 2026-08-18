@@ -16,13 +16,15 @@
  *
  * למה startTick נבדק בטולרנס ולא ביישור מדויק:
  * humanize.ts (groove/) מזיז תזמון בכוונה ב-±10ms כ"רעד יד" — זו סטייה *מכוונת* מהגריד,
- * לא הפרה שלו. "הכל מקוונטז לגריד" נאכף על השלד לפני ההומניזציה; durationTicks לעומת זאת
- * לא עובר הומניזציה בכלל (ראה harmonyEngine.ts), ולכן נשאר מיושר בדיוק.
+ * לא הפרה שלו. בנוסף, אם ל-GenrePack יש swingAmount>0 (§5.1), הבדיקה משתמשת ב-
+ * distanceFromSwingGrid (לא distanceFromGrid הרגיל) — סווינג הוא עדיין "מקוונטז" במובן
+ * המהותי, ראה quantize.ts. "הכל מקוונטז לגריד" נאכף על השלד לפני ההומניזציה; durationTicks
+ * לעומת זאת לא עובר הומניזציה/סווינג בכלל (ראה harmonyEngine.ts), ולכן נשאר מיושר בדיוק.
  */
 
 import type { MusicalScore } from '../score/MusicalScore';
 import { isInScale } from './scales';
-import { distanceFromGrid, isOnGrid, type GridSubdivision } from '../groove/quantize';
+import { distanceFromSwingGrid, isOnGrid, type GridSubdivision } from '../groove/quantize';
 import { maxTimingJitterTicks } from '../groove/humanize';
 
 /** טווחי MIDI ריאליסטיים גסים לפי תפקיד (§4.3: "טווחי כלים ריאליסטיים"). */
@@ -47,6 +49,7 @@ export interface ConstitutionViolation {
 export function validateConstitution(
   score: MusicalScore,
   gridSubdivision: GridSubdivision = 16,
+  swingAmount = 0,
 ): ConstitutionViolation[] {
   const violations: ConstitutionViolation[] = [];
   const startTickTolerance = maxTimingJitterTicks(score.tempo);
@@ -65,7 +68,7 @@ export function validateConstitution(
       }
 
       const startTickOffGrid =
-        distanceFromGrid(note.startTick, gridSubdivision) > startTickTolerance;
+        distanceFromSwingGrid(note.startTick, gridSubdivision, swingAmount) > startTickTolerance;
       const durationOffGrid = !isOnGrid(note.durationTicks, gridSubdivision);
       if (startTickOffGrid || durationOffGrid) {
         violations.push({
@@ -102,6 +105,7 @@ export function validateConstitution(
 export function isConstitutionCompliant(
   score: MusicalScore,
   gridSubdivision?: GridSubdivision,
+  swingAmount?: number,
 ): boolean {
-  return validateConstitution(score, gridSubdivision).length === 0;
+  return validateConstitution(score, gridSubdivision, swingAmount).length === 0;
 }

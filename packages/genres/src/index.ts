@@ -8,5 +8,4 @@
  */
 
 export * from './schema';
-
-// TODO(Sprint 5): ייצוא loader.ts כשיושלם.
+export * from './loader';

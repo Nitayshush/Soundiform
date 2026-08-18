@@ -1,9 +1,13 @@
 /**
  * @file        mixChain.ts
- * @description שרשרת מיקס לכל טראק — בנויה מ-Track.mixSettings (§4.6), לא מ-MixChainConfig
- *              של GenrePack (עדיין לא קיים בפועל — Sprint 5).
+ * @description שרשרת מיקס לכל טראק — send-amounts מ-Track.mixSettings (§4.6, כמה reverb/delay),
+ *              אופי האפקט (משך ריוורב, זמן/פידבק דיליי) מ-MixCharacterConfig של הסגנון.
  * @author      Shape-to-Sound
  * @created     2026-08-16
+ *
+ * ⭐ Sprint 5: MixCharacterConfig מגיע מ-GenrePack.mixChain (§5.1) — packages/audio לא יכול
+ * לייבא GenrePack ישירות (§3: audio → core, shared בלבד), אז apps/web ממיר. בלי קונפיג
+ * מפורש נופלים ל-DEFAULT_MIX_CHARACTER.
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
@@ -19,9 +23,19 @@ import { FeedbackDelay, Gain, Panner, Reverb } from 'tone';
 import type { InputNode } from 'tone';
 import type { MixSettings } from '@shape-sound/core';
 
-const REVERB_DECAY_SECONDS = 2;
-const DELAY_TIME = '8n';
-const DELAY_FEEDBACK = 0.25;
+export interface MixCharacterConfig {
+  reverbDecaySeconds: number;
+  /** בתחביר זמן של Tone.js, למשל "8n". */
+  delayTime: string;
+  delayFeedback: number;
+}
+
+export const DEFAULT_MIX_CHARACTER: MixCharacterConfig = {
+  reverbDecaySeconds: 2,
+  delayTime: '8n',
+  delayFeedback: 0.25,
+};
+
 /** מתחת לסף הזה, send נחשב "כבוי" — לא שווה להקים אפקט (עלות CPU/זמן ready של Reverb). */
 const SEND_EPSILON = 0.001;
 
@@ -38,6 +52,7 @@ export interface MixChainHandle {
 export async function buildMixChain(
   mixSettings: MixSettings,
   destination: InputNode,
+  character: MixCharacterConfig = DEFAULT_MIX_CHARACTER,
 ): Promise<MixChainHandle> {
   const panner = new Panner(mixSettings.pan);
   const outputGain = new Gain(mixSettings.volume);
@@ -48,7 +63,7 @@ export async function buildMixChain(
   const readyPromises: Promise<void>[] = [];
 
   if (mixSettings.reverbSend > SEND_EPSILON) {
-    const reverb = new Reverb(REVERB_DECAY_SECONDS);
+    const reverb = new Reverb(character.reverbDecaySeconds);
     const reverbSendGain = new Gain(mixSettings.reverbSend);
     panner.connect(reverbSendGain);
     reverbSendGain.connect(reverb);
@@ -58,7 +73,7 @@ export async function buildMixChain(
   }
 
   if (mixSettings.delaySend > SEND_EPSILON) {
-    const delay = new FeedbackDelay(DELAY_TIME, DELAY_FEEDBACK);
+    const delay = new FeedbackDelay(character.delayTime, character.delayFeedback);
     const delaySendGain = new Gain(mixSettings.delaySend);
     panner.connect(delaySendGain);
     delaySendGain.connect(delay);

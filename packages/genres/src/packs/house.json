@@ -1,0 +1,65 @@
+{
+  "id": "house",
+  "displayName": { "he": "האוס", "en": "House" },
+  "tempo": { "min": 118, "max": 128, "default": 124 },
+  "grid": { "subdivision": 16, "swingAmount": 0.08 },
+  "allowedModes": ["dorian", "mixolydian"],
+  "defaultMode": "dorian",
+  "harmonicTendency": "modal",
+  "roles": ["bass", "lead", "pad", "drums"],
+  "rhythmPatterns": {
+    "bass": [
+      {
+        "name": "groove-8th",
+        "stepsPerBar": 16,
+        "hits": [1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0]
+      }
+    ],
+    "lead": [
+      {
+        "name": "stab-syncopated",
+        "stepsPerBar": 16,
+        "hits": [0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1]
+      }
+    ],
+    "pad": [
+      {
+        "name": "sustained",
+        "stepsPerBar": 16,
+        "hits": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "drums": [
+      {
+        "name": "four-on-floor",
+        "stepsPerBar": 16,
+        "hits": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
+      }
+    ]
+  },
+  "synthMap": {
+    "bass": {
+      "oscillatorType": "triangle",
+      "envelope": { "attack": 0.01, "decay": 0.15, "sustain": 0.6, "release": 0.2 },
+      "polyphonic": false
+    },
+    "lead": {
+      "oscillatorType": "square",
+      "envelope": { "attack": 0.02, "decay": 0.1, "sustain": 0.5, "release": 0.15 },
+      "polyphonic": false
+    },
+    "pad": {
+      "oscillatorType": "sine",
+      "envelope": { "attack": 0.2, "decay": 0.2, "sustain": 0.7, "release": 0.6 },
+      "polyphonic": true
+    },
+    "drums": {
+      "oscillatorType": "triangle",
+      "envelope": { "attack": 0.001, "decay": 0.15, "sustain": 0, "release": 0.05 },
+      "polyphonic": false
+    }
+  },
+  "mixChain": { "reverbDecaySeconds": 2, "delayTime": "8n", "delayFeedback": 0.35 },
+  "arrangement": { "sectionOrder": ["loop"] },
+  "requiresSamples": false
+}

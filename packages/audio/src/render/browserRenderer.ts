@@ -18,12 +18,35 @@
 
 import { connect, getTransport, Part, start as startAudioContext } from 'tone';
 import type { InputNode } from 'tone';
-import type { MusicalScore, Note, Track } from '@shape-sound/core';
+import type { MusicalScore, Note, Track, TrackRole } from '@shape-sound/core';
 import { TICKS_PER_BEAT } from '@shape-sound/core';
-import { SynthProvider } from '../providers/SynthProvider';
-import { buildMixChain, type MixChainHandle } from '../mixing/mixChain';
+import {
+  DEFAULT_SYNTH_PRESET,
+  SynthProvider,
+  type SynthPresetConfig,
+} from '../providers/SynthProvider';
+import {
+  buildMixChain,
+  DEFAULT_MIX_CHARACTER,
+  type MixCharacterConfig,
+  type MixChainHandle,
+} from '../mixing/mixChain';
 import { createMasterBus } from '../mixing/loudness';
 import { ticksToSeconds } from '../internal/audioUtils';
+
+/**
+ * מה ש-browserRenderer צריך מסגנון (GenrePack) בלי לתלות ב-@shape-sound/genres — §3.
+ * apps/web בונה את זה מ-GenrePack.synthMap/mixChain; ברירת המחדל היא באחריות הקורא.
+ */
+export interface GenreAudioConfig {
+  synthPresets: Partial<Record<TrackRole, SynthPresetConfig>>;
+  mixCharacter: MixCharacterConfig;
+}
+
+const DEFAULT_AUDIO_CONFIG: GenreAudioConfig = {
+  synthPresets: {},
+  mixCharacter: DEFAULT_MIX_CHARACTER,
+};
 
 interface ScheduledNoteEvent {
   time: number;
@@ -56,9 +79,11 @@ async function createTrackRuntime(
   track: Track,
   tempoBpm: number,
   destination: InputNode,
+  audioConfig: GenreAudioConfig,
 ): Promise<TrackRuntime> {
-  const provider = new SynthProvider(track.role, tempoBpm);
-  const mixChain = await buildMixChain(track.mixSettings, destination);
+  const preset = audioConfig.synthPresets[track.role] ?? DEFAULT_SYNTH_PRESET;
+  const provider = new SynthProvider(track.role, tempoBpm, preset);
+  const mixChain = await buildMixChain(track.mixSettings, destination, audioConfig.mixCharacter);
   await provider.load(track.instrumentId);
   // connect() (הפונקציה, לא המתודה) מטפלת נכון באיחוד OutputNode/InputNode של Tone.js —
   // .connect() כמתודה על טיפוס OutputNode לא נבחר תמיד ל-overload הנכון (ראה DECISIONS.md).
@@ -80,7 +105,10 @@ async function createTrackRuntime(
  * מכין פריוויו חי מלא ל-MusicalScore: יוצר SynthProvider+mixChain לכל טראק, מתזמן את כל
  * התווים על Tone.Transport, ומגדיר לופ על פני כל משך היצירה (§4.2: קונטור סגור → לופ).
  */
-export async function createBrowserRenderer(score: MusicalScore): Promise<BrowserRendererHandle> {
+export async function createBrowserRenderer(
+  score: MusicalScore,
+  audioConfig: GenreAudioConfig = DEFAULT_AUDIO_CONFIG,
+): Promise<BrowserRendererHandle> {
   await startAudioContext();
 
   const transport = getTransport();
@@ -95,7 +123,7 @@ export async function createBrowserRenderer(score: MusicalScore): Promise<Browse
   transport.loopEnd = durationSeconds;
 
   const trackRuntimes = await Promise.all(
-    score.tracks.map((track) => createTrackRuntime(track, score.tempo, masterBus)),
+    score.tracks.map((track) => createTrackRuntime(track, score.tempo, masterBus, audioConfig)),
   );
 
   return {

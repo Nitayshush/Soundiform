@@ -1,0 +1,41 @@
+{
+  "id": "cinematic",
+  "displayName": { "he": "קולנועי", "en": "Cinematic" },
+  "tempo": { "min": 70, "max": 110, "default": 90 },
+  "grid": { "subdivision": 8, "swingAmount": 0 },
+  "allowedModes": ["aeolian", "phrygian"],
+  "defaultMode": "aeolian",
+  "harmonicTendency": "extended",
+  "roles": ["bass", "lead", "pad", "drums"],
+  "rhythmPatterns": {
+    "bass": [{ "name": "long-tones", "stepsPerBar": 8, "hits": [1, 0, 0, 0, 0, 0, 0, 0] }],
+    "lead": [{ "name": "melodic-line", "stepsPerBar": 8, "hits": [1, 0, 1, 0, 1, 0, 1, 0] }],
+    "pad": [{ "name": "sustained", "stepsPerBar": 8, "hits": [1, 0, 0, 0, 0, 0, 0, 0] }],
+    "drums": [{ "name": "timpani-hits", "stepsPerBar": 8, "hits": [1, 0, 0, 0, 1, 0, 0, 0] }]
+  },
+  "synthMap": {
+    "bass": {
+      "oscillatorType": "sine",
+      "envelope": { "attack": 0.1, "decay": 0.3, "sustain": 0.7, "release": 1 },
+      "polyphonic": false
+    },
+    "lead": {
+      "oscillatorType": "triangle",
+      "envelope": { "attack": 0.15, "decay": 0.2, "sustain": 0.75, "release": 1.2 },
+      "polyphonic": false
+    },
+    "pad": {
+      "oscillatorType": "sine",
+      "envelope": { "attack": 0.8, "decay": 0.4, "sustain": 0.9, "release": 2.5 },
+      "polyphonic": true
+    },
+    "drums": {
+      "oscillatorType": "sine",
+      "envelope": { "attack": 0.005, "decay": 0.4, "sustain": 0.1, "release": 0.6 },
+      "polyphonic": false
+    }
+  },
+  "mixChain": { "reverbDecaySeconds": 5, "delayTime": "8n", "delayFeedback": 0.2 },
+  "arrangement": { "sectionOrder": ["loop"] },
+  "requiresSamples": false
+}

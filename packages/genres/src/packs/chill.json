@@ -1,0 +1,65 @@
+{
+  "id": "chill",
+  "displayName": { "he": "צ'יל", "en": "Chill" },
+  "tempo": { "min": 75, "max": 90, "default": 82 },
+  "grid": { "subdivision": 16, "swingAmount": 0.12 },
+  "allowedModes": ["lydian", "ionian"],
+  "defaultMode": "lydian",
+  "harmonicTendency": "extended",
+  "roles": ["bass", "lead", "pad", "drums"],
+  "rhythmPatterns": {
+    "bass": [
+      {
+        "name": "sparse",
+        "stepsPerBar": 16,
+        "hits": [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+      }
+    ],
+    "lead": [
+      {
+        "name": "laid-back",
+        "stepsPerBar": 16,
+        "hits": [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
+      }
+    ],
+    "pad": [
+      {
+        "name": "sustained",
+        "stepsPerBar": 16,
+        "hits": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "drums": [
+      {
+        "name": "lofi-swing",
+        "stepsPerBar": 16,
+        "hits": [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0]
+      }
+    ]
+  },
+  "synthMap": {
+    "bass": {
+      "oscillatorType": "sine",
+      "envelope": { "attack": 0.05, "decay": 0.2, "sustain": 0.7, "release": 0.4 },
+      "polyphonic": false
+    },
+    "lead": {
+      "oscillatorType": "triangle",
+      "envelope": { "attack": 0.08, "decay": 0.15, "sustain": 0.6, "release": 0.5 },
+      "polyphonic": false
+    },
+    "pad": {
+      "oscillatorType": "sine",
+      "envelope": { "attack": 0.6, "decay": 0.3, "sustain": 0.85, "release": 1.5 },
+      "polyphonic": true
+    },
+    "drums": {
+      "oscillatorType": "sine",
+      "envelope": { "attack": 0.001, "decay": 0.2, "sustain": 0, "release": 0.1 },
+      "polyphonic": false
+    }
+  },
+  "mixChain": { "reverbDecaySeconds": 4, "delayTime": "4n", "delayFeedback": 0.4 },
+  "arrangement": { "sectionOrder": ["loop"] },
+  "requiresSamples": false
+}

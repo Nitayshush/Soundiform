@@ -12,7 +12,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BrowserRendererHandle } from '@shape-sound/audio';
 import { geometryToMusic, composeMusicalScore } from '@shape-sound/core';
+import { loadGenrePackById } from '@shape-sound/genres';
 import { useShapeStore, toShapeData } from '@/stores/shapeStore';
+import { useGenreStore } from '@/stores/genreStore';
+import { toCompositionConfig, toGenreAudioConfig } from '@/lib/genreAdapter';
 
 export interface UseAudioEngineResult {
   isPlaying: boolean;
@@ -30,13 +33,15 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * מריץ פריוויו חי: paths מה-shapeStore → geometryToMusic → composeMusicalScore →
- * createBrowserRenderer (Tone.js). ה-renderer נוצר עצל (רק בלחיצה על play — Tone.js
- * דורש מחוות משתמש אמיתית) ונהרס כשהצורה משתנה, כי הוא בנוי סביב score קבוע.
+ * מריץ פריוויו חי: paths מה-shapeStore + genreId מה-genreStore → geometryToMusic →
+ * composeMusicalScore → createBrowserRenderer (Tone.js). ה-renderer נוצר עצל (רק בלחיצה
+ * על play — Tone.js דורש מחוות משתמש אמיתית) ונהרס כשהצורה **או** הסגנון משתנים, כי הוא
+ * בנוי סביב score קבוע (§4.5: הצורה קובעת תוכן, הסגנון קובע לבוש — שינוי בכל אחד מהם מייצר score אחר).
  */
 export function useAudioEngine(): UseAudioEngineResult {
   const paths = useShapeStore((state) => state.paths);
   const shapeHash = useShapeStore((state) => state.shapeHash);
+  const genreId = useGenreStore((state) => state.genreId);
 
   const rendererRef = useRef<BrowserRendererHandle | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -54,7 +59,7 @@ export function useAudioEngine(): UseAudioEngineResult {
     }
   }, []);
 
-  // הצורה השתנתה — ה-renderer הישן שייך לצורה הקודמת, לא ניתן להמשיך להשתמש בו.
+  // הצורה או הסגנון השתנו — ה-renderer הישן שייך לקומבינציה הקודמת, לא ניתן להמשיך להשתמש בו.
   useEffect(() => {
     return () => {
       rendererRef.current?.dispose();
@@ -65,7 +70,7 @@ export function useAudioEngine(): UseAudioEngineResult {
       setDurationSeconds(0);
       setError(null);
     };
-  }, [shapeHash, stopPositionLoop]);
+  }, [shapeHash, genreId, stopPositionLoop]);
 
   // פונקציה בשם (function tick) ולא arrow — כדי שהקריאה הרקורסיבית תפנה לזהות המקומית של
   // עצמה (tick), לא לבינדינג runPositionLoop-של-הרינדור-הזה (שESLint מסמן כבעייתי לגישה).
@@ -86,11 +91,15 @@ export function useAudioEngine(): UseAudioEngineResult {
     try {
       if (!rendererRef.current) {
         setIsLoading(true);
+        const genrePack = loadGenrePackById(genreId);
+        if (!genrePack) {
+          throw new Error(`סגנון לא נמצא: ${genreId}`);
+        }
         const shape = toShapeData(paths);
         const intent = geometryToMusic(shape, shapeHash);
-        const score = composeMusicalScore(intent);
+        const score = composeMusicalScore(intent, toCompositionConfig(genrePack));
         const { createBrowserRenderer } = await import('@shape-sound/audio');
-        rendererRef.current = await createBrowserRenderer(score);
+        rendererRef.current = await createBrowserRenderer(score, toGenreAudioConfig(genrePack));
         setDurationSeconds(rendererRef.current.durationSeconds);
         setIsLoading(false);
       }
@@ -101,7 +110,7 @@ export function useAudioEngine(): UseAudioEngineResult {
       setIsLoading(false);
       setError(errorMessage(caughtError));
     }
-  }, [paths, shapeHash, runPositionLoop]);
+  }, [paths, shapeHash, genreId, runPositionLoop]);
 
   const stop = useCallback(() => {
     rendererRef.current?.stop();
