@@ -27,7 +27,8 @@ interface ShapeStoreState {
   clear: () => void;
 }
 
-function toShapeData(paths: ShapePath[]): ShapeData {
+/** מיוצא (בנוסף לשימוש הפנימי) כדי ש-useAudioEngine יוכל לבנות ShapeData מ-paths.state באותה צורה בדיוק. */
+export function toShapeData(paths: ShapePath[]): ShapeData {
   return { version: SHAPE_VERSION, paths };
 }
 

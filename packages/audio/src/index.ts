@@ -8,5 +8,7 @@
  */
 
 export * from './providers/InstrumentProvider';
-
-// TODO(Sprint 4+): ייצוא synths/, mixing/, render/ ככל שייבנו.
+export * from './providers/SynthProvider';
+export * from './mixing/mixChain';
+export * from './mixing/loudness';
+export * from './render/browserRenderer';

@@ -15,10 +15,16 @@
  */
 
 import type { Note } from '@shape-sound/core';
+import type { OutputNode } from 'tone';
 
 export interface InstrumentProvider {
   readonly id: string;
   readonly kind: 'synth' | 'sampler';
+  /**
+   * ⭐ נוסף ב-Sprint 4: נקודת החיבור למיקסינג (mixChain.ts). קיים תמיד (גם לפני load()) —
+   * זו נקודת חיבור Tone.js, לא ידע על שיטת הסינתזה, ולכן לא עובר על ה"חוק ברזל" שלמעלה.
+   */
+  readonly output: OutputNode;
   load(instrumentId: string): Promise<void>;
   playNote(note: Note, time: number): void;
   dispose(): void;
