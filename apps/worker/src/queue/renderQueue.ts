@@ -11,13 +11,17 @@
  *
  * ⚠️ נכתב אבל לא נבדק חי בסשן הזה — אין Redis מקומי/Upstash זמין לבדיקה (הוחלט מראש
  * כחלק מהיקף Sprint 6 המאושר).
+ *
+ * ⚠️ קריטי — סדר ה-imports: '../jobs/renderAudio' (שמייבא '@shape-sound/audio/server' ראשון,
+ * ראה שם) חייב להופיע לפני '@shape-sound/audio' הראשי כאן — אחרת ה-polyfill מגיע מאוחר מדי.
+ * ראה packages/audio/src/index.ts.
  */
 
 import { Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
+import { runRenderAudioJob } from '../jobs/renderAudio';
 import { RENDER_QUEUE_NAME, type RenderJobData, type RenderJobResult } from '@shape-sound/audio';
 import type { StorageProvider } from '@shape-sound/storage';
-import { runRenderAudioJob } from '../jobs/renderAudio';
 
 function createRedisConnection(): IORedis {
   const url = process.env.REDIS_URL;

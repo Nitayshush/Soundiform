@@ -41,7 +41,7 @@ Kandinsky** (Google, 2016, חינמי — כבר מממש את עקרון הלי
 שרינדור כפול של אותו MusicalScore, באותו process, נתן PCM שונה. שורש הבעיה: `Tone.Reverb`
 מייצר את ה-impulse response שלו דרך `Tone.Noise`, שמקודד ב-Tone.js עם `Math.random()` —
 גם לתוכן ה-buffer (פעם ראשונה בכל process) וגם ל-offset ההתחלתי (בכל בנייה מחדש של Reverb).
-מכיוון שכל סגנון אמיתי מגדיר `reverbSend>0` לפחות ל-pad, זה השפיע על *כל* רינדור, כולל
+מכיוון שכל סגנון אמיתי מגדיר `reverbSend>0` לפחות ל-pad, זה השפיע על _כל_ רינדור, כולל
 הפריוויו בדפדפן (חולק את אותו mixChain.ts). **תוקן** על ידי `packages/audio/src/mixing/
 deterministicReverb.ts` — קונבולוציה (`Tone.Convolver`) עם IR שנבנה מ-`createSeededRandom`
 (seed קבוע: `` `${score.seed}:${track.role}` ``), במקום Tone.Reverb. אותה החלפה גם פתרה תקלה
@@ -57,10 +57,9 @@ deterministicReverb.ts` — קונבולוציה (`Tone.Convolver`) עם IR שנ
 **פער עיצוב שנמצא ותוקן: import-order fragility.** ה-polyfill ל-`globalThis.window`
 (node-web-audio-api, נדרש כי standardized-audio-context קורא את הconstructor הגלובלי פעם
 אחת, ברמת ה-module, בזמן ה-import הראשון של 'tone' בתהליך כולו) עבד רק אם `serverRenderer.ts`
-יובא *לפני* הנתיב הראשי של `@shape-sound/audio`. כל צרכן שמייבא את הנתיב הראשי קודם
-(למשל, סתם בשביל `DEFAULT_AUDIO_CONFIG`) שבר את זה בשקט. **תוקן**: ה-polyfill מיובא כעת
-כ-import ראשון גם ב-`index.ts` וגם ב-`serverRenderer.ts` — guard-ed (`typeof window ===
-'undefined'`) כך שזה no-op בטוח בדפדפן אמיתי.
+יובא _לפני_ הנתיב הראשי של `@shape-sound/audio`. כל צרכן שמייבא את הנתיב הראשי קודם
+(למשל, סתם בשביל `DEFAULT_AUDIO_CONFIG`) שבר את זה בשקט. **התיקון המקורי כאן (הוספת
+ה-polyfill כ-import ראשון גם ל-`index.ts` הראשי) התברר כשגוי — ראה תיקון ב-Sprint 7.**
 
 **החלטת ארכיטקטורה: חוזה ה-job (BullMQ) חי ב-`@shape-sound/audio`, לא בחבילה חדשה.**
 `RenderJobData`/`RenderJobResult`/`RENDER_QUEUE_NAME` (renderJob.ts) בנויים כולם מטיפוסים
@@ -77,3 +76,61 @@ interfaces. genreAdapter.ts (GenrePack→CompositionConfig/GenreAudioConfig) נ�
 validation, genre lookup, שרשור composeMusicalScore, renderToBuffer, נרמול LUFS, קידוד
 WAV/MP3/MIDI אמיתי, ה-flow עד לנקודת ה-enqueue) נבדקה חי ואמיתי (dev server + curl,
 Vitest עם ffmpeg/node-web-audio-api אמיתיים).
+
+## 2026-08-19 — Sprint 7: חשבונות (Auth, DB אמיתי, מכסות)
+
+**לראשונה יש credentials אמיתיים של Supabase** — הספרינט הזה נבדק חי מקצה לקצה מול DB
+אמיתי (Postgres 17.6), לא רק נכתב. כל התוצאות למטה מאומתות ישירות מול הפרויקט האמיתי,
+לא הנחות.
+
+**סכימה (`packages/db`):** רק מה ש-Sprint 7 צריך בפועל — `users`/`projects`/`renders`/
+`credits_ledger` (§6), לא כל הסכימה (shares/remixes/likes/genre_packs/moderation_queue/
+audit_log/feature_flags נדחו ל-Sprint 8-9, לפי בחירת Nitay). RLS אמיתי על כל טבלה (רק
+SELECT-על-שורה-עצמית מהקליינט — אין INSERT/UPDATE policy בכוונה: כל כתיבה עוברת שרת
+(Drizzle, מחובר כ-`postgres` owner role — עוקף RLS במכוון, זה הצד המורשה) כדי לאכוף מכסות
+שלא ניתן לבטא ב-row-ownership בלבד). `users` מסתנכרן מ-`auth.users` הפנימית של Supabase
+דרך trigger (`0001_auth_user_sync.sql`, migration ידני — DDL על `auth.*` לא מבוטא ב-Drizzle
+schema DSL). RLS **אומת חי**: משתמש נפרד שאילת `/rest/v1/projects` בלי פילטר קיבל `[]` למרות
+7+ שורות בטבלה מבעלים אחרים.
+
+**באג תשתית אמיתי #1: Supabase דרש אימות מייל כברירת מחדל**, מה ששבר את זרימת "היצירה
+עוברת אוטומטית לחשבון" (§9, קריטי) לנרשמים באימייל+סיסמה — `signUp()` לא מחזיר session
+עד אישור מייל בפועל. Google OAuth לא מושפע (Google כבר מאמת). **תוקן** ידנית בדשבורד
+(Authentication → Providers → Email → "Confirm email" כבוי) — אומת ישירות מול ה-Auth API
+(POST /auth/v1/signup, לפני ואחרי: ללא/עם access_token מיידי).
+
+**באג תשתית אמיתי #2: Next.js 16 שינה `middleware.ts`→`proxy.ts`** (וגם שם הפונקציה,
+`middleware`→`proxy`) — `middleware.ts` שנכתב תחילה עבד אבל עם אזהרת deprecation; זוהה
+ותוקן מיד (per AGENTS.md: "heed deprecation notices"). ה-docs המדויקים ל-Next.js הזו
+(שאינה זו שב-training data) חיים ב-`node_modules/next/dist/docs/`.
+
+**באג ארכיטקטורה אמיתי #3 (הכי משמעותי): "תיקון" ה-Sprint 6 ל-import-order fragility
+שבר את bundle הדפדפן.** הוספת `import './render/webAudioPolyfill'` ל-`index.ts` הראשי של
+`@shape-sound/audio` (כדי להגן על apps/worker גם אם מישהו מייבא את הנתיב הראשי לפני
+"./server") — נראתה בטוחה כי guard-ed ב-`typeof window === 'undefined'`. אבל ה-guard מגן
+רק על *ריצה*, לא על *bundling*: Turbopack עדיין מנסה לבנות chunk לדפדפן שמכיל את הענף
+"המת" הזה, ומ-`node-web-audio-api` (תלוי ב-`node-fetch`) זה מגיע ל-`node:net` — panic אמיתי
+("chunking context does not support external modules"). **התגלה רק דרך בדיקה אמיתית ב-Chrome
+(Playwright)** — `/studio` קרס עם 500, כל שאר הבדיקות (typecheck/lint/vitest) עברו נקי לאורך
+כל Sprint 6 כי אף אחת מהן בונה bundle-לקוח אמיתי. **תוקן**: `webAudioPolyfill` חזר להיות
+מיובא רק מ-`serverRenderer.ts` (הנתיב "./server", אף פעם לא נגיש מדפדפן); ההגנה על
+apps/worker במקום זאת: סדר imports מפורש בכל קובץ (`renderAudio.ts`/`renderAudio.test.ts`/
+`renderQueue.ts` — "./server" *לפני* הנתיב הראשי, עם הערה מתועדת בכל אחד) + הגנת-יתר
+ב-`apps/worker/src/index.ts` (נקודת הכניסה האמיתית של התהליך) שמייבאת "./server" כ-import
+ראשון בלי תנאי. **לקח לזכור**: guard מבוסס `typeof window` מגן על ריצה, לא על bundling —
+לחבילה עם קהל-יעד כפול (דפדפן+Node) אסור לייבא תלות Node-only בנתיב הכניסה שגם דפדפן נוגע
+בו, גם אם ה-import מוגן ב-runtime.
+
+**זרימה קריטית (§9) נבדקה E2E אמיתי (Playwright, לא מוק):** ציור צורה כאנונימי → לחיצה על
+"שמור" → redirect ל-`/login?next=/studio?autoSave=1` → הרשמה אמיתית → redirect חזרה →
+שמירה אוטומטית מתבצעת לבד (ללא פעולה נוספת של המשתמש) → אומת ב-DB: הפרויקט קיים עם
+shape_hash תואם, user_id נכון, ורשומת credits_ledger (`delta=-1, reason='project_save'`)
+נוצרה. מכסת 5 שמורות (חינם) **נבדקה חי**: 5 שמירות → 201, שישית → 403 עם
+`{allowed:false, current:5, limit:5}`.
+
+**החלטת ארכיטקטורה: כתיבה תמיד דרך שרת, קריאה דרך RLS.** ה-API route (`api/projects`)
+משתמש ב-Drizzle (עוקף RLS, "privileged side") לכתיבה — כי אכיפת מכסה לא ניתנת לביטוי
+כ-row-ownership policy. קריאות (עמוד חשבון) גם עוברות Drizzle server-side כרגע (לא ישירות
+מהקליינט) — RLS נשאר קו הגנה שני מתועד, לא הנתיב היחיד שנבדק. `apps/web/.env.local` הוא
+**hard link** ל-`.env` בשורש (לא symlink — נדרשת הרשאת admin ב-Windows) כי Next.js טוען env
+רק מהתיקייה של האפליקציה עצמה, לא משורש המונוריפו; מכוסה כבר ב-`.gitignore` (`.env.local`).

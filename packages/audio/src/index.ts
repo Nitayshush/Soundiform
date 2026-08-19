@@ -6,16 +6,17 @@
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * ⚠️ קריטי — import './webAudioPolyfill' חייב להיות ה-import הראשון כאן: כל export למטה
- * (browserRenderer/mixChain/SynthProvider/...) מייבא 'tone' באופן eager, ו-standardized-
- * audio-context (ש-tone נשען עליו) קורא את window.OfflineAudioContext פעם אחת, ברמת ה-module,
- * בזמן ה-import *הראשון* של 'tone' בכל התהליך — לא משנה מאיזה קובץ. אם צרכן כלשהו מייבא את
- * הנתיב הראשי הזה *לפני* '@shape-sound/audio/server' (למשל, סתם כדי לקבל DEFAULT_AUDIO_CONFIG),
- * ה-polyfill שב-serverRenderer.ts יגיע מאוחר מדי. webAudioPolyfill.ts עצמו guard-ed
- * (`typeof window === 'undefined'`), אז זה no-op בטוח לגמרי בדפדפן אמיתי (apps/web).
+ * ⚠️ קריטי — אל תוסיפו import './render/webAudioPolyfill' כאן! נוסה כ"הגנה כפולה" ב-Sprint 6
+ * ונתגלה כבאג אמיתי ב-Sprint 7: זה קובץ הכניסה הראשי, שגם apps/web (דפדפן) מייבא דרך
+ * useAudioEngine.ts. webAudioPolyfill.ts מייבא 'node-web-audio-api' (native, תלוי ב-node-fetch
+ * שתלוי ב-node:net) — ה-guard (`typeof window === 'undefined'`) מונע *ריצה* בדפדפן, אבל לא
+ * מונע מ-Turbopack לנסות *לבנות* (bundle) את הייבוא הזה עבור ה-chunk של הלקוח, מה שגורם
+ * ל-panic אמיתי ("chunking context does not support external modules: node:net") — התגלה
+ * דרך בדיקה אמיתית ב-Chrome, לא ב-typecheck/lint. הפתרון: webAudioPolyfill מיובא **רק**
+ * מ-serverRenderer.ts (הנתיב "./server", שרק apps/worker נוגע בו) — וכל צרכן Node-side
+ * (apps/worker) חייב לייבא '@shape-sound/audio/server' *לפני* הנתיב הראשי בכל קובץ משלו
+ * (ראה ההערה המקבילה ב-apps/worker/src/jobs/renderAudio.ts ו-index.ts).
  */
-
-import './render/webAudioPolyfill';
 
 export * from './providers/InstrumentProvider';
 export * from './providers/SynthProvider';

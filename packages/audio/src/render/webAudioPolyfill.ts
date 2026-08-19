@@ -13,10 +13,11 @@
  * אפשר להזריק את הגלובלים בתוך פונקציה שנקראת מאוחר יותר (למשל בתוך renderToBuffer) — עד
  * אז tone.js כבר "נעל" את ה-null constructors שלו.
  *
- * הפתרון: קובץ זה מיובא כ-import ראשון בשני נקודות הכניסה של packages/audio — גם
- * index.ts (הנתיב הראשי) וגם serverRenderer.ts (הנתיב "./server") — כי לא ניתן להבטיח
- * איזה מהם צרכן חיצוני יטען קודם (ראה index.ts). ה-guard (`typeof window === 'undefined'`)
- * הופך את זה ל-no-op בטוח בדפדפן אמיתי, כך שכפילות ההזרקה בין שני הקבצים לא מזיקה.
+ * הפתרון: קובץ זה מיובא כ-import ראשון **רק** ב-serverRenderer.ts (הנתיב "./server") —
+ * ⚠️ לעולם לא מ-index.ts הראשי! נוסה שם ב-Sprint 6 כ"הגנה כפולה" ונתגלה כבאג אמיתי ב-Sprint 7
+ * (Turbopack panic על node:net בבניית ה-chunk של הדפדפן, כי index.ts גם נטען דרך apps/web) —
+ * ראה ההערה המקבילה ב-index.ts. במקום זה, כל צרכן Node-side (apps/worker) חייב לייבא
+ * '@shape-sound/audio/server' *לפני* הנתיב הראשי בכל קובץ משלו שנוגע בשניהם.
  */
 
 import * as nodeWebAudioApi from 'node-web-audio-api';

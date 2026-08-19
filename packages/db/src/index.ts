@@ -7,6 +7,6 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-// TODO(Sprint 0, בהמשך): ייצוא client.ts + schema/ כשייבנו בפועל מול Supabase.
-
-export {};
+export * from './schema';
+export * from './client';
+export * from './credits';

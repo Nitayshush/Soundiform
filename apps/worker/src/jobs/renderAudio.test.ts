@@ -7,13 +7,17 @@
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⚠️ קריטי — סדר ה-imports: './renderAudio' (שמייבא '@shape-sound/audio/server' ראשון, ראה שם)
+ * חייב להופיע לפני '@shape-sound/audio' הראשי כאן — אחרת ה-polyfill מגיע מאוחר מדי. ראה
+ * packages/audio/src/index.ts.
  */
 
 import { describe, expect, it, vi } from 'vitest';
 import { composeMusicalScore, geometryToMusic, type CompositionConfig } from '@shape-sound/core';
+import { runRenderAudioJob } from './renderAudio';
 import { DEFAULT_AUDIO_CONFIG } from '@shape-sound/audio';
 import type { StorageProvider } from '@shape-sound/storage';
-import { runRenderAudioJob } from './renderAudio';
 
 const TEST_CONFIG: CompositionConfig = {
   genreId: 'test',

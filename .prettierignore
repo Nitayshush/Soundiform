@@ -5,3 +5,4 @@ dist
 build
 next-env.d.ts
 docs/PROJECT.md
+packages/db/src/migrations

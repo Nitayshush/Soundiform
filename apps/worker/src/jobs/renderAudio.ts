@@ -12,14 +12,19 @@
  * זרימה: renderToBuffer (PCM) → normalizeToTargetLufs (§4.3, -14 LUFS) → קידוד WAV/MP3/MIDI
  * (encoders/*) → PUT ל-R2 דרך presigned URL (StorageProvider לא חושף put ישיר בכוונה —
  * §7 "גישה לאחסון רק דרך presigned URLs").
+ *
+ * ⚠️ קריטי — סדר ה-imports: '@shape-sound/audio/server' *חייב* להיות לפני '@shape-sound/audio'
+ * הראשי בקובץ הזה. serverRenderer.ts (שם) מתקין polyfill ל-globalThis.window לפני ש-'tone'
+ * נטען — וזה חייב לקרות לפני שכל קובץ אחר בתהליך נוגע ב-'tone' (כולל דרך הנתיב הראשי, למשל
+ * בשביל normalizeToTargetLufs). ראה packages/audio/src/index.ts להסבר המלא.
  */
 
+import { renderToBuffer } from '@shape-sound/audio/server';
 import {
   normalizeToTargetLufs,
   type RenderJobData,
   type RenderJobResult,
 } from '@shape-sound/audio';
-import { renderToBuffer } from '@shape-sound/audio/server';
 import type { StorageProvider } from '@shape-sound/storage';
 import { encodeWav } from '../encoders/wav';
 import { encodeMidi } from '../encoders/midi';

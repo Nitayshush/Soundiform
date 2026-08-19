@@ -5,16 +5,92 @@
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⚠️ קריטי (§9): זו הנקודה שממשת "היצירה עוברת אוטומטית לחשבון" — הקליינט (studio page)
+ * קורא ל-POST הזה עם ה-shape שהיה ב-localStorage, מיד אחרי שמשתמש אנונימי נרשם/מתחבר.
+ * המכסה (§9: 5 שמורות בחינם) נאכפת כאן, בצד שרת בלבד — לא בקליינט (§0.3).
+ *
+ * ⚠️ getDb() (Drizzle, מחובר כ-postgres owner role) עוקף RLS — זה תקין ומכוון: השרת הוא
+ * ה"privileged" side, ו-RLS מגן על גישה ישירה מהקליינט (Supabase client עם anon/authenticated
+ * role), לא על הקוד הזה. הבעלות (user.id) נלקחת מה-session המאומת, לא מגוף הבקשה.
  */
 
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { shapeDataSchema } from '@shape-sound/shared';
+import { checkSaveQuota, getDb, projects, recordLedgerEntry, users } from '@shape-sound/db';
+import { eq, isNull, and, desc } from 'drizzle-orm';
+import { createClient } from '@/lib/supabase/server';
 
-// TODO(Sprint 2+): ולידציית Zod על גוף הבקשה, חיבור ל-packages/db, RLS לפי §0.3.
+const createProjectSchema = z.object({
+  shape: shapeDataSchema,
+  shapeHash: z.string().min(1),
+  sourceType: z.enum(['drawing', 'svg', 'raster']),
+  title: z.string().min(1).max(200).optional(),
+});
 
-export function GET() {
-  return NextResponse.json({ error: 'לא ממומש עדיין' }, { status: 501 });
+export async function POST(request: Request): Promise<NextResponse> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 });
+  }
+
+  const body: unknown = await request.json().catch(() => null);
+  const parsed = createProjectSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'בקשה לא תקינה', details: parsed.error.issues },
+      { status: 400 },
+    );
+  }
+
+  const db = getDb();
+  const [userRow] = await db.select({ plan: users.plan }).from(users).where(eq(users.id, user.id));
+  const plan = userRow?.plan ?? 'free';
+
+  const quota = await checkSaveQuota(user.id, plan);
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { error: `הגעת למכסת השמירות (${String(quota.limit)}) של תוכנית ${plan}`, quota },
+      { status: 403 },
+    );
+  }
+
+  const { shape, shapeHash, sourceType, title } = parsed.data;
+  const [project] = await db
+    .insert(projects)
+    .values({
+      userId: user.id,
+      shapeData: shape,
+      shapeHash,
+      sourceType,
+      ...(title !== undefined && { title }),
+    })
+    .returning();
+
+  await recordLedgerEntry(user.id, -1, 'project_save');
+
+  return NextResponse.json({ project }, { status: 201 });
 }
 
-export function POST() {
-  return NextResponse.json({ error: 'לא ממומש עדיין' }, { status: 501 });
+export async function GET(): Promise<NextResponse> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 });
+  }
+
+  const db = getDb();
+  const myProjects = await db
+    .select()
+    .from(projects)
+    .where(and(eq(projects.userId, user.id), isNull(projects.deletedAt)))
+    .orderBy(desc(projects.createdAt));
+
+  return NextResponse.json({ projects: myProjects });
 }

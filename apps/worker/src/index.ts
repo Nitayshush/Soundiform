@@ -5,8 +5,14 @@
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⚠️ קריטי — import '@shape-sound/audio/server' חייב להיות ה-import הראשון בקובץ הזה
+ * (נקודת הכניסה האמיתית של כל תהליך ה-worker): מתקין polyfill ל-globalThis.window לפני
+ * ש-'tone' נטען בכל מקום אחר בתהליך. הגנה כפולה מעבר לסדר הנכון ב-queue/renderQueue.ts —
+ * ראה packages/audio/src/index.ts להסבר המלא (זה *לא* import שנכשל בשקט, הוא side-effect בלבד).
  */
 
+import '@shape-sound/audio/server';
 import Fastify from 'fastify';
 import { createR2ProviderFromEnv } from '@shape-sound/storage';
 import { createRenderWorker } from './queue/renderQueue';
