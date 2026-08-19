@@ -10,8 +10,8 @@
  * לעולם לא לוגיקת רנדור כפולה/נפרדת מהפריוויו. ראה PROJECT.md §11 Sprint 6 (בדיקה: פריוויו ≈ פלט סופי).
  *
  * זרימה: renderToBuffer (PCM) → normalizeToTargetLufs (§4.3, -14 LUFS) → קידוד WAV/MP3/MIDI
- * (encoders/*) → PUT ל-R2 דרך presigned URL (StorageProvider לא חושף put ישיר בכוונה —
- * §7 "גישה לאחסון רק דרך presigned URLs").
+ * (encoders/*) → PUT ל-R2 → כתיבת שורת renders (§6) → אם video מבוקש: renderVideo.ts
+ * (משתמש באותו wavBuffer, לא מרנדר מחדש) → PUT ל-R2 → עדכון video_key.
  *
  * ⚠️ קריטי — סדר ה-imports: '@shape-sound/audio/server' *חייב* להיות לפני '@shape-sound/audio'
  * הראשי בקובץ הזה. serverRenderer.ts (שם) מתקין polyfill ל-globalThis.window לפני ש-'tone'
@@ -25,10 +25,15 @@ import {
   type RenderJobData,
   type RenderJobResult,
 } from '@shape-sound/audio';
+import { eq } from 'drizzle-orm';
+import { getDb, renders } from '@shape-sound/db';
 import type { StorageProvider } from '@shape-sound/storage';
 import { encodeWav } from '../encoders/wav';
 import { encodeMidi } from '../encoders/midi';
 import { encodeMp3 } from '../encoders/mp3';
+import { runRenderVideoJob } from './renderVideo';
+
+const ENGINE_VERSION = 'v1';
 
 async function uploadBuffer(
   storage: StorageProvider,
@@ -50,13 +55,13 @@ async function uploadBuffer(
 }
 
 /**
- * מרנדר MusicalScore לקבצי WAV/MP3/MIDI סופיים ומעלה ל-R2. מחזיר את המפתחות (keys) שהועלו.
+ * מרנדר MusicalScore לקבצי WAV/MP3/MIDI (ואופציונלית וידאו) ומעלה ל-R2, כותב שורת renders.
  */
 export async function runRenderAudioJob(
   data: RenderJobData,
   storage: StorageProvider,
 ): Promise<RenderJobResult> {
-  const { score, audioConfig } = data;
+  const { projectId, score, audioConfig, shape, video } = data;
 
   const rendered = await renderToBuffer(score, audioConfig);
   const normalizedChannels = normalizeToTargetLufs(rendered.channels);
@@ -75,5 +80,46 @@ export async function runRenderAudioJob(
     uploadBuffer(storage, midiKey, midiBuffer, 'audio/midi'),
   ]);
 
-  return { wavKey, mp3Key, midiKey };
+  const db = getDb();
+  const [renderRow] = await db
+    .insert(renders)
+    .values({
+      projectId,
+      genreId: score.genreId,
+      score,
+      engineVersion: ENGINE_VERSION,
+      audioKey: wavKey,
+      midiKey,
+      durationSec: rendered.durationSeconds,
+      status: 'completed',
+      tempoBpm: score.tempo,
+      rootFreqHz: score.metadata.rootFrequencyHz,
+      avgNoteDensity: score.metadata.avgNoteDensity,
+      dominantMode: score.metadata.dominantMode,
+    })
+    .returning();
+  if (!renderRow) {
+    throw new Error('כתיבת שורת renders נכשלה — לא הוחזרה שורה');
+  }
+
+  let videoKey: string | undefined;
+  if (video && shape) {
+    videoKey = await runRenderVideoJob(
+      shape,
+      rendered.durationSeconds,
+      wavBuffer,
+      video,
+      storage,
+      keyPrefix,
+    );
+    await db.update(renders).set({ videoKey }).where(eq(renders.id, renderRow.id));
+  }
+
+  return {
+    renderId: renderRow.id,
+    wavKey,
+    mp3Key,
+    midiKey,
+    ...(videoKey !== undefined && { videoKey }),
+  };
 }

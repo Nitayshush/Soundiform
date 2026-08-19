@@ -13,12 +13,23 @@
  * ⚠️ getDb() (Drizzle, מחובר כ-postgres owner role) עוקף RLS — זה תקין ומכוון: השרת הוא
  * ה"privileged" side, ו-RLS מגן על גישה ישירה מהקליינט (Supabase client עם anon/authenticated
  * role), לא על הקוד הזה. הבעלות (user.id) נלקחת מה-session המאומת, לא מגוף הבקשה.
+ *
+ * ⭐ Sprint 8: remixOf (אופציונלי) — כפתור Remix בדף שיתוף טוען את הצורה ל-shapeStore ומעביר
+ * ל-studio; ברגע שהפרויקט-הבן נשמר כאן, נרשמת שורת remixes (§9 "כל צופה הופך ליוצר בקליק").
  */
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { shapeDataSchema } from '@shape-sound/shared';
-import { checkSaveQuota, getDb, projects, recordLedgerEntry, users } from '@shape-sound/db';
+import {
+  checkSaveQuota,
+  getDb,
+  projects,
+  recordLedgerEntry,
+  remixes,
+  renders,
+  users,
+} from '@shape-sound/db';
 import { eq, isNull, and, desc } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 
@@ -27,6 +38,7 @@ const createProjectSchema = z.object({
   shapeHash: z.string().min(1),
   sourceType: z.enum(['drawing', 'svg', 'raster']),
   title: z.string().min(1).max(200).optional(),
+  remixOf: z.uuid().optional(),
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -59,7 +71,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { shape, shapeHash, sourceType, title } = parsed.data;
+  const { shape, shapeHash, sourceType, title, remixOf } = parsed.data;
   const [project] = await db
     .insert(projects)
     .values({
@@ -70,8 +82,18 @@ export async function POST(request: Request): Promise<NextResponse> {
       ...(title !== undefined && { title }),
     })
     .returning();
+  if (!project) {
+    throw new Error('יצירת פרויקט נכשלה — לא הוחזרה שורה');
+  }
 
   await recordLedgerEntry(user.id, -1, 'project_save');
+
+  if (remixOf) {
+    const [parentRender] = await db.select().from(renders).where(eq(renders.id, remixOf));
+    if (parentRender) {
+      await db.insert(remixes).values({ parentRenderId: remixOf, childProjectId: project.id });
+    }
+  }
 
   return NextResponse.json({ project }, { status: 201 });
 }

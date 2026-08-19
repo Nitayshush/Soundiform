@@ -108,14 +108,14 @@ schema DSL). RLS **אומת חי**: משתמש נפרד שאילת `/rest/v1/pro
 שבר את bundle הדפדפן.** הוספת `import './render/webAudioPolyfill'` ל-`index.ts` הראשי של
 `@shape-sound/audio` (כדי להגן על apps/worker גם אם מישהו מייבא את הנתיב הראשי לפני
 "./server") — נראתה בטוחה כי guard-ed ב-`typeof window === 'undefined'`. אבל ה-guard מגן
-רק על *ריצה*, לא על *bundling*: Turbopack עדיין מנסה לבנות chunk לדפדפן שמכיל את הענף
+רק על _ריצה_, לא על _bundling_: Turbopack עדיין מנסה לבנות chunk לדפדפן שמכיל את הענף
 "המת" הזה, ומ-`node-web-audio-api` (תלוי ב-`node-fetch`) זה מגיע ל-`node:net` — panic אמיתי
 ("chunking context does not support external modules"). **התגלה רק דרך בדיקה אמיתית ב-Chrome
 (Playwright)** — `/studio` קרס עם 500, כל שאר הבדיקות (typecheck/lint/vitest) עברו נקי לאורך
 כל Sprint 6 כי אף אחת מהן בונה bundle-לקוח אמיתי. **תוקן**: `webAudioPolyfill` חזר להיות
 מיובא רק מ-`serverRenderer.ts` (הנתיב "./server", אף פעם לא נגיש מדפדפן); ההגנה על
 apps/worker במקום זאת: סדר imports מפורש בכל קובץ (`renderAudio.ts`/`renderAudio.test.ts`/
-`renderQueue.ts` — "./server" *לפני* הנתיב הראשי, עם הערה מתועדת בכל אחד) + הגנת-יתר
+`renderQueue.ts` — "./server" _לפני_ הנתיב הראשי, עם הערה מתועדת בכל אחד) + הגנת-יתר
 ב-`apps/worker/src/index.ts` (נקודת הכניסה האמיתית של התהליך) שמייבאת "./server" כ-import
 ראשון בלי תנאי. **לקח לזכור**: guard מבוסס `typeof window` מגן על ריצה, לא על bundling —
 לחבילה עם קהל-יעד כפול (דפדפן+Node) אסור לייבא תלות Node-only בנתיב הכניסה שגם דפדפן נוגע
@@ -134,3 +134,42 @@ shape_hash תואם, user_id נכון, ורשומת credits_ledger (`delta=-1, r
 מהקליינט) — RLS נשאר קו הגנה שני מתועד, לא הנתיב היחיד שנבדק. `apps/web/.env.local` הוא
 **hard link** ל-`.env` בשורש (לא symlink — נדרשת הרשאת admin ב-Windows) כי Next.js טוען env
 רק מהתיקייה של האפליקציה עצמה, לא משורש המונוריפו; מכוסה כבר ב-`.gitignore` (`.env.local`).
+
+## 2026-08-19 — Sprint 8: ויראליות (שיתוף, גלריה, Remix, וידאו)
+
+**פער אמיתי שנחשף: אף קוד לא כתב שורת `renders` ל-DB.** Sprint 6/7 העלו קבצי אודיו ל-R2
+אבל אף פעם לא שמרו רשומת `renders` — כי שיתוף חייב לאתר ID אמיתי, זה חייב תיקון לפני שאר
+Sprint 8. **תוקן**: `RenderJobData` קיבל `projectId` חובה (§9 — אי אפשר לשתף יצירה
+לא-שמורה), ו-`runRenderAudioJob` (apps/worker) כותב שורת renders אמיתית אחרי ההעלאה. גרר
+שינוי נלווה: `api/render/route.ts` עבר מ"כל אחד יכול לרנדר צורה גולמית" ל"חייב להתחבר +
+לשמור פרויקט קודם" — עקבי עם עקרון §9 שקיבל תוקף מלא רק עכשיו.
+
+**איכות/watermark של וידאו נקבעים בשרת לפי plan, לא מבחירת הקליינט** (§0.3) — הקליינט בוחר
+רק aspectRatio (עיצוב, לא הרשאה). `PLAN_VIDEO_QUALITY`/`PLAN_VIDEO_WATERMARK` ב-api/render
+ממפים free→720p+watermark, pro→1080p, studio→4k נקי, בדיוק לפי טבלת §9.
+
+**וידאו: ארכיטקטורה חדשה לגמרי, `@napi-rs/canvas` (Skia native) + ffmpeg.** כל פריים
+מצויר בנפרד (קווי הצורה + נקודה נעה על הקונטור) ונשמר ל-PNG בתיקיית temp; ffmpeg ממזג את
+רצף הפריימים עם ה-WAV שכבר קיים (לא מרנדר אודיו פעמיים) ל-MP4 עם ffprobe מוודא
+רזולוציה/משך/streams בפועל. **מוסכמת רזולוציה**: "1080p" ל-9:16 = width=1080 (הצלע הקצרה),
+לא height — מוסכמת הווידאו-האנכי הנפוצה (Reels/TikTok), לא "1080 גובה" הרגיל של 16:9.
+**קריטי ל"פריוויו ≈ פלט סופי" גם בוידאו**: צבעי הקו/נקודה ומיקום הנקודה על הקונטור
+(`index = floor(progress * points.length)`) זהים בכוונה ל-`DrawingCanvas.tsx`/`Playhead.tsx`.
+
+**Vitest, בניגוד ל-Next.js dev server, לא טוען `.env`/`.env.local` אוטומטית ל-`process.env`.**
+נתגלה כש-`renderAudio.test.ts` (שעכשיו כותב renders row אמיתי) קיבל `DATABASE_URL=undefined`
+בשקט. תוקן ב-`apps/worker/vitest.config.ts` עם `loadEnv` מ-`vite` (דורש `vite` כ-devDependency
+מפורש — pnpm strict לא פותר אותו רק כי vitest תלוי בו טרנזיטיבית). אותו hard-link
+`.env.local`→`.env` נדרש גם ב-`apps/worker` (לא רק apps/web, ראה Sprint 7).
+
+**בדיקות אינטגרציה שכותבות ל-DB אמיתי מנקות אחרי עצמן** (setup ב-`it()`, `finally` מוחק) —
+בניגוד לבדיקות ה-E2E האינטראקטיביות (Playwright, ריצה ידנית בסשן) שהמוצא שלהן נוקה ידנית
+בסוף הסשן, לא אוטומטית בכל הרצה.
+
+**נבדק חי לגמרי, מקצה לקצה (Playwright + שאילתות DB ישירות):** דף שיתוף עם נגינה אמיתית של
+score שמור; תמונת OG שהיא ממש הצורה שצוירה (אומת חזותית — משולש אמיתי, לא placeholder);
+Remix מ-דף שיתוף → טעינת הצורה ל-`shapeStore` → מוצג על קנבס ה-studio בפועל → שמירה →
+שורת `remixes` נוצרה ב-DB עם parent/child נכונים; גלריה מציגה שיתופים ציבוריים אמיתיים.
+צינור הרינדור המשולב (אודיו+וידאו+כתיבת DB) נבדק ביחידה (Vitest, ffprobe אמיתי על הפלט).
+**נשאר לא נבדק**: BullMQ/Redis חי (כמו קודם, אין Redis מקומי) — כל השרשרת שמעליו (compose,
+quota, video-options-by-plan) נבדקה עד לנקודת ה-enqueue.

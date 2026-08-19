@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@shape-sound/core": "workspace:*",
+    "@shape-sound/shared": "workspace:*",
     "tone": "^15.1.22",
     "node-web-audio-api": "^2.2.0"
   },

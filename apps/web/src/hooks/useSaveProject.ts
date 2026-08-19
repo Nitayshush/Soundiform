@@ -10,6 +10,9 @@
  * next=/studio?autoSave=1, ה-shape עצמו כבר יושב ב-localStorage (shapeStore, מ-Sprint 1).
  * אחרי חזרה מהתחברות מוצלחת, ה-effect כאן מזהה autoSave=1+user מחובר ומשלים את השמירה
  * לבד — המשתמש לא צריך ללחוץ שוב, והיצירה לא הולכת לאיבוד (§9 "קריטי").
+ *
+ * ⭐ Sprint 8: remixOf ב-query params (מגיע מ-RemixButton) עובר אוטומטית לגוף בקשת השמירה —
+ * זה מה שמאפשר ל-api/projects/route.ts לרשום שורת remixes.
  */
 
 'use client';
@@ -49,10 +52,16 @@ export function useSaveProject(): UseSaveProjectResult {
     setIsSaving(true);
     setSaveError(null);
     try {
+      const remixOf = searchParams.get('remixOf');
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shape: toShapeData(paths), shapeHash, sourceType: 'drawing' }),
+        body: JSON.stringify({
+          shape: toShapeData(paths),
+          shapeHash,
+          sourceType: 'drawing',
+          ...(remixOf && { remixOf }),
+        }),
       });
       const responseBody: unknown = await response.json();
       const parsed = responseBody as { project?: { id: string }; error?: string };
@@ -65,15 +74,17 @@ export function useSaveProject(): UseSaveProjectResult {
     } finally {
       setIsSaving(false);
     }
-  }, [paths, shapeHash]);
+  }, [paths, shapeHash, searchParams]);
 
   const requestSave = useCallback(() => {
     if (!user) {
-      router.push(`/login?next=${encodeURIComponent('/studio?autoSave=1')}`);
+      const remixOf = searchParams.get('remixOf');
+      const next = `/studio?autoSave=1${remixOf ? `&remixOf=${remixOf}` : ''}`;
+      router.push(`/login?next=${encodeURIComponent(next)}`);
       return;
     }
     void save();
-  }, [user, router, save]);
+  }, [user, router, save, searchParams]);
 
   useEffect(() => {
     if (isUserLoading || autoSaveAttempted.current) {

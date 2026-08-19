@@ -9,6 +9,9 @@
  * למה ה-store הוא מקור האמת ל-paths/shapeHash ולא useShapeCapture:
  * זה מה שמאפשר לצורה לשרוד רענון דף — useShapeCapture אחראי רק על אינטראקציית הציור החיה
  * (מסלול שטרם הושלם לא נשמר — הוא לא צורה תקפה עדיין).
+ *
+ * ⭐ Sprint 8: loadShape — טעינה מרוכזת של paths קיימים (למשל צורה מ-render משותף, ל-Remix).
+ * שונה מ-addPath (שמוסיף מסלול בודד תוך ציור חי) — כאן מחליפים את כל הצורה בבת אחת.
  */
 
 'use client';
@@ -24,6 +27,7 @@ interface ShapeStoreState {
   paths: ShapePath[];
   shapeHash: string | null;
   addPath: (path: ShapePath) => void;
+  loadShape: (paths: ShapePath[]) => void;
   clear: () => void;
 }
 
@@ -47,6 +51,16 @@ export const useShapeStore = create<ShapeStoreState>()(
           .catch((error: unknown) => {
             // אין הודעת שגיאה למשתמש עדיין (אין UI לכך) — לפחות לא נבלע בשקט (§0.3/§0.4).
             console.error('shapeStore: computeShapeHash נכשל', error);
+          });
+      },
+      loadShape: (paths) => {
+        set({ paths, shapeHash: null });
+        computeShapeHash(toShapeData(paths))
+          .then((hash) => {
+            set({ shapeHash: hash });
+          })
+          .catch((error: unknown) => {
+            console.error('shapeStore: computeShapeHash נכשל (loadShape)', error);
           });
       },
       clear: () => {
