@@ -16,7 +16,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { DrawingCanvas } from '@/components/canvas/DrawingCanvas';
 import { MusicalGrid } from '@/components/canvas/MusicalGrid';
-import { Playhead } from '@/components/canvas/Playhead';
+import { ScoreStaff } from '@/components/canvas/ScoreStaff';
 import { RevealOverlay } from '@/components/canvas/RevealOverlay';
 import { GenreSelector } from '@/components/controls/GenreSelector';
 import { UploadButton } from '@/components/controls/UploadButton';
@@ -79,7 +79,7 @@ function StudioContent() {
       <div className="relative flex-1">
         <DrawingCanvas />
         <MusicalGrid />
-        <Playhead progress={progress} />
+        <ScoreStaff progress={progress} />
         <RevealOverlay />
       </div>
     </main>

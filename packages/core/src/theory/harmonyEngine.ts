@@ -224,8 +224,12 @@ function buildLeadTrack(
   };
 }
 
-/** התופים הם הקצב, לא מלודיה — pitch קבוע (אוקטבה מתחת לשורש, תחושת "קיק") לכל הפגיעות. */
-const DRUMS_DEGREE_OFFSET = -7;
+/**
+ * התופים הם הקצב, לא מלודיה — pitch קבוע (תחושת "קיק") לכל הפגיעות. שונה במכוון מ-
+ * BASS_DEGREE_OFFSET (גם -7): אותה דרגה בדיוק הייתה ממקמת bass/drums באותו pitch,
+ * מה שגורם לחפיפה חזותית בסרגל התווים (ScoreStaff.tsx) גם כששניהם מתנגנים בבירור בנפרד.
+ */
+const DRUMS_DEGREE_OFFSET = -5;
 
 /**
  * ⭐ טראק תופים אמיתי מ-DrumsPattern (§5.1 rhythmPatterns) — היה מוגדר ב-GenrePack מ-Sprint 5
