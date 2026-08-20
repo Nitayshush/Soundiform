@@ -1,7 +1,7 @@
 /**
  * @file        route.ts
  * @description הפעלת רנדור אודיו/וידאו — מעביר עבודה ל-worker דרך BullMQ. ראה PROJECT.md §11 Sprint 6/8.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -22,9 +22,9 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { geometryToMusic, composeMusicalScore } from '@shape-sound/core';
-import { loadGenrePackById } from '@shape-sound/genres';
-import { VIDEO_ASPECT_RATIOS, type VideoQuality } from '@shape-sound/audio';
+import { geometryToMusic, composeMusicalScore } from '@soundiform/core';
+import { loadGenrePackById } from '@soundiform/genres';
+import { VIDEO_ASPECT_RATIOS, type VideoQuality } from '@soundiform/audio';
 import {
   checkCreationQuota,
   getDb,
@@ -32,7 +32,7 @@ import {
   recordLedgerEntry,
   users,
   type Plan,
-} from '@shape-sound/db';
+} from '@soundiform/db';
 import { toCompositionConfig, toGenreAudioConfig } from '@/lib/genreAdapter';
 import { enqueueRenderJob } from '@/lib/renderQueue';
 import { createClient } from '@/lib/supabase/server';

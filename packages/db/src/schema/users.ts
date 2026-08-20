@@ -3,7 +3,7 @@
  * @description ⭐ טבלת users — מקבילה ל-auth.users הפנימית של Supabase. id זהה בכוונה
  *              (לא FK מנוהל-Drizzle, כי auth.* לא בסכימה שלנו) — מאוכלס אוטומטית דרך
  *              trigger על auth.users (ראה migrations/0001_auth_user_sync.sql).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

@@ -3,7 +3,7 @@
  * @description ⭐ "כל צופה הופך ליוצר בקליק" (§9, מנוע הצמיחה) — טוען את הצורה המשותפת
  *              ל-shapeStore ומעביר ל-studio. שורת remixes נרשמת רק כשהפרויקט-הבן נשמר בפועל
  *              (api/projects/route.ts, remixOf ב-query params).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -12,7 +12,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import type { ShapePath } from '@shape-sound/shared';
+import type { ShapePath } from '@soundiform/shared';
 import { useShapeStore } from '@/stores/shapeStore';
 
 export interface RemixButtonProps {

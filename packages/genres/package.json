@@ -1,5 +1,5 @@
 {
-  "name": "@shape-sound/genres",
+  "name": "@soundiform/genres",
   "version": "0.1.0",
   "private": true,
   "description": "⭐ Genre Packs — נתונים, לא קוד. כל סגנון = JSON אחד. ראה docs/PROJECT.md §5.",
@@ -12,7 +12,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@shape-sound/core": "workspace:*",
+    "@soundiform/core": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {

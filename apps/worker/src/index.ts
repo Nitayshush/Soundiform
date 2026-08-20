@@ -1,20 +1,20 @@
 /**
  * @file        index.ts
  * @description נקודת הכניסה של שירות ה-worker — שרת Fastify + עיבוד תור BullMQ.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * ⚠️ קריטי — import '@shape-sound/audio/server' חייב להיות ה-import הראשון בקובץ הזה
+ * ⚠️ קריטי — import '@soundiform/audio/server' חייב להיות ה-import הראשון בקובץ הזה
  * (נקודת הכניסה האמיתית של כל תהליך ה-worker): מתקין polyfill ל-globalThis.window לפני
  * ש-'tone' נטען בכל מקום אחר בתהליך. הגנה כפולה מעבר לסדר הנכון ב-queue/renderQueue.ts —
  * ראה packages/audio/src/index.ts להסבר המלא (זה *לא* import שנכשל בשקט, הוא side-effect בלבד).
  */
 
-import '@shape-sound/audio/server';
+import '@soundiform/audio/server';
 import Fastify from 'fastify';
-import { createR2ProviderFromEnv } from '@shape-sound/storage';
+import { createR2ProviderFromEnv } from '@soundiform/storage';
 import { createRenderWorker } from './queue/renderQueue';
 
 // ⚠️ נכתב אבל לא נבדק חי בסשן הזה — אין Redis מקומי/Upstash זמין (הוחלט מראש כחלק

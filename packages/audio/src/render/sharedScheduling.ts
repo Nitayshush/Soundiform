@@ -2,7 +2,7 @@
  * @file        sharedScheduling.ts
  * @description ⭐⭐ הלוגיקה המשותפת ל-browserRenderer.ts ו-serverRenderer.ts — בונה
  *              SynthProvider+mixChain+Part לכל טראק על ה-Tone.js context הפעיל, יהיה אשר יהיה.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -15,8 +15,8 @@
 
 import { connect, Part } from 'tone';
 import type { InputNode } from 'tone';
-import type { MusicalScore, Note, Track, TrackRole } from '@shape-sound/core';
-import { TICKS_PER_BEAT } from '@shape-sound/core';
+import type { MusicalScore, Note, Track, TrackRole } from '@soundiform/core';
+import { TICKS_PER_BEAT } from '@soundiform/core';
 import {
   DEFAULT_SYNTH_PRESET,
   SynthProvider,
@@ -31,7 +31,7 @@ import {
 import { ticksToSeconds } from '../internal/audioUtils';
 
 /**
- * מה ש-renderer צריך מסגנון (GenrePack) בלי לתלות ב-@shape-sound/genres — §3.
+ * מה ש-renderer צריך מסגנון (GenrePack) בלי לתלות ב-@soundiform/genres — §3.
  * apps/web בונה את זה מ-GenrePack.synthMap/mixChain; ברירת המחדל היא באחריות הקורא.
  */
 export interface GenreAudioConfig {

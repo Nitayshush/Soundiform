@@ -3,7 +3,7 @@
  * @description ⭐ ניגון MusicalScore *כבר-מוכן* (מ-render שמור) — לא מלכיד/מרכיב מחדש כמו
  *              useAudioEngine (שעובד על shapeStore/genreStore החיים בזמן ציור). נועד לדפי
  *              שיתוף/גלריה: אותו score, נגזר מחדש רק את ה-audioConfig מ-genreId (§4.5).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -12,9 +12,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { BrowserRendererHandle } from '@shape-sound/audio';
-import type { MusicalScore } from '@shape-sound/core';
-import { loadGenrePackById } from '@shape-sound/genres';
+import type { BrowserRendererHandle } from '@soundiform/audio';
+import type { MusicalScore } from '@soundiform/core';
+import { loadGenrePackById } from '@soundiform/genres';
 import { toGenreAudioConfig } from '@/lib/genreAdapter';
 
 export interface UsePlayScoreResult {
@@ -74,7 +74,7 @@ export function usePlayScore(score: MusicalScore, genreId: string): UsePlayScore
         if (!genrePack) {
           throw new Error(`סגנון לא נמצא: ${genreId}`);
         }
-        const { createBrowserRenderer } = await import('@shape-sound/audio');
+        const { createBrowserRenderer } = await import('@soundiform/audio');
         rendererRef.current = await createBrowserRenderer(score, toGenreAudioConfig(genrePack));
         setDurationSeconds(rendererRef.current.durationSeconds);
         setIsLoading(false);

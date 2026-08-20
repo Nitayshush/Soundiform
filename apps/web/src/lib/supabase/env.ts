@@ -2,7 +2,7 @@
  * @file        env.ts
  * @description קריאת משתני הסביבה של Supabase, עם שגיאה מפורשת אם חסרים — לעולם לא ליפול
  *              בשקט על credentials חסרים (§0.3, אותו דפוס כמו R2Provider.createR2ProviderFromEnv).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

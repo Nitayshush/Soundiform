@@ -1,7 +1,7 @@
 /**
  * @file        ScaleSelector.tsx
  * @description בורר סולם/מוד ידני (חריגה מה-default של הסגנון). ראה PROJECT.md §4.3.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

@@ -1,7 +1,7 @@
 /**
  * @file        loudness.ts
  * @description ⭐ נרמול לספי -14 LUFS — כלל קשיח בחוקה המוזיקלית. ראה PROJECT.md §4.3.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

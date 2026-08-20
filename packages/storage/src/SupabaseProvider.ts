@@ -1,7 +1,7 @@
 /**
  * @file        SupabaseProvider.ts
  * @description מימוש StorageProvider עבור Supabase Storage — גיבוי, לא פעיל כברירת מחדל. ראה PROJECT.md §7.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

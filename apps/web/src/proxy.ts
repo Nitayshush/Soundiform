@@ -2,7 +2,7 @@
  * @file        proxy.ts
  * @description ⭐ מרענן את ה-session של Supabase בכל בקשה — תבנית מתועדת. בלי זה, session
  *              תפוגה לא תתעדכן ב-cookies, ומשתמש יתנתק "באמצע" בלי סיבה נראית לעין.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

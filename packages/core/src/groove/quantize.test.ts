@@ -1,7 +1,7 @@
 /**
  * @file        quantize.test.ts
  * @description בדיקות יחידה לקוונטיזציה — §4.3 כלל קשיח "הכל מקוונטז לגריד".
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

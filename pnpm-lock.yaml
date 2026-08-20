@@ -23,25 +23,25 @@ importers:
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@shape-sound/audio':
+      '@soundiform/audio':
         specifier: workspace:*
         version: link:../../packages/audio
-      '@shape-sound/core':
+      '@soundiform/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@shape-sound/db':
+      '@soundiform/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@shape-sound/genres':
+      '@soundiform/genres':
         specifier: workspace:*
         version: link:../../packages/genres
-      '@shape-sound/shared':
+      '@soundiform/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@shape-sound/storage':
+      '@soundiform/storage':
         specifier: workspace:*
         version: link:../../packages/storage
-      '@shape-sound/ui':
+      '@soundiform/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@supabase/ssr':
@@ -144,22 +144,22 @@ importers:
       '@napi-rs/canvas':
         specifier: ^1.0.7
         version: 1.0.7
-      '@shape-sound/audio':
+      '@soundiform/audio':
         specifier: workspace:*
         version: link:../../packages/audio
-      '@shape-sound/core':
+      '@soundiform/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@shape-sound/db':
+      '@soundiform/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@shape-sound/genres':
+      '@soundiform/genres':
         specifier: workspace:*
         version: link:../../packages/genres
-      '@shape-sound/shared':
+      '@soundiform/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@shape-sound/storage':
+      '@soundiform/storage':
         specifier: workspace:*
         version: link:../../packages/storage
       bullmq:
@@ -211,10 +211,10 @@ importers:
 
   packages/audio:
     dependencies:
-      '@shape-sound/core':
+      '@soundiform/core':
         specifier: workspace:*
         version: link:../core
-      '@shape-sound/shared':
+      '@soundiform/shared':
         specifier: workspace:*
         version: link:../shared
       node-web-audio-api:
@@ -233,7 +233,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@shape-sound/shared':
+      '@soundiform/shared':
         specifier: workspace:*
         version: link:../shared
       zod:
@@ -249,10 +249,10 @@ importers:
 
   packages/db:
     dependencies:
-      '@shape-sound/core':
+      '@soundiform/core':
         specifier: workspace:*
         version: link:../core
-      '@shape-sound/shared':
+      '@soundiform/shared':
         specifier: workspace:*
         version: link:../shared
       drizzle-orm:
@@ -280,7 +280,7 @@ importers:
 
   packages/genres:
     dependencies:
-      '@shape-sound/core':
+      '@soundiform/core':
         specifier: workspace:*
         version: link:../core
       zod:

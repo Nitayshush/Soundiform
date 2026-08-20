@@ -2,7 +2,7 @@
  * @file        webAudioPolyfill.ts
  * @description מזריק globalThis.window עם מחלקות node-web-audio-api, *לפני* ש-tone/
  *              standardized-audio-context נטענים בכלל.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -17,7 +17,7 @@
  * ⚠️ לעולם לא מ-index.ts הראשי! נוסה שם ב-Sprint 6 כ"הגנה כפולה" ונתגלה כבאג אמיתי ב-Sprint 7
  * (Turbopack panic על node:net בבניית ה-chunk של הדפדפן, כי index.ts גם נטען דרך apps/web) —
  * ראה ההערה המקבילה ב-index.ts. במקום זה, כל צרכן Node-side (apps/worker) חייב לייבא
- * '@shape-sound/audio/server' *לפני* הנתיב הראשי בכל קובץ משלו שנוגע בשניהם.
+ * '@soundiform/audio/server' *לפני* הנתיב הראשי בכל קובץ משלו שנוגע בשניהם.
  */
 
 import * as nodeWebAudioApi from 'node-web-audio-api';

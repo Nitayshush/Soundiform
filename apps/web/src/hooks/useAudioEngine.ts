@@ -1,7 +1,7 @@
 /**
  * @file        useAudioEngine.ts
  * @description ⭐ Hook לניהול מנוע האודיו בדפדפן — עוטף את packages/audio (browserRenderer).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -10,9 +10,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { BrowserRendererHandle } from '@shape-sound/audio';
-import { geometryToMusic, composeMusicalScore } from '@shape-sound/core';
-import { loadGenrePackById } from '@shape-sound/genres';
+import type { BrowserRendererHandle } from '@soundiform/audio';
+import { geometryToMusic, composeMusicalScore } from '@soundiform/core';
+import { loadGenrePackById } from '@soundiform/genres';
 import { useShapeStore, toShapeData } from '@/stores/shapeStore';
 import { useGenreStore } from '@/stores/genreStore';
 import { toCompositionConfig, toGenreAudioConfig } from '@/lib/genreAdapter';
@@ -98,7 +98,7 @@ export function useAudioEngine(): UseAudioEngineResult {
         const shape = toShapeData(paths);
         const intent = geometryToMusic(shape, shapeHash);
         const score = composeMusicalScore(intent, toCompositionConfig(genrePack));
-        const { createBrowserRenderer } = await import('@shape-sound/audio');
+        const { createBrowserRenderer } = await import('@soundiform/audio');
         rendererRef.current = await createBrowserRenderer(score, toGenreAudioConfig(genrePack));
         setDurationSeconds(rendererRef.current.durationSeconds);
         setIsLoading(false);

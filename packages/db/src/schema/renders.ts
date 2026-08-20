@@ -1,7 +1,7 @@
 /**
  * @file        renders.ts
  * @description טבלת renders — MusicalScore + מפתחות R2 של הפלטים. ראה PROJECT.md §6.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -25,7 +25,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { Mode, MusicalScore } from '@shape-sound/core';
+import type { Mode, MusicalScore } from '@soundiform/core';
 import { projects } from './projects';
 
 export const RENDER_STATUS_VALUES = ['pending', 'processing', 'completed', 'failed'] as const;

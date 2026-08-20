@@ -2,14 +2,14 @@
  * @file        serverRenderer.test.ts
  * @description בדיקת רינדור אמיתית — לא מוק. מרנדרת MusicalScore אמיתי דרך node-web-audio-api
  *              ובודקת שהתוצאה היא אודיו PCM אמיתי (לא שקט, משך נכון, sample rate נכון).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
 import { describe, expect, it } from 'vitest';
-import { composeMusicalScore, geometryToMusic, type CompositionConfig } from '@shape-sound/core';
+import { composeMusicalScore, geometryToMusic, type CompositionConfig } from '@soundiform/core';
 import { renderToBuffer } from './serverRenderer';
 
 const TEST_CONFIG: CompositionConfig = {

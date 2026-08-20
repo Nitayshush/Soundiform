@@ -1,5 +1,5 @@
 {
-  "name": "@shape-sound/audio",
+  "name": "@soundiform/audio",
   "version": "0.1.0",
   "private": true,
   "description": "⭐ מקור הצליל + מיקס. הנתיב הראשי (\".\") חסין-סביבה: אין window/document/fs/process, תלוי רק ב-core/shared. נתיב-משנה \"./server\" הוא היוצא מן הכלל המתועד: node-web-audio-api, ל-apps/worker בלבד — לעולם לא מיוצא מה-index הראשי, כדי ש-apps/web לא ייגע בו (§3).",
@@ -16,8 +16,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@shape-sound/core": "workspace:*",
-    "@shape-sound/shared": "workspace:*",
+    "@soundiform/core": "workspace:*",
+    "@soundiform/shared": "workspace:*",
     "tone": "^15.1.22",
     "node-web-audio-api": "^2.2.0"
   },

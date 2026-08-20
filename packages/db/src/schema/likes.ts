@@ -1,7 +1,7 @@
 /**
  * @file        likes.ts
  * @description לייקים — (user_id, render_id) composite PK, לפי §6. ראה PROJECT.md §11 Sprint 8.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

@@ -1,7 +1,7 @@
 /**
  * @file        renderVideo.ts
  * @description רנדור וידאו (9:16 / 1080p / 4K) — הצורה מונפשת + פס קול. ראה PROJECT.md §11 Sprint 8.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -10,10 +10,10 @@
  * נקרא מ-jobs/renderAudio.ts כהמשך אופציונלי לאותו job (לא queue נפרד) — ראה שם.
  */
 
-import { extractContour } from '@shape-sound/core';
-import type { ShapeData } from '@shape-sound/shared';
-import type { VideoExportOptions } from '@shape-sound/audio';
-import type { StorageProvider } from '@shape-sound/storage';
+import { extractContour } from '@soundiform/core';
+import type { ShapeData } from '@soundiform/shared';
+import type { VideoExportOptions } from '@soundiform/audio';
+import type { StorageProvider } from '@soundiform/storage';
 import { computeVideoDimensions, encodeVideo } from '../video/videoEncoder';
 
 export async function runRenderVideoJob(

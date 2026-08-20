@@ -1,7 +1,7 @@
 /**
  * @file        frameRenderer.ts
  * @description ⭐ מצייר פריים בודד של וידאו — קווי הצורה + נקודה נעה על הקונטור.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -12,12 +12,12 @@
  */
 
 import { createCanvas } from '@napi-rs/canvas';
-import type { ShapePoint } from '@shape-sound/shared';
+import type { ShapePoint } from '@soundiform/shared';
 
 const BACKGROUND_COLOR = '#ffffff';
 const STROKE_COLOR = '#111827'; // = DrawingCanvas.tsx STROKE_COLOR
 const DOT_COLOR = '#6366f1'; // = Playhead.tsx DOT_COLOR (0x6366f1)
-const WATERMARK_TEXT = 'Shape-to-Sound';
+const WATERMARK_TEXT = 'Soundiform';
 const WATERMARK_COLOR = 'rgba(17, 24, 39, 0.55)';
 
 export interface FrameDimensions {

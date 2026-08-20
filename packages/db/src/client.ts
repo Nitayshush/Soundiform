@@ -1,7 +1,7 @@
 /**
  * @file        client.ts
  * @description לקוח Drizzle מחובר ל-Supabase Postgres, לפי DATABASE_URL (§10).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

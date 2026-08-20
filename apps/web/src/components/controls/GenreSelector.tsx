@@ -1,7 +1,7 @@
 /**
  * @file        GenreSelector.tsx
  * @description ⭐ בורר הסגנון — אותה צורה, הפקות שונות. ראה PROJECT.md §4.5, §5.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -9,7 +9,7 @@
 
 'use client';
 
-import { loadActiveGenrePacks } from '@shape-sound/genres';
+import { loadActiveGenrePacks } from '@soundiform/genres';
 import { useGenreStore } from '@/stores/genreStore';
 
 // reggae לא מופיע כאן בכלל — loadActiveGenrePacks כבר מסנן requiresSamples (§5.2).

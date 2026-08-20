@@ -1,7 +1,7 @@
 /**
  * @file        deterministicReverb.ts
  * @description ⭐ ריוורב-קונבולוציה עם impulse response שנוצר מ-seededRandom, לא מ-Tone.Reverb.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

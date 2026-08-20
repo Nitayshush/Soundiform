@@ -1,13 +1,13 @@
 /**
  * @file        geometryUtils.ts
  * @description פרימיטיבים גאומטריים משותפים לשכבת ה-analysis (לא מיוצא מ-index.ts — פנימי בלבד).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import type { ShapePoint } from '@shape-sound/shared';
+import type { ShapePoint } from '@soundiform/shared';
 
 export { at } from '../internal/arrayUtils';
 

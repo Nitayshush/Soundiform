@@ -2,7 +2,7 @@
  * @file        StorageProvider.ts
  * @description ⭐ ההפשטה שמאחורי כל אחסון קבצים בפרויקט. גישה לאחסון מותרת רק דרך הממשק הזה
  *              (PROJECT.md §7 "כללי מימוש" — גישה רק דרך packages/storage, לעולם לא ישירות).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

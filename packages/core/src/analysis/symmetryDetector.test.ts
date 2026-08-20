@@ -1,7 +1,7 @@
 /**
  * @file        symmetryDetector.test.ts
  * @description בדיקות יחידה על צורות ידועות — מוודא שהאיזומורפיזם הגאומטרי-מוזיקלי (§4.4) מבוסס נכון.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

@@ -2,14 +2,14 @@
  * @file        midi.test.ts
  * @description בדיקת מבנה בייטים אמיתי של קובץ MIDI (SMF) מקודד — פענוח ידני של ה-VLQ/events,
  *              לא רק בדיקת אורך. לא מוק.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
 import { describe, expect, it } from 'vitest';
-import type { MusicalScore } from '@shape-sound/core';
+import type { MusicalScore } from '@soundiform/core';
 import { encodeMidi } from './midi';
 
 const TEST_SCORE: MusicalScore = {

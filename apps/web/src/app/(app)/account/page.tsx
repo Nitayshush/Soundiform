@@ -1,7 +1,7 @@
 /**
  * @file        page.tsx
  * @description דף חשבון — פרטי משתמש, מכסות, מנוי (ראה PROJECT.md §11 Sprint 7).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -18,8 +18,8 @@ import {
   getSavedProjectCount,
   projects,
   users,
-} from '@shape-sound/db';
-import { FREE_MONTHLY_CREATIONS, FREE_SAVED_PROJECTS } from '@shape-sound/db';
+} from '@soundiform/db';
+import { FREE_MONTHLY_CREATIONS, FREE_SAVED_PROJECTS } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function AccountPage() {

@@ -2,7 +2,7 @@
  * @file        serverRenderer.ts
  * @description רנדור לבאפר בשרת — קורא לאותה sharedScheduling.ts כמו browserRenderer.ts,
  *              על node-web-audio-api במקום AudioContext אמיתי. ראה PROJECT.md §11 Sprint 6.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -24,7 +24,7 @@
 
 import './webAudioPolyfill';
 import { getTransport, OfflineContext, setContext } from 'tone';
-import type { MusicalScore } from '@shape-sound/core';
+import type { MusicalScore } from '@soundiform/core';
 import { createMasterBus } from '../mixing/loudness';
 import {
   computeDurationSeconds,

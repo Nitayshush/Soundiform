@@ -1,7 +1,7 @@
 /**
  * @file        projects.ts
  * @description טבלת projects — הצורה, נשמרת כווקטור (JSONB) לא כתמונה. ראה PROJECT.md §6.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -15,7 +15,7 @@
 
 import { sql } from 'drizzle-orm';
 import { jsonb, pgPolicy, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
-import type { ShapeData } from '@shape-sound/shared';
+import type { ShapeData } from '@soundiform/shared';
 import { users } from './users';
 
 export const SOURCE_TYPE_VALUES = ['drawing', 'svg', 'raster'] as const;

@@ -1,7 +1,7 @@
 /**
  * @file        sidechain.ts
  * @description סיידצ'יין קומפרשן — חתימת ה-trance (supersaw + sidechain). ראה PROJECT.md §5.2.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

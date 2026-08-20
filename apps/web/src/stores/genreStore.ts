@@ -1,7 +1,7 @@
 /**
  * @file        genreStore.ts
  * @description בחירת הסגנון הפעיל (GenrePack) + התמדה — §5, GenreSelector.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -11,9 +11,9 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { loadActiveGenrePacks } from '@shape-sound/genres';
+import { loadActiveGenrePacks } from '@soundiform/genres';
 
-const STORAGE_KEY = 'shape-sound:selected-genre';
+const STORAGE_KEY = 'soundiform:selected-genre';
 const [firstActivePack] = loadActiveGenrePacks();
 const DEFAULT_GENRE_ID = firstActivePack?.id ?? 'cinematic';
 

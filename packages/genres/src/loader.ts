@@ -1,14 +1,14 @@
 /**
  * @file        loader.ts
  * @description טעינת GenrePack (מ-DB או מ-packs/*.json) + ולידציה מול schema.ts.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
  * ⚠️ V1: טוען מ-JSON סטטי בתוך החבילה, לא מ-DB (genre_packs, §6) — §5 עצמו אומר "הוספת
  * סגנון = הוספת שורה, בלי דיפלוי", וזה נכון רק כשה-DB הוא מקור האמת. חיבור ל-DB בפועל
- * (עם is_active/sort_order) הוא עבודת שילוב עתידית שדורשת @shape-sound/db — לא כאן,
+ * (עם is_active/sort_order) הוא עבודת שילוב עתידית שדורשת @soundiform/db — לא כאן,
  * כדי לא ליצור תלות core/genres → db בטרם עת.
  */
 

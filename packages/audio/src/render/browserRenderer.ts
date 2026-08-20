@@ -1,7 +1,7 @@
 /**
  * @file        browserRenderer.ts
  * @description רנדור פריוויו חי בדפדפן — Tone.js על AudioContext אמיתי.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -13,7 +13,7 @@
  */
 
 import { getTransport, start as startAudioContext } from 'tone';
-import type { MusicalScore } from '@shape-sound/core';
+import type { MusicalScore } from '@soundiform/core';
 import { createMasterBus } from '../mixing/loudness';
 import {
   computeDurationSeconds,

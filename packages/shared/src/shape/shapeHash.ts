@@ -1,7 +1,7 @@
 /**
  * @file        shapeHash.ts
  * @description ⭐ חישוב hash דטרמיניסטי לצורה — הבסיס ל-seed של MusicalScore (§4.6, עקרון הדטרמיניזם §1).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

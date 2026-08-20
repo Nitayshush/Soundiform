@@ -1,7 +1,7 @@
 /**
  * @file        useShapeCapture.ts
  * @description Hook ללכידת הצורה מה-DrawingCanvas כווקטור + חישוב shapeHash.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -14,7 +14,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import type PaperScopeType from 'paper';
-import type { ShapePath, ShapePoint } from '@shape-sound/shared';
+import type { ShapePath, ShapePoint } from '@soundiform/shared';
 import { useShapeStore } from '@/stores/shapeStore';
 
 /** טולרנס בטווח הנורמלי (0–1) — נבחר כך שקווים ישרים לא מתעקלים אך רעש דגימה נמחק. */

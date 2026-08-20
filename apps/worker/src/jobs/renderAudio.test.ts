@@ -3,13 +3,13 @@
  * @description בדיקת אינטגרציה אמיתית ל-runRenderAudioJob: renderToBuffer/normalize/encode
  *              אמיתיים לגמרי (node-web-audio-api אמיתי, ffmpeg אמיתי) — רק ה-PUT הרשתי ל-R2
  *              מזויף (StorageProvider מינימלי), כי אין credentials אמיתיים בסביבת הבדיקה.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * ⚠️ קריטי — סדר ה-imports: './renderAudio' (שמייבא '@shape-sound/audio/server' ראשון, ראה שם)
- * חייב להופיע לפני '@shape-sound/audio' הראשי כאן — אחרת ה-polyfill מגיע מאוחר מדי. ראה
+ * ⚠️ קריטי — סדר ה-imports: './renderAudio' (שמייבא '@soundiform/audio/server' ראשון, ראה שם)
+ * חייב להופיע לפני '@soundiform/audio' הראשי כאן — אחרת ה-polyfill מגיע מאוחר מדי. ראה
  * packages/audio/src/index.ts.
  *
  * ⚠️ Sprint 8: runRenderAudioJob כותב שורת renders אמיתית ל-DB (FK על projects.id) — הבדיקה
@@ -18,12 +18,12 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { composeMusicalScore, geometryToMusic, type CompositionConfig } from '@shape-sound/core';
+import { composeMusicalScore, geometryToMusic, type CompositionConfig } from '@soundiform/core';
 import { eq } from 'drizzle-orm';
-import { getDb, projects, renders } from '@shape-sound/db';
+import { getDb, projects, renders } from '@soundiform/db';
 import { runRenderAudioJob } from './renderAudio';
-import { DEFAULT_AUDIO_CONFIG } from '@shape-sound/audio';
-import type { StorageProvider } from '@shape-sound/storage';
+import { DEFAULT_AUDIO_CONFIG } from '@soundiform/audio';
+import type { StorageProvider } from '@soundiform/storage';
 
 const TEST_CONFIG: CompositionConfig = {
   genreId: 'test',

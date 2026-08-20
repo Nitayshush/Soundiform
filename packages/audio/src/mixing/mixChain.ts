@@ -2,7 +2,7 @@
  * @file        mixChain.ts
  * @description שרשרת מיקס לכל טראק — send-amounts מ-Track.mixSettings (§4.6, כמה reverb/delay),
  *              אופי האפקט (משך ריוורב, זמן/פידבק דיליי) מ-MixCharacterConfig של הסגנון.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⭐ Sprint 5: MixCharacterConfig מגיע מ-GenrePack.mixChain (§5.1) — packages/audio לא יכול
@@ -24,7 +24,7 @@
 
 import { FeedbackDelay, Gain, Panner } from 'tone';
 import type { InputNode } from 'tone';
-import type { MixSettings } from '@shape-sound/core';
+import type { MixSettings } from '@soundiform/core';
 import { createDeterministicReverb } from './deterministicReverb';
 
 export interface MixCharacterConfig {

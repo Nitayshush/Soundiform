@@ -1,7 +1,7 @@
 /**
  * @file        loader.test.ts
  * @description בדיקות יחידה לטעינת GenrePacks — כל 5 ה-packs תקפים, reggae מוסתר ב-V1.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

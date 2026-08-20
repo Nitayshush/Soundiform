@@ -1,7 +1,7 @@
 /**
  * @file        route.ts
  * @description CRUD על פרויקטים (צורות שמורות). ראה PROJECT.md §6 טבלת projects.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -20,7 +20,7 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { shapeDataSchema } from '@shape-sound/shared';
+import { shapeDataSchema } from '@soundiform/shared';
 import {
   checkSaveQuota,
   getDb,
@@ -29,7 +29,7 @@ import {
   remixes,
   renders,
   users,
-} from '@shape-sound/db';
+} from '@soundiform/db';
 import { eq, isNull, and, desc } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 

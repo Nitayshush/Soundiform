@@ -1,7 +1,7 @@
 /**
  * @file        midi.ts
  * @description ייצוא MusicalScore לקובץ MIDI סטנדרטי (SMF format 1) — פיצ'ר Studio.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -15,8 +15,8 @@
  * ראה https://midi.org/standard-midi-files-specification.
  */
 
-import type { MusicalScore, Note, Track, TrackRole } from '@shape-sound/core';
-import { TICKS_PER_BEAT } from '@shape-sound/core';
+import type { MusicalScore, Note, Track, TrackRole } from '@soundiform/core';
+import { TICKS_PER_BEAT } from '@soundiform/core';
 
 const MIDI_DIVISION = TICKS_PER_BEAT;
 const DRUM_CHANNEL = 9; // ⚠️ ערוץ 10 (0-based: 9) שמור מוסכם ל-percussion (General MIDI).

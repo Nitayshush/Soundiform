@@ -1,7 +1,7 @@
 /**
  * @file        shares.ts
  * @description טבלת shares — שיתוף ציבורי ליצירה בודדת (§6, §9 "מנוע הצמיחה"). ראה PROJECT.md §11 Sprint 8.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

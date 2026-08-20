@@ -1,7 +1,7 @@
 /**
  * @file        route.ts
  * @description יוצר שיתוף ציבורי ל-render קיים — מייצר slug קצר. ראה PROJECT.md §11 Sprint 8, §9.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -14,7 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { projects, renders, shares, SHARE_VISIBILITY_VALUES, getDb } from '@shape-sound/db';
+import { projects, renders, shares, SHARE_VISIBILITY_VALUES, getDb } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
 
 const createShareSchema = z.object({

@@ -1,7 +1,7 @@
 /**
  * @file        mp3.test.ts
  * @description בדיקת קידוד MP3 אמיתית — מריצה ffmpeg בפועל (לא מוק), מוודאת פלט MPEG תקני.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

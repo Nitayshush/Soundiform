@@ -1,7 +1,7 @@
 /**
  * @file        InstrumentProvider.ts
  * @description ⭐ ההפשטה שמאפשרת דגימות — ראה PROJECT.md §4.7.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ חוק ברזל:
@@ -14,7 +14,7 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import type { Note } from '@shape-sound/core';
+import type { Note } from '@soundiform/core';
 import type { OutputNode } from 'tone';
 
 export interface InstrumentProvider {

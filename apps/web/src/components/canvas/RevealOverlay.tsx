@@ -4,7 +4,7 @@
  *              שובץ ב-Sprint 5 בעקבות ניתוח מתחרים (2026-08-17, ראה docs/DECISIONS.md):
  *              זו שקיפות שאין ל-Kandinsky/Mubert — לא מוקדם יותר, כי רק אחרי Sprint 4+5
  *              יש סאונד וז'אנרים אמיתיים לחשוף.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -15,7 +15,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { analyzeShape, detectSymmetry, extractContour, geometryToMusic } from '@shape-sound/core';
+import { analyzeShape, detectSymmetry, extractContour, geometryToMusic } from '@soundiform/core';
 import { useShapeStore } from '@/stores/shapeStore';
 
 const SYMMETRY_TRANSFORM_LABELS: Record<string, string> = {

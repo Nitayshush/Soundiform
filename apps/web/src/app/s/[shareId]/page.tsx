@@ -1,7 +1,7 @@
 /**
  * @file        page.tsx
  * @description דף שיתוף ציבורי ליצירה בודדת (ראה PROJECT.md §11 Sprint 8, §9 מנוע הצמיחה).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -12,7 +12,7 @@
 
 import { notFound } from 'next/navigation';
 import { eq, sql } from 'drizzle-orm';
-import { getDb, projects, renders, shares } from '@shape-sound/db';
+import { getDb, projects, renders, shares } from '@soundiform/db';
 import { RemixButton } from '@/components/share/RemixButton';
 import { SharePlayer } from '@/components/share/SharePlayer';
 
@@ -49,7 +49,7 @@ export default async function SharePage({ params }: SharePageProps) {
   return (
     <main className="mx-auto max-w-2xl p-6">
       <h1 className="mb-1 text-xl font-semibold">יצירה משותפת</h1>
-      <p className="mb-6 text-sm text-muted-foreground">Shape-to-Sound — מוזיקה מצורה</p>
+      <p className="mb-6 text-sm text-muted-foreground">Soundiform — מוזיקה מצורה</p>
       <SharePlayer score={row.score} genreId={row.genreId} />
       <div className="mt-6">
         <RemixButton renderId={row.renderId} paths={row.shapeData.paths} />

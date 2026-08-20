@@ -1,7 +1,7 @@
 /**
  * @file        renderAudio.ts
  * @description ⭐ רנדור אודיו בשרת מ-MusicalScore — אותו קוד כמו הפריוויו בדפדפן.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -13,21 +13,17 @@
  * (encoders/*) → PUT ל-R2 → כתיבת שורת renders (§6) → אם video מבוקש: renderVideo.ts
  * (משתמש באותו wavBuffer, לא מרנדר מחדש) → PUT ל-R2 → עדכון video_key.
  *
- * ⚠️ קריטי — סדר ה-imports: '@shape-sound/audio/server' *חייב* להיות לפני '@shape-sound/audio'
+ * ⚠️ קריטי — סדר ה-imports: '@soundiform/audio/server' *חייב* להיות לפני '@soundiform/audio'
  * הראשי בקובץ הזה. serverRenderer.ts (שם) מתקין polyfill ל-globalThis.window לפני ש-'tone'
  * נטען — וזה חייב לקרות לפני שכל קובץ אחר בתהליך נוגע ב-'tone' (כולל דרך הנתיב הראשי, למשל
  * בשביל normalizeToTargetLufs). ראה packages/audio/src/index.ts להסבר המלא.
  */
 
-import { renderToBuffer } from '@shape-sound/audio/server';
-import {
-  normalizeToTargetLufs,
-  type RenderJobData,
-  type RenderJobResult,
-} from '@shape-sound/audio';
+import { renderToBuffer } from '@soundiform/audio/server';
+import { normalizeToTargetLufs, type RenderJobData, type RenderJobResult } from '@soundiform/audio';
 import { eq } from 'drizzle-orm';
-import { getDb, renders } from '@shape-sound/db';
-import type { StorageProvider } from '@shape-sound/storage';
+import { getDb, renders } from '@soundiform/db';
+import type { StorageProvider } from '@soundiform/storage';
 import { encodeWav } from '../encoders/wav';
 import { encodeMidi } from '../encoders/midi';
 import { encodeMp3 } from '../encoders/mp3';

@@ -3,7 +3,7 @@
  * @description ⭐ החוקה המוזיקלית — ראה PROJECT.md §4.3. מוודא (לא רק בונה) שפלט מכבד את
  *              הכללים הקשיחים. הבדיקה הנדרשת ב-§11 Sprint 3 (100 צורות אקראיות → כולן בסולם)
  *              רצה מול validateConstitution.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

@@ -1,5 +1,5 @@
 {
-  "name": "@shape-sound/db",
+  "name": "@soundiform/db",
   "version": "0.1.0",
   "private": true,
   "description": "סכימה ומיגרציות (Drizzle ORM על Supabase Postgres). ראה docs/PROJECT.md §6.",
@@ -14,8 +14,8 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@shape-sound/core": "workspace:*",
-    "@shape-sound/shared": "workspace:*",
+    "@soundiform/core": "workspace:*",
+    "@soundiform/shared": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.9",
     "zod": "^4.4.3"

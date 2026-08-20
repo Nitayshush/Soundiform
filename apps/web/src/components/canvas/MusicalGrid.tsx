@@ -1,7 +1,7 @@
 /**
  * @file        MusicalGrid.tsx
  * @description רשת מוזיקלית מוצגת מעל הקנבס (X=זמן, Y=דרגת סולם). ראה PROJECT.md §4.2.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

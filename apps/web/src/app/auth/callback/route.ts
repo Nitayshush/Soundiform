@@ -2,7 +2,7 @@
  * @file        route.ts
  * @description יעד ה-redirect אחרי OAuth (Google) ואחרי אימות מייל — מחליף את ה-code
  *              שחוזר מ-Supabase ל-session אמיתי, ואז מפנה חזרה לעמוד שהמשתמש בא ממנו.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

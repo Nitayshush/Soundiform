@@ -1,7 +1,7 @@
 /**
  * @file        opengraph-image.tsx
  * @description ⭐ תמונת ה-OG = הצורה עצמה (§11 Sprint 8) — ממש מה שהמשתמש צייר, לא לוגו גנרי.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -13,11 +13,11 @@
 
 import { ImageResponse } from 'next/og';
 import { eq } from 'drizzle-orm';
-import { getDb, projects, renders, shares } from '@shape-sound/db';
-import type { ShapePath } from '@shape-sound/shared';
+import { getDb, projects, renders, shares } from '@soundiform/db';
+import type { ShapePath } from '@soundiform/shared';
 
 export const runtime = 'nodejs';
-export const alt = 'Shape-to-Sound — יצירה משותפת';
+export const alt = 'Soundiform — יצירה משותפת';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -72,7 +72,7 @@ export default async function Image({ params }: { params: Promise<{ shareId: str
         // eslint-disable-next-line @next/next/no-img-element -- next/og דורש <img>, לא next/image
         <img src={svgDataUri} width={size.width} height={size.height} alt="" />
       ) : (
-        <div style={{ fontSize: 48, color: STROKE_COLOR }}>Shape-to-Sound</div>
+        <div style={{ fontSize: 48, color: STROKE_COLOR }}>Soundiform</div>
       )}
     </div>,
     { ...size },

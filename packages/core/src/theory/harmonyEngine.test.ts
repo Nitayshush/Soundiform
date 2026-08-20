@@ -3,14 +3,14 @@
  * @description ⭐ בדיקות יחידה ל-composeMusicalScore — כולל הבדיקה הנדרשת ב-§11 Sprint 3:
  *              100 צורות אקראיות → כולן חייבות להיות בסולם, ו-§11 Sprint 5:
  *              אותה צורה × כמה סגנונות = כמה הפקות שונות, כולן תקינות.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ShapeData } from '@shape-sound/shared';
+import type { ShapeData } from '@soundiform/shared';
 import { createSeededRandom } from '../internal/seededRandom';
 import { geometryToMusic } from '../mapping/geometryToMusic';
 import { musicalScoreSchema } from '../score/scoreSchema';
@@ -32,7 +32,7 @@ const DEFAULT_TEST_CONFIG: CompositionConfig = {
   swingAmount: 0,
 };
 
-/** מדמה 4 GenrePacks שונים בכוונה (טמפו/מוד/סווינג/גריד) — כמו §5.2, בלי תלות ב-@shape-sound/genres. */
+/** מדמה 4 GenrePacks שונים בכוונה (טמפו/מוד/סווינג/גריד) — כמו §5.2, בלי תלות ב-@soundiform/genres. */
 const FOUR_STYLE_CONFIGS: CompositionConfig[] = [
   { genreId: 'trance-like', tempoBpm: 138, mode: 'aeolian', gridSubdivision: 16, swingAmount: 0 },
   { genreId: 'house-like', tempoBpm: 124, mode: 'dorian', gridSubdivision: 16, swingAmount: 0.08 },

@@ -1,7 +1,7 @@
 /**
  * @file        TempoSlider.tsx
  * @description סליידר טמפו, מוגבל לטווח tempo.min–tempo.max של הסגנון הפעיל.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

@@ -1,7 +1,7 @@
 /**
  * @file        R2Provider.ts
  * @description ⭐ מימוש StorageProvider עבור Cloudflare R2 (S3-compatible API). הספק הפעיל. ראה PROJECT.md §7.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

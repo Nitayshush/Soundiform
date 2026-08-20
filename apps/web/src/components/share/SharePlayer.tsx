@@ -1,7 +1,7 @@
 /**
  * @file        SharePlayer.tsx
  * @description נגן לדף שיתוף — מנגן MusicalScore שכבר קיים (לא מרכיב מחדש). ראה usePlayScore.ts.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -9,7 +9,7 @@
 
 'use client';
 
-import type { MusicalScore } from '@shape-sound/core';
+import type { MusicalScore } from '@soundiform/core';
 import { usePlayScore } from '@/hooks/usePlayScore';
 
 export interface SharePlayerProps {

@@ -1,13 +1,13 @@
 /**
  * @file        testShapes.ts
  * @description צורות ידועות (עיגול, משולש, ריבוע) לבדיקות יחידה — §11 Sprint 2. פנימי, לא מיוצא מ-index.ts.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import type { ShapeData, ShapePoint } from '@shape-sound/shared';
+import type { ShapeData, ShapePoint } from '@soundiform/shared';
 
 function makeClosedShape(points: ShapePoint[]): ShapeData {
   return { version: '1.0.0', paths: [{ points, closed: true }] };

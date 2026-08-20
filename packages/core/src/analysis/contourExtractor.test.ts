@@ -1,14 +1,14 @@
 /**
  * @file        contourExtractor.test.ts
  * @description בדיקות יחידה + מקרי קצה (§0.4: קלט ריק/מנוון) לחילוץ קונטור.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ShapeData } from '@shape-sound/shared';
+import type { ShapeData } from '@soundiform/shared';
 import { extractContour } from './contourExtractor';
 import { makeSquareShapeData } from './testShapes';
 

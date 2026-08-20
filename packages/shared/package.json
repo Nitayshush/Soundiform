@@ -1,5 +1,5 @@
 {
-  "name": "@shape-sound/shared",
+  "name": "@soundiform/shared",
   "version": "0.1.0",
   "private": true,
   "description": "טיפוסים, קבועים, וסכימות Zod משותפות בין כל שאר החבילות. ראה docs/PROJECT.md §3.",

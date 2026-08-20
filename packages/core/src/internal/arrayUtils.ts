@@ -2,7 +2,7 @@
  * @file        arrayUtils.ts
  * @description פרימיטיבים גנריים משותפים לכל packages/core (analysis + theory + groove).
  *              לא מיוצא מ-index.ts — פנימי בלבד.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

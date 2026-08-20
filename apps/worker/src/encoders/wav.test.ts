@@ -1,7 +1,7 @@
 /**
  * @file        wav.test.ts
  * @description בדיקת מבנה בייטים אמיתי של קובץ WAV מקודד — לא מוק.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

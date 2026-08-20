@@ -1,5 +1,5 @@
 {
-  "name": "@shape-sound/ui",
+  "name": "@soundiform/ui",
   "version": "0.1.0",
   "private": true,
   "description": "קומפוננטות React משותפות בין apps/web ופרויקטים עתידיים. ראה docs/PROJECT.md §3.",

@@ -1,7 +1,7 @@
 /**
  * @file        scoreSchema.ts
  * @description ולידציית Zod ל-MusicalScore — כל MusicalScore שנשמר/נטען מה-DB עובר דרך הסכימה הזו.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

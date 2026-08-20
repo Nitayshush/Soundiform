@@ -1,7 +1,7 @@
 /**
  * @file        index.ts
  * @description נקודת הכניסה של schema/ — כל הטבלאות שנבנו עד כה. ראה PROJECT.md §6.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

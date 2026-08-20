@@ -1,7 +1,7 @@
 /**
  * @file        DrawingCanvas.tsx
  * @description ⭐ קנבס הציור הראשי — לכידת צורה מעכבר/מגע. ליבת חוויית הקלט.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import type { ShapePoint } from '@shape-sound/shared';
+import type { ShapePoint } from '@soundiform/shared';
 import { useShapeCapture } from '@/hooks/useShapeCapture';
 
 const STROKE_COLOR = '#111827';

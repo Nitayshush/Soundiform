@@ -1,7 +1,7 @@
 /**
  * @file        page.tsx
  * @description גלריה — יצירות ציבוריות/פופולריות לפי סגנון (ראה PROJECT.md §11 Sprint 8).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -9,7 +9,7 @@
 
 import Link from 'next/link';
 import { and, desc, eq } from 'drizzle-orm';
-import { getDb, renders, shares } from '@shape-sound/db';
+import { getDb, renders, shares } from '@soundiform/db';
 
 interface GalleryPageProps {
   searchParams: Promise<{ genre?: string }>;

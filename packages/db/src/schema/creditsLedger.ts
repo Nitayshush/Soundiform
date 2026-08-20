@@ -2,7 +2,7 @@
  * @file        creditsLedger.ts
  * @description ⭐ יומן מכסות — append-only! לעולם לא UPDATE על יתרה, רק שורות delta חדשות.
  *              יתרה = SUM(delta). ראה PROJECT.md §6, §9.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

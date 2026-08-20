@@ -2,7 +2,7 @@
  * @file        credits.ts
  * @description ⭐ אכיפת מכסות (§9: חינם=10 יצירות/חודש, 5 שמורות) מעל credits_ledger
  *              (append-only, §6). לעולם לא UPDATE על יתרה — רק שורות delta חדשות.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

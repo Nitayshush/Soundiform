@@ -2,7 +2,7 @@
  * @file        symmetryDetector.ts
  * @description מזהה סימטריית שיקוף (אופקי/אנכי) וסימטריה סיבובית בקונטור. הבסיס ל-§4.4 —
  *              איזומורפיזם בין חבורות דיהדרליות גאומטריות לטרנספורמציות קונטרפונקטיות.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -12,7 +12,7 @@
  * שיקוף אופקי (ציר אנכי, x→2cx-x) → רטרוגרד. שיקוף אנכי (ציר אופקי, y→2cy-y) → אינוורסיה (§4.4).
  */
 
-import type { ShapePoint } from '@shape-sound/shared';
+import type { ShapePoint } from '@soundiform/shared';
 import type { Contour } from './contourExtractor';
 import { at, distance } from './geometryUtils';
 

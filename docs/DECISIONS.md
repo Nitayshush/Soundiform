@@ -16,8 +16,8 @@ Kandinsky** (Google, 2016, חינמי — כבר מממש את עקרון הלי
 אקורדים לפי קרבה גאומטרית), וסוניק-ברנדינג B2B (Sonika AI, MusicWave.ai — קטגוריה רווחית).
 
 **התובנה המרכזית:** Kandinsky מוכיח בחינם ש"צורה → מוזיקה קוהרנטית" כבר לא בידול מספיק
-לבד. ההבחנה האמיתית של Shape-to-Sound מ-Kandinsky: Kandinsky הוא **כלי קומפוזיציה** (צורה
-בודדת = צליל בודד, הרבה צורות ביחד = מלודיה שהמשתמש מרכיב). Shape-to-Sound הוא **מתרגם**
+לבד. ההבחנה האמיתית של Soundiform מ-Kandinsky: Kandinsky הוא **כלי קומפוזיציה** (צורה
+בודדת = צליל בודד, הרבה צורות ביחד = מלודיה שהמשתמש מרכיב). Soundiform הוא **מתרגם**
 (צורה בודדת/תמונה שלמה ← → יצירה מוזיקלית שלמה ועצמאית — "תעודת זהות מוזיקלית"). הבידול
 האמיתי מול Kandinsky/Mubert הוא איכות הפקה (voiceLeading, mixChain, ריבוי ז'אנרים) ולא רק
 העיקרון הבסיסי.
@@ -57,18 +57,18 @@ deterministicReverb.ts` — קונבולוציה (`Tone.Convolver`) עם IR שנ
 **פער עיצוב שנמצא ותוקן: import-order fragility.** ה-polyfill ל-`globalThis.window`
 (node-web-audio-api, נדרש כי standardized-audio-context קורא את הconstructor הגלובלי פעם
 אחת, ברמת ה-module, בזמן ה-import הראשון של 'tone' בתהליך כולו) עבד רק אם `serverRenderer.ts`
-יובא _לפני_ הנתיב הראשי של `@shape-sound/audio`. כל צרכן שמייבא את הנתיב הראשי קודם
+יובא _לפני_ הנתיב הראשי של `@soundiform/audio`. כל צרכן שמייבא את הנתיב הראשי קודם
 (למשל, סתם בשביל `DEFAULT_AUDIO_CONFIG`) שבר את זה בשקט. **התיקון המקורי כאן (הוספת
 ה-polyfill כ-import ראשון גם ל-`index.ts` הראשי) התברר כשגוי — ראה תיקון ב-Sprint 7.**
 
-**החלטת ארכיטקטורה: חוזה ה-job (BullMQ) חי ב-`@shape-sound/audio`, לא בחבילה חדשה.**
+**החלטת ארכיטקטורה: חוזה ה-job (BullMQ) חי ב-`@soundiform/audio`, לא בחבילה חדשה.**
 `RenderJobData`/`RenderJobResult`/`RENDER_QUEUE_NAME` (renderJob.ts) בנויים כולם מטיפוסים
 ש-audio כבר מגדיר (`MusicalScore`, `GenreAudioConfig`) — כך ששני ה-apps (web=producer,
 worker=consumer) חולקים חוזה טיפוסי בלי לתלות אחד בשני ובלי חבילה חדשה רק בשביל שני
 interfaces. genreAdapter.ts (GenrePack→CompositionConfig/GenreAudioConfig) נשאר רק ב-apps/web
 בכוונה: apps/web הוא היחיד שבונה את ה-score (מ-shape+genreId, לא מקבל מהקליינט —
 דטרמיניזם/אבטחה), ו-apps/worker מקבל score+audioConfig מוכנים ב-payload של ה-job, בלי
-לגעת ב-`@shape-sound/genres` בכלל.
+לגעת ב-`@soundiform/genres` בכלל.
 
 **נדחה במכוון מהיקף הספרינט:** rate limiting אנונימי (§8: 3/שעה) — דורש תשתית IP-tracking
 נפרדת, לא היה בתכנית המאושרת. BullMQ Queue/Worker ו-`api/render/route.ts` נכתבו במלואם אבל
@@ -106,7 +106,7 @@ schema DSL). RLS **אומת חי**: משתמש נפרד שאילת `/rest/v1/pro
 
 **באג ארכיטקטורה אמיתי #3 (הכי משמעותי): "תיקון" ה-Sprint 6 ל-import-order fragility
 שבר את bundle הדפדפן.** הוספת `import './render/webAudioPolyfill'` ל-`index.ts` הראשי של
-`@shape-sound/audio` (כדי להגן על apps/worker גם אם מישהו מייבא את הנתיב הראשי לפני
+`@soundiform/audio` (כדי להגן על apps/worker גם אם מישהו מייבא את הנתיב הראשי לפני
 "./server") — נראתה בטוחה כי guard-ed ב-`typeof window === 'undefined'`. אבל ה-guard מגן
 רק על _ריצה_, לא על _bundling_: Turbopack עדיין מנסה לבנות chunk לדפדפן שמכיל את הענף
 "המת" הזה, ומ-`node-web-audio-api` (תלוי ב-`node-fetch`) זה מגיע ל-`node:net` — panic אמיתי
@@ -173,3 +173,34 @@ Remix מ-דף שיתוף → טעינת הצורה ל-`shapeStore` → מוצג 
 צינור הרינדור המשולב (אודיו+וידאו+כתיבת DB) נבדק ביחידה (Vitest, ffprobe אמיתי על הפלט).
 **נשאר לא נבדק**: BullMQ/Redis חי (כמו קודם, אין Redis מקומי) — כל השרשרת שמעליו (compose,
 quota, video-options-by-plan) נבדקה עד לנקודת ה-enqueue.
+
+## 2026-08-20 — Google OAuth הוגדר ואומת; הפרויקט שונה שם ל-Soundiform
+
+**Google OAuth הוגדר ואומת חי.** Nitay הגדיר OAuth client ב-Google Cloud Console + Google
+provider ב-Supabase, והוסיף `http://localhost:3210/**` לרשימת redirect URLs המותרת
+(נדרש ל-dev מקומי — Supabase בודק את `redirectTo` מול allow-list). אומת דרך Playwright:
+לחיצה על "המשך עם Google" מגיעה בפועל ל-`accounts.google.com` עם `client_id`/`redirect_uri`/
+`scope` נכונים. השלמת login בפועל לא הופעלה אוטומטית (דורשת חשבון Google אמיתי) — לא
+הגיוני/ראוי לנסות לאוטומט התחברות לחשבון אישי אמיתי של המשתמש.
+
+**שינוי שם: Shape-to-Sound → Soundiform, דומיין soundiform.com.** Nitay רכש את הדומיין
+ובחר שם קבוע. שינוי מכני אבל רחב-היקף — 140 קבצים נגעו במחרוזת `shape-sound`/`Shape-to-Sound`
+(בעיקר header comment `@author` שחוזר בכל קובץ, וה-scope של ה-packages). בוצע:
+
+- **npm workspace scope**: `@shape-sound/*` → `@soundiform/*` בכל package.json (name +
+  dependencies) ובכל import statement — כולל `next.config.ts`'s `transpilePackages`/
+  `serverExternalPackages` (מחרוזות literal, לא רק import-ים).
+- **package.json ראשי**: `"name": "shape-sound"` → `"soundiform"`.
+- **`pnpm-lock.yaml`**: נוצר מחדש (`pnpm install`) — **לא** נערך ידנית. אומת: node_modules
+  symlinks נפתרים תחת `@soundiform/*`, אין שאריות `@shape-sound/*`.
+- **מיתוג**: README.md, כותרת PROJECT.md (+ נוספה שורת "דומיין: soundiform.com"), ו-
+  `apps/web/src/app/layout.tsx`'s metadata (`title`/`description`, שהיו עדיין ברירת המחדל
+  הגולמית של create-next-app — "Create Next App" — מעולם לא הוחלפו מ-Sprint 0; זו הזדמנות
+  לתקן גם את זה, לא רק את השם).
+- **⚠️ לא שונה**: שם/הגדרות הפרויקט עצמו בדשבורד Supabase (project ref `oykpoyvwbdyqkiseuqyx`
+  ומה שמוצג שם) — רק ההתייחסויות בקוד. שם התיקייה המקומית (`GeometricSound`) גם לא שונה —
+  זה path פיתוח מקומי, לא user-facing.
+
+**נבדק אחרי השינוי**: typecheck/lint/test מלאים על כל המונוריפו (נקיים, 107 בדיקות), ו-
+בדיקת דפדפן אמיתית ל-`/studio` (הדף שהיה שביר במיוחד ל-regressions מסוג bundling ב-Sprint 7)
+— טעינה תקינה, `<title>Soundiform</title>` מאומת ב-HTML בפועל.

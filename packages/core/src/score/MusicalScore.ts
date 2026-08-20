@@ -2,7 +2,7 @@
  * @file        MusicalScore.ts
  * @description ⭐ פורמט הביניים — הנכס האמיתי של הפרויקט. נשמר ב-DB (renders.score).
  *              כשמנוע הצליל ישתדרג, כל היצירות הישנות ירונדרו מחדש טוב יותר. ראה PROJECT.md §4.6.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

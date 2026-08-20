@@ -1,7 +1,7 @@
 /**
  * @file        humanize.ts
  * @description מוסיף סטיית תזמון/וולוסיטי קלה ("רעד יד" ריתמי, ±10ms) — §3 עץ התיקיות.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

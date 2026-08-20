@@ -1,7 +1,7 @@
 /**
  * @file        scales.test.ts
  * @description בדיקות יחידה לשכבת הסולמות — הבסיס לכלל §4.3 "כל תו בסולם הפעיל".
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

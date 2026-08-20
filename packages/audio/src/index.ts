@@ -1,7 +1,7 @@
 /**
  * @file        index.ts
  * @description נקודת הכניסה של packages/audio.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -14,7 +14,7 @@
  * ל-panic אמיתי ("chunking context does not support external modules: node:net") — התגלה
  * דרך בדיקה אמיתית ב-Chrome, לא ב-typecheck/lint. הפתרון: webAudioPolyfill מיובא **רק**
  * מ-serverRenderer.ts (הנתיב "./server", שרק apps/worker נוגע בו) — וכל צרכן Node-side
- * (apps/worker) חייב לייבא '@shape-sound/audio/server' *לפני* הנתיב הראשי בכל קובץ משלו
+ * (apps/worker) חייב לייבא '@soundiform/audio/server' *לפני* הנתיב הראשי בכל קובץ משלו
  * (ראה ההערה המקבילה ב-apps/worker/src/jobs/renderAudio.ts ו-index.ts).
  */
 

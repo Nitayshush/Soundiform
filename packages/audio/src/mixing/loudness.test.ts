@@ -1,7 +1,7 @@
 /**
  * @file        loudness.test.ts
  * @description בדיקות יחידה לקירוב ה-LUFS ולחישוב הנרמול (§4.3).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

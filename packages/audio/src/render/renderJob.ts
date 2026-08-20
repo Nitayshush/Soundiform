@@ -2,16 +2,16 @@
  * @file        renderJob.ts
  * @description ⭐ החוזה המשותף בין apps/web (מפיק job) ל-apps/worker (צורך job) — שם התור
  *              וצורת ה-payload. אין ל-apps לייבא זה מזה (כל app deployable נפרד), אז החוזה
- *              חי כאן: שניהם כבר תלויים ב-@shape-sound/audio, וה-payload בנוי כולו מטיפוסים
+ *              חי כאן: שניהם כבר תלויים ב-@soundiform/audio, וה-payload בנוי כולו מטיפוסים
  *              שכבר מוגדרים כאן/ב-core — בלי לתלות בשום דבר Node-only (זה בנתיב הראשי, לא "./server").
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import type { MusicalScore } from '@shape-sound/core';
-import type { ShapeData } from '@shape-sound/shared';
+import type { MusicalScore } from '@soundiform/core';
+import type { ShapeData } from '@soundiform/shared';
 import type { GenreAudioConfig } from './sharedScheduling';
 
 /** שם התור ב-BullMQ — חייב להיות זהה בין ה-Queue (apps/web) וה-Worker (apps/worker). */
@@ -31,7 +31,7 @@ export interface VideoExportOptions {
 }
 
 /**
- * ה-score וה-audioConfig מחושבים ב-apps/web (היחיד שתלוי ב-@shape-sound/genres דרך
+ * ה-score וה-audioConfig מחושבים ב-apps/web (היחיד שתלוי ב-@soundiform/genres דרך
  * genreAdapter.ts) *לפני* ההוספה לתור — apps/worker רק מרנדר, לא בוחר סגנון.
  *
  * ⭐ Sprint 8: projectId חובה — כדי ש-apps/worker יוכל לכתוב שורת renders אמיתית (§6),

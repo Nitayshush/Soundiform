@@ -1,7 +1,7 @@
 /**
  * @file        useSaveProject.ts
  * @description ⭐ שמירת פרויקט + מימוש בפועל של "היצירה עוברת אוטומטית לחשבון" (§9).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

@@ -1,7 +1,7 @@
 /**
  * @file        page.tsx
  * @description הרשמה/התחברות — אימייל+סיסמה, וגם Google OAuth. ראה PROJECT.md §11 Sprint 7.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

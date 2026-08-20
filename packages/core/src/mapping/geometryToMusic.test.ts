@@ -1,14 +1,14 @@
 /**
  * @file        geometryToMusic.test.ts
  * @description בדיקות אינטגרציה על צורות ידועות + דטרמיניזם (§1) של שכבת ה-Mapping.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ShapeData } from '@shape-sound/shared';
+import type { ShapeData } from '@soundiform/shared';
 import { geometryToMusic, rawMusicalIntentSchema } from './geometryToMusic';
 import {
   makeAsymmetricShapeData,

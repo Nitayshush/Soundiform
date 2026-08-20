@@ -1,7 +1,7 @@
 /**
  * @file        contourExtractor.ts
  * @description מאחד את מסלולי הציור לקונטור אחד, מזהה אם הוא סגור, ומדגם מחדש למרווח קשת אחיד.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -16,7 +16,7 @@
  * נקודות) כקירוב סביר; מיזוג רב-משיכות אמיתי הוא שיפור עתידי.
  */
 
-import type { ShapeData, ShapePath, ShapePoint } from '@shape-sound/shared';
+import type { ShapeData, ShapePath, ShapePoint } from '@soundiform/shared';
 import { at, distance } from './geometryUtils';
 
 const DEFAULT_RESAMPLE_COUNT = 64;

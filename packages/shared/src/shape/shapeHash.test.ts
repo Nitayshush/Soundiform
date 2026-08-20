@@ -1,7 +1,7 @@
 /**
  * @file        shapeHash.test.ts
  * @description בדיקות יחידה לעקרון הדטרמיניזם (§1) — אותה צורה חייבת תמיד לייצר אותו hash.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

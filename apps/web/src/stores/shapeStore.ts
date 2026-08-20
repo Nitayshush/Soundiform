@@ -1,7 +1,7 @@
 /**
  * @file        shapeStore.ts
  * @description ⭐ מצב הצורה הנוכחית + התמדה ב-localStorage (§11 Sprint 1 "שמירה ב-localStorage").
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -18,10 +18,10 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { computeShapeHash, type ShapeData, type ShapePath } from '@shape-sound/shared';
+import { computeShapeHash, type ShapeData, type ShapePath } from '@soundiform/shared';
 
 const SHAPE_VERSION = '1.0.0';
-const STORAGE_KEY = 'shape-sound:current-shape';
+const STORAGE_KEY = 'soundiform:current-shape';
 
 interface ShapeStoreState {
   paths: ShapePath[];

@@ -1,7 +1,7 @@
 /**
  * @file        shapeSchema.ts
  * @description ולידציית Zod ל-ShapeData — כל צורה שנשמרת/נטענת מה-DB עוברת דרך הסכימה הזו.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

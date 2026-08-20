@@ -1,5 +1,5 @@
 {
-  "name": "@shape-sound/storage",
+  "name": "@soundiform/storage",
   "version": "0.1.0",
   "private": true,
   "description": "⭐ הפשטת אחסון — R2 הוא הספק הפעיל. גישה לאחסון רק דרך החבילה הזו. ראה docs/PROJECT.md §7.",

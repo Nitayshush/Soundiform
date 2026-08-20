@@ -1,7 +1,7 @@
 /**
  * @file        route.ts
  * @description העלאת קבצים (SVG/raster) — presigned URL ל-R2. ראה PROJECT.md §7, §8 שרשרת ההגנה.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

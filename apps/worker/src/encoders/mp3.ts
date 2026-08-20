@@ -1,7 +1,7 @@
 /**
  * @file        mp3.ts
  * @description קידוד MP3 מ-WAV buffer באמצעות fluent-ffmpeg (libmp3lame), הכל בזיכרון (stdin/stdout).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

@@ -2,7 +2,7 @@
  * @file        voiceLeading.ts
  * @description ⭐ קריטי לאיכות — ראה PROJECT.md §11 Sprint 3. בוחר אוקטבה/היפוך לכל אקורד/תו
  *              כך שהתנועה מהתו/אקורד הקודם תהיה מינימלית ("voice leading חלק").
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

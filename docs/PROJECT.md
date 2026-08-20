@@ -1,8 +1,8 @@
-# PROJECT.md — Shape-to-Sound
+# PROJECT.md — Soundiform
 
 > **מסמך אב לפרויקט.** כל סוכן AI או מפתח שנכנס לפרויקט חייב לקרוא את הקובץ הזה במלואו לפני כתיבת שורת קוד אחת.
 >
-> **גרסה:** 0.1.0 · **סטטוס:** תכנון → Sprint 0 · **עודכן:** אוגוסט 2026
+> **גרסה:** 0.1.0 · **סטטוס:** תכנון → Sprint 0 · **עודכן:** אוגוסט 2026 · **דומיין:** soundiform.com
 
 ---
 
@@ -129,7 +129,7 @@
 /**
  * @file        shapeAnalyzer.ts
  * @description מחלץ מאפיינים גאומטריים מצורה וקטורית.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -254,7 +254,7 @@ Drizzle ORM          — DB
 > 📌 **זה המבנה שייבנה ב-Sprint 0.** קבצים המסומנים ⭐ הם ליבת המערכת.
 
 ```
-shape-sound/
+soundiform/
 │
 ├── .github/
 │   └── workflows/

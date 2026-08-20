@@ -1,7 +1,7 @@
 /**
  * @file        geometryToMusic.ts
  * @description ⭐ הליבה הקניינית — שכבה 2 (Mapping) של מנוע ההמרה. ראה PROJECT.md §4.1, §4.2.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -12,7 +12,7 @@
  * בטרם עת — זה בדיוק מה ש"רשת הביטחון" ההרמונית (§4.3) אמורה למנוע.
  */
 
-import type { ShapeData } from '@shape-sound/shared';
+import type { ShapeData } from '@soundiform/shared';
 import { z } from 'zod';
 import { extractContour } from '../analysis/contourExtractor';
 import { analyzeShape } from '../analysis/shapeAnalyzer';

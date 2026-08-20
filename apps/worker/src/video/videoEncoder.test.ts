@@ -2,7 +2,7 @@
  * @file        videoEncoder.test.ts
  * @description בדיקה אמיתית: מרנדר פריימים אמיתיים (napi-rs/canvas) ומקודד ל-MP4 עם ffmpeg
  *              אמיתי, ומאמת את הפלט עם ffprobe אמיתי (רזולוציה/משך/streams) — לא מוק.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -106,7 +106,7 @@ describe('encodeVideo', () => {
     expect(videoBuffer.subarray(4, 8).toString('ascii')).toBe('ftyp');
 
     // ffprobe דורש path על דיסק — כותבים לקובץ זמני לצורך הבדיקה בלבד.
-    const tempPath = join(tmpdir(), `shape-sound-video-test-${String(Date.now())}.mp4`);
+    const tempPath = join(tmpdir(), `soundiform-video-test-${String(Date.now())}.mp4`);
     await writeFile(tempPath, videoBuffer);
     try {
       const info = await probe(tempPath);

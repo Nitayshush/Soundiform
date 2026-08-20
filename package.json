@@ -1,8 +1,8 @@
 {
-  "name": "shape-sound",
+  "name": "soundiform",
   "private": true,
   "version": "0.1.0",
-  "description": "Shape-to-Sound — turns geometric shapes into professional music",
+  "description": "Soundiform — turns geometric shapes into professional music",
   "engines": {
     "node": ">=22"
   },

@@ -1,7 +1,7 @@
 /**
  * @file        videoEncoder.ts
  * @description ⭐ מרכיב פריימים + אודיו ל-MP4 אחד, דרך ffmpeg. הכל בתיקיית temp זמנית.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -15,8 +15,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import ffmpeg from 'fluent-ffmpeg';
-import type { ShapePoint } from '@shape-sound/shared';
-import type { VideoAspectRatio, VideoQuality } from '@shape-sound/audio';
+import type { ShapePoint } from '@soundiform/shared';
+import type { VideoAspectRatio, VideoQuality } from '@soundiform/audio';
 import { renderVideoFrame, type FrameDimensions } from './frameRenderer';
 
 const FRAME_RATE = 30;
@@ -65,7 +65,7 @@ export interface VideoEncodeInput {
 /** מקודד פריימים+אודיו ל-MP4. מחזיר את ה-buffer המקודד. */
 export async function encodeVideo(input: VideoEncodeInput): Promise<Buffer> {
   const frameCount = Math.max(1, Math.round(input.durationSeconds * FRAME_RATE));
-  const tempDir = await mkdtemp(join(tmpdir(), 'shape-sound-video-'));
+  const tempDir = await mkdtemp(join(tmpdir(), 'soundiform-video-'));
 
   try {
     for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {

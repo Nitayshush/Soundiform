@@ -1,7 +1,7 @@
 /**
  * @file        schema.ts
  * @description סכימת Zod של GenrePack — ראה PROJECT.md §5.1.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -16,7 +16,7 @@
  */
 
 import { z } from 'zod';
-import { modeSchema, trackRoleSchema } from '@shape-sound/core';
+import { modeSchema, trackRoleSchema } from '@soundiform/core';
 
 export const oscillatorTypeSchema = z.enum(['sine', 'triangle', 'sawtooth', 'square']);
 

@@ -2,9 +2,9 @@
  * @file        renderQueue.ts
  * @description ⭐ צד ה-producer של תור הרינדור (BullMQ Queue.add) — apps/worker הוא ה-consumer,
  *              ראה apps/worker/src/queue/renderQueue.ts. שני הצדדים חולקים חוזה
- *              (RENDER_QUEUE_NAME, RenderJobData) דרך @shape-sound/audio, בלי לייבא אחד
+ *              (RENDER_QUEUE_NAME, RenderJobData) דרך @soundiform/audio, בלי לייבא אחד
  *              את השני (§3: לא app תלוי ב-app).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -15,7 +15,7 @@
 
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
-import { RENDER_QUEUE_NAME, type RenderJobData } from '@shape-sound/audio';
+import { RENDER_QUEUE_NAME, type RenderJobData } from '@soundiform/audio';
 
 let queueInstance: Queue<RenderJobData> | null = null;
 

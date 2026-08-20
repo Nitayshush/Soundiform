@@ -1,7 +1,7 @@
 /**
  * @file        SynthProvider.ts
  * @description מימוש InstrumentProvider מבוסס Tone.js — ה-provider הפעיל היחיד ב-V1.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⭐ Sprint 5: סוג הקול נגזר מ-SynthPresetConfig (מגיע מ-GenrePack.synthMap, §5.1) — לא מ-role
@@ -14,7 +14,7 @@
 
 import { Gain, PolySynth, Synth } from 'tone';
 import type { OutputNode } from 'tone';
-import type { Note, TrackRole } from '@shape-sound/core';
+import type { Note, TrackRole } from '@soundiform/core';
 import type { InstrumentProvider } from './InstrumentProvider';
 import { midiToHz, ticksToSeconds } from '../internal/audioUtils';
 

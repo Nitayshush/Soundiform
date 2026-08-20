@@ -1,9 +1,9 @@
 /**
  * @file        seededRandom.ts
- * @description מחולל מספרים פסאודו-אקראיים דטרמיניסטי — עותק מקומי של @shape-sound/core's
+ * @description מחולל מספרים פסאודו-אקראיים דטרמיניסטי — עותק מקומי של @soundiform/core's
  *              internal/seededRandom.ts (שם לא מיוצא מה-index הציבורי, ולכן audio לא יכול
  *              לייבא אותו ישירות). לא מיוצא מ-index.ts — פנימי בלבד.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

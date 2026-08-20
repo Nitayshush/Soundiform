@@ -1,7 +1,7 @@
 /**
  * @file        voiceLeading.test.ts
  * @description בדיקות יחידה ל-voice leading — קריטי לאיכות (§11 Sprint 3).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

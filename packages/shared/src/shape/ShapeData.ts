@@ -2,7 +2,7 @@
  * @file        ShapeData.ts
  * @description ⭐ הפורמט המשותף של "צורה כווקטור" — בין הציור (apps/web) לניתוח (packages/core, Sprint 2).
  *              נשמר ב-DB תחת projects.shape_data (§6).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

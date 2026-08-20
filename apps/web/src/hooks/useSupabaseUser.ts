@@ -1,7 +1,7 @@
 /**
  * @file        useSupabaseUser.ts
  * @description מצב authentication בצד קליינט — מי מחובר כרגע, עם מנוי לשינויים.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

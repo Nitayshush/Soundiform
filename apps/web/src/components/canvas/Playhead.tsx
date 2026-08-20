@@ -1,7 +1,7 @@
 /**
  * @file        Playhead.tsx
  * @description סמן הניגון המונפש מעל הקנבס, מסונכרן עם Tone.js. ראה PROJECT.md §11 Sprint 4.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -15,8 +15,8 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import type { Application, Graphics as PixiGraphics } from 'pixi.js';
-import { extractContour } from '@shape-sound/core';
-import type { ShapePoint } from '@shape-sound/shared';
+import { extractContour } from '@soundiform/core';
+import type { ShapePoint } from '@soundiform/shared';
 import { useShapeStore } from '@/stores/shapeStore';
 
 const DOT_RADIUS = 6;

@@ -1,7 +1,7 @@
 /**
  * @file        shapeAnalyzer.test.ts
  * @description בדיקות יחידה על צורות ידועות (עיגול, משולש, ריבוע) — §11 Sprint 2.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

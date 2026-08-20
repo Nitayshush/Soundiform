@@ -2,7 +2,7 @@
  * @file        server.ts
  * @description לקוח Supabase לצד שרת (Server Components / Route Handlers) — קורא/כותב
  *              cookies של session. תבנית מתועדת של Supabase ל-Next.js App Router.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-19
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1

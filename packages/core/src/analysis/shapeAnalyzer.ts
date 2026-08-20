@@ -1,7 +1,7 @@
 /**
  * @file        shapeAnalyzer.ts
  * @description מחלץ מאפיינים גאומטריים מקונטור: מרכז מסה, bounding box, שטח, היקף, קודקודים.
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
@@ -11,7 +11,7 @@
  * וקטור נכנס ליוצא בכל נקודה היא מדד ישיר וזול ל"חדות" (§4.2: זווית חדה = אטאק/סטקטו).
  */
 
-import type { ShapePoint } from '@shape-sound/shared';
+import type { ShapePoint } from '@soundiform/shared';
 import type { Contour } from './contourExtractor';
 import { at, averagePoint } from './geometryUtils';
 

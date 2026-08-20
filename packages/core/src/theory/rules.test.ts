@@ -1,7 +1,7 @@
 /**
  * @file        rules.test.ts
  * @description בדיקות יחידה לוולידטור החוקה המוזיקלית (§4.3).
- * @author      Shape-to-Sound
+ * @author      Soundiform
  * @created     2026-08-17
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
