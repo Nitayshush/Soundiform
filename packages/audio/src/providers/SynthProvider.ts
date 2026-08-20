@@ -47,9 +47,25 @@ export const DEFAULT_SYNTH_PRESET: SynthPresetConfig = {
 
 type ToneVoice = Synth | PolySynth;
 
+/** 'fat' == כמה קולות unison מוסטים-detuning זה מזה — טריק עיצוב-סאונד סטנדרטי לגוון "גדול"
+ * יותר מגל בודד, בלי דגימות/תלות חדשה (Tone.js תומך בזה built-in). count/spread שמרניים
+ * בכוונה כדי שזה יתחזק את הגוון בלי להישמע כמו chorus-effect מוגזם, גם בפגיעות תופים קצרות. */
+const FAT_OSCILLATOR_TYPE: Record<OscillatorType, `fat${OscillatorType}`> = {
+  sine: 'fatsine',
+  triangle: 'fattriangle',
+  sawtooth: 'fatsawtooth',
+  square: 'fatsquare',
+};
+const FAT_UNISON_COUNT = 3;
+const FAT_UNISON_SPREAD_CENTS = 18;
+
 function createVoice(preset: SynthPresetConfig): ToneVoice {
   const voiceOptions = {
-    oscillator: { type: preset.oscillatorType },
+    oscillator: {
+      type: FAT_OSCILLATOR_TYPE[preset.oscillatorType],
+      count: FAT_UNISON_COUNT,
+      spread: FAT_UNISON_SPREAD_CENTS,
+    },
     envelope: preset.envelope,
   };
   return preset.polyphonic ? new PolySynth(Synth, voiceOptions) : new Synth(voiceOptions);

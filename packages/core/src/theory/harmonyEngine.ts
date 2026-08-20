@@ -47,6 +47,12 @@ const HARMONIC_PROGRESSION_DEGREES: readonly number[] = [0, 5, 3, 4];
 
 const TICKS_PER_BAR = TICKS_PER_BEAT * DEFAULT_TIME_SIGNATURE[0];
 
+/** תבנית תופים דטרמיניסטית — hits[step] הוא velocity (0=שקט), ראה GenrePack.rhythmPatterns.drums. */
+export interface DrumsPattern {
+  stepsPerBar: GridSubdivision;
+  hits: readonly number[];
+}
+
 /**
  * מה ש-composeMusicalScore צריך מסגנון (GenrePack) בלי לתלות ב-@soundiform/genres.
  * apps/web בונה את זה מ-GenrePack שנבחר; ברירת המחדל (ללא סגנון עדיין) היא באחריות הקורא.
@@ -58,6 +64,11 @@ export interface CompositionConfig {
   gridSubdivision: GridSubdivision;
   /** 0–1, ראה GenrePack.grid.swingAmount ב-§5.1. */
   swingAmount: number;
+  /**
+   * ⭐ תבנית התופים של הסגנון (rhythmPatterns.drums[0]) — undefined אם לסגנון אין role 'drums'.
+   * כשמוגדר, מתווסף טראק 'drums' רביעי (בנוסף ל-lead/bass/pad) — ראה buildDrumsTrack.
+   */
+  drumsPattern?: DrumsPattern;
 }
 
 function midiToFrequencyHz(midiPitch: number): number {
@@ -213,6 +224,54 @@ function buildLeadTrack(
   };
 }
 
+/** התופים הם הקצב, לא מלודיה — pitch קבוע (אוקטבה מתחת לשורש, תחושת "קיק") לכל הפגיעות. */
+const DRUMS_DEGREE_OFFSET = -7;
+
+/**
+ * ⭐ טראק תופים אמיתי מ-DrumsPattern (§5.1 rhythmPatterns) — היה מוגדר ב-GenrePack מ-Sprint 5
+ * אך מעולם לא נצרך (ראה packages/genres/src/schema.ts תיעוד "לא נצרך ב-V1"). זה מה שסוגר
+ * את הפער: הופך תבנית ה-hits הספציפית-לסגנון לטראק רביעי אמיתי שמתנגן בפועל.
+ */
+function buildDrumsTrack(
+  pattern: DrumsPattern,
+  root: number,
+  mode: Mode,
+  durationBars: number,
+  config: CompositionConfig,
+  random: () => number,
+): Track {
+  const pitch = scaleDegreeToMidiPitch(root, mode, DRUMS_DEGREE_OFFSET);
+  const stepTicks = TICKS_PER_BAR / pattern.stepsPerBar;
+  const hitDurationTicks = Math.max(1, Math.round(stepTicks * 0.6));
+
+  const notes: Note[] = [];
+  for (let barIndex = 0; barIndex < durationBars; barIndex += 1) {
+    pattern.hits.forEach((hitVelocity, stepIndex) => {
+      if (hitVelocity <= 0) {
+        return;
+      }
+      const rawStartTick = barIndex * TICKS_PER_BAR + stepIndex * stepTicks;
+      const swungStartTick = applySwing(rawStartTick, config.gridSubdivision, config.swingAmount);
+      const startTick = humanizeTiming(swungStartTick, config.tempoBpm, random);
+      const velocity = humanizeVelocity(hitVelocity, random);
+      notes.push({
+        startTick,
+        durationTicks: hitDurationTicks,
+        pitch,
+        velocity,
+        articulation: 'staccato',
+      });
+    });
+  }
+
+  return {
+    role: 'drums',
+    instrumentId: 'default-drums',
+    notes,
+    mixSettings: { volume: 0.75, pan: 0, reverbSend: 0.1, delaySend: 0 },
+  };
+}
+
 /**
  * ⭐⭐ ממיר RawMusicalIntent ל-MusicalScore תקף — אוכף את §4.3 (סולם, קוונטיזציה,
  * voice leading) ומיישם את §4.4 (סימטריה → רטרוגרד/אינוורסיה) על מבנה היצירה בפועל.
@@ -238,6 +297,9 @@ export function composeMusicalScore(
     buildBassTrack(root, mode, progressionDegrees),
     buildPadTrack(root, mode, progressionDegrees),
   ];
+  if (config.drumsPattern) {
+    tracks.push(buildDrumsTrack(config.drumsPattern, root, mode, durationBars, config, random));
+  }
 
   const sections: Section[] = [{ name: 'loop', startBar: 0, lengthBars: durationBars }];
 

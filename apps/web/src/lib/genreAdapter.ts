@@ -14,12 +14,16 @@ import type { GenreAudioConfig } from '@soundiform/audio';
 import type { GenrePack } from '@soundiform/genres';
 
 export function toCompositionConfig(pack: GenrePack): CompositionConfig {
+  const drumsPattern = pack.rhythmPatterns.drums?.[0];
   return {
     genreId: pack.id,
     tempoBpm: pack.tempo.default,
     mode: pack.defaultMode,
     gridSubdivision: pack.grid.subdivision,
     swingAmount: pack.grid.swingAmount,
+    ...(drumsPattern && {
+      drumsPattern: { stepsPerBar: drumsPattern.stepsPerBar, hits: drumsPattern.hits },
+    }),
   };
 }
 
