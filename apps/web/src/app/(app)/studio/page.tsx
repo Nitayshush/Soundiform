@@ -13,12 +13,15 @@
 'use client';
 
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { DrawingCanvas } from '@/components/canvas/DrawingCanvas';
 import { MusicalGrid } from '@/components/canvas/MusicalGrid';
 import { Playhead } from '@/components/canvas/Playhead';
 import { RevealOverlay } from '@/components/canvas/RevealOverlay';
 import { GenreSelector } from '@/components/controls/GenreSelector';
 import { UploadButton } from '@/components/controls/UploadButton';
+import { Logo } from '@/components/branding/Logo';
+import { Button } from '@/components/ui/button';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useSaveProject } from '@/hooks/useSaveProject';
 import { useShapeStore } from '@/stores/shapeStore';
@@ -33,41 +36,44 @@ function StudioContent() {
   const progress = durationSeconds > 0 ? currentSeconds / durationSeconds : 0;
 
   return (
-    <main className="flex h-dvh flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-        <h1 className="text-lg font-semibold">Studio</h1>
+    <main className="flex h-dvh flex-col bg-background">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-card/60 px-4 py-3 backdrop-blur-md">
+        <Link href="/" className="transition-opacity hover:opacity-80">
+          <Logo markOnly className="sm:hidden" />
+          <Logo className="hidden sm:inline-flex" />
+        </Link>
         <GenreSelector />
         <UploadButton />
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
           {error && <span className="text-destructive">{error}</span>}
           {saveError && <span className="text-destructive">{saveError}</span>}
-          <button
+          <Button
             type="button"
+            variant={isPlaying ? 'secondary' : 'default'}
             onClick={() => void (isPlaying ? stop() : play())}
             disabled={!canPlay || isLoading}
-            className="rounded border px-3 py-1 disabled:opacity-40"
           >
             {isLoading ? 'Loading…' : isPlaying ? 'Stop' : 'Play'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={requestSave}
             disabled={!canPlay || isSaving}
-            className="rounded border px-3 py-1 disabled:opacity-40"
           >
             {isSaving ? 'Saving…' : savedProjectId ? 'Saved ✓' : 'Save'}
-          </button>
+          </Button>
           {durationSeconds > 0 && (
             <span className="font-mono" data-testid="playback-time">
               {currentSeconds.toFixed(1)}s / {durationSeconds.toFixed(1)}s
             </span>
           )}
-          <span className="font-mono" title="shapeHash — determinism, §1">
+          <span className="font-mono text-xs" title="shapeHash — determinism, §1">
             {shapeHash ? shapeHash.slice(0, 12) : 'Draw a shape'}
           </span>
-          <button type="button" onClick={clear} className="underline">
+          <Button type="button" variant="ghost" onClick={clear}>
             Clear
-          </button>
+          </Button>
         </div>
       </header>
       <div className="relative flex-1">

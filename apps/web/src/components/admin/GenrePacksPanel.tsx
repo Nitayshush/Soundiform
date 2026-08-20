@@ -178,7 +178,7 @@ export function GenrePacksPanel() {
                 onClick={() => {
                   toggleActive(pack);
                 }}
-                className={`rounded border px-2 py-1 ${pack.isActive ? 'bg-foreground text-background' : ''}`}
+                className={`rounded border px-2 py-1 ${pack.isActive ? 'bg-primary text-primary-foreground' : ''}`}
               >
                 {pack.isActive ? 'On' : 'Off'}
               </button>

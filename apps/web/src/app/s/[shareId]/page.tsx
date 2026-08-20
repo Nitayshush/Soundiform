@@ -15,6 +15,8 @@ import { eq, sql } from 'drizzle-orm';
 import { getDb, projects, renders, shares } from '@soundiform/db';
 import { RemixButton } from '@/components/share/RemixButton';
 import { SharePlayer } from '@/components/share/SharePlayer';
+import { Header } from '@/components/layout/Header';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface SharePageProps {
   params: Promise<{ shareId: string }>;
@@ -47,13 +49,18 @@ export default async function SharePage({ params }: SharePageProps) {
     .where(eq(shares.id, row.shareRowId));
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-1 text-xl font-semibold">Shared creation</h1>
-      <p className="mb-6 text-sm text-muted-foreground">Soundiform — music from shape</p>
-      <SharePlayer score={row.score} genreId={row.genreId} />
-      <div className="mt-6">
-        <RemixButton renderId={row.renderId} paths={row.shapeData.paths} />
-      </div>
-    </main>
+    <>
+      <Header />
+      <main className="mx-auto max-w-2xl px-6 py-12">
+        <h1 className="mb-1 text-3xl font-semibold tracking-tight">Shared creation</h1>
+        <p className="mb-6 text-sm text-muted-foreground">Soundiform — music from shape</p>
+        <Card className="border-border/60 p-6">
+          <CardContent className="flex flex-col gap-6 px-0">
+            <SharePlayer score={row.score} genreId={row.genreId} />
+            <RemixButton renderId={row.renderId} paths={row.shapeData.paths} />
+          </CardContent>
+        </Card>
+      </main>
+    </>
   );
 }

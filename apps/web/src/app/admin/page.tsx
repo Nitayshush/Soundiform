@@ -13,6 +13,7 @@
 import { redirect } from 'next/navigation';
 import { getAdminUser } from '@/lib/adminAuth';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
+import { Header } from '@/components/layout/Header';
 
 export default async function AdminPage() {
   const admin = await getAdminUser();
@@ -21,9 +22,12 @@ export default async function AdminPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <h1 className="mb-6 text-lg font-semibold">Admin</h1>
-      <AdminDashboard />
-    </main>
+    <>
+      <Header />
+      <main className="mx-auto max-w-5xl px-6 py-10">
+        <h1 className="mb-6 text-2xl font-semibold tracking-tight">Admin</h1>
+        <AdminDashboard />
+      </main>
+    </>
   );
 }

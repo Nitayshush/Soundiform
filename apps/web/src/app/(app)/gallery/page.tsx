@@ -10,6 +10,9 @@
 import Link from 'next/link';
 import { and, desc, eq } from 'drizzle-orm';
 import { getDb, renders, shares } from '@soundiform/db';
+import { Header } from '@/components/layout/Header';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface GalleryPageProps {
   searchParams: Promise<{ genre?: string }>;
@@ -37,22 +40,29 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
     .limit(50);
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-6 text-xl font-semibold">Gallery</h1>
-      {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No public creations yet.</p>
-      ) : (
-        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          {rows.map((row) => (
-            <li key={row.slug}>
-              <Link href={`/s/${row.slug}`} className="block rounded border p-3 hover:bg-muted">
-                <p className="font-mono text-sm">{row.genreId}</p>
-                <p className="text-xs text-muted-foreground">{row.viewCount} views</p>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+    <>
+      <Header />
+      <main className="mx-auto max-w-5xl px-6 py-12">
+        <h1 className="mb-8 text-3xl font-semibold tracking-tight">Gallery</h1>
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No public creations yet.</p>
+        ) : (
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {rows.map((row) => (
+              <li key={row.slug}>
+                <Link href={`/s/${row.slug}`}>
+                  <Card className="border-border/60 p-4 transition-colors hover:border-primary/50 hover:bg-card/80">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="secondary">{row.genreId}</Badge>
+                      <span className="text-xs text-muted-foreground">{row.viewCount} views</span>
+                    </div>
+                  </Card>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+    </>
   );
 }

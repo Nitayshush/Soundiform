@@ -29,7 +29,7 @@ export function AdminDashboard() {
 
   return (
     <div>
-      <nav className="mb-6 flex gap-2 border-b" role="tablist">
+      <nav className="mb-6 flex gap-2 border-b border-border/60" role="tablist">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -39,10 +39,10 @@ export function AdminDashboard() {
             onClick={() => {
               setActiveTab(tab.id);
             }}
-            className={`px-3 py-2 text-sm ${
+            className={`px-3 py-2 text-sm transition-colors ${
               activeTab === tab.id
-                ? 'border-b-2 border-foreground font-medium'
-                : 'text-muted-foreground'
+                ? 'border-b-2 border-primary font-medium text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {tab.label}

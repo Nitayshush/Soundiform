@@ -86,7 +86,7 @@ export function FeatureFlagsPanel() {
             <button
               type="button"
               onClick={() => void setFlag(flag.key, !flag.value)}
-              className={`rounded border px-2 py-1 ${flag.value ? 'bg-foreground text-background' : ''}`}
+              className={`rounded border px-2 py-1 ${flag.value ? 'bg-primary text-primary-foreground' : ''}`}
             >
               {flag.value ? 'On' : 'Off'}
             </button>

@@ -11,6 +11,7 @@
 
 import type { MusicalScore } from '@soundiform/core';
 import { usePlayScore } from '@/hooks/usePlayScore';
+import { Button } from '@/components/ui/button';
 
 export interface SharePlayerProps {
   score: MusicalScore;
@@ -26,14 +27,14 @@ export function SharePlayer({ score, genreId }: SharePlayerProps) {
   return (
     <div className="flex items-center gap-3">
       {error && <span className="text-sm text-destructive">{error}</span>}
-      <button
+      <Button
         type="button"
+        size="lg"
         onClick={() => void (isPlaying ? stop() : play())}
         disabled={isLoading}
-        className="rounded border px-4 py-2 disabled:opacity-40"
       >
         {isLoading ? 'Loading…' : isPlaying ? 'Stop' : 'Play'}
-      </button>
+      </Button>
       {durationSeconds > 0 && (
         <span className="font-mono text-sm">
           {currentSeconds.toFixed(1)}s / {durationSeconds.toFixed(1)}s

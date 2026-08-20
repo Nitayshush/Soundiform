@@ -15,6 +15,7 @@
 import { useEffect } from 'react';
 import { useGenrePacksStore } from '@/stores/genrePacksStore';
 import { useGenreStore } from '@/stores/genreStore';
+import { Button } from '@/components/ui/button';
 
 export function GenreSelector() {
   const genreId = useGenreStore((state) => state.genreId);
@@ -38,20 +39,19 @@ export function GenreSelector() {
         <span className="text-sm text-muted-foreground">Loading styles…</span>
       ) : (
         packs.map((pack) => (
-          <button
+          <Button
             key={pack.id}
             type="button"
             role="radio"
+            variant={pack.id === genreId ? 'default' : 'outline'}
+            className="rounded-full"
             aria-checked={pack.id === genreId}
             onClick={() => {
               setGenreId(pack.id);
             }}
-            className={`rounded-full border px-3 py-1 text-sm ${
-              pack.id === genreId ? 'bg-foreground text-background' : ''
-            }`}
           >
             {pack.displayName.en}
-          </button>
+          </Button>
         ))
       )}
     </div>

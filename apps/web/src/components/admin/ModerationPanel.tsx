@@ -127,7 +127,7 @@ export function ModerationPanel() {
             onClick={() => {
               setStatus(option);
             }}
-            className={`rounded border px-3 py-1 text-sm ${status === option ? 'bg-foreground text-background' : ''}`}
+            className={`rounded border px-3 py-1 text-sm ${status === option ? 'bg-primary text-primary-foreground' : ''}`}
           >
             {option}
           </button>

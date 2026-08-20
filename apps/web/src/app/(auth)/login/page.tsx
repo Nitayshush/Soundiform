@@ -14,8 +14,13 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { Logo } from '@/components/branding/Logo';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type Mode = 'signin' | 'signup';
 
@@ -75,52 +80,66 @@ function LoginForm() {
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
-      <h1 className="text-xl font-semibold">{mode === 'signin' ? 'Sign in' : 'Sign up'}</h1>
-
-      <form onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-3">
-        <input
-          type="email"
-          required
-          placeholder="Email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          className="rounded border px-3 py-2"
-        />
-        <input
-          type="password"
-          required
-          minLength={6}
-          placeholder="Password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className="rounded border px-3 py-2"
-        />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded bg-foreground px-3 py-2 text-background disabled:opacity-40"
-        >
-          {isSubmitting ? 'One sec…' : mode === 'signin' ? 'Sign in' : 'Sign up'}
-        </button>
-      </form>
-
-      <button
-        type="button"
-        onClick={() => void handleGoogleSignIn()}
-        className="rounded border px-3 py-2"
+    <main className="relative flex min-h-dvh flex-col items-center justify-center gap-8 overflow-hidden p-6">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 flex justify-center blur-3xl"
       >
-        Continue with Google
-      </button>
+        <div className="h-[28rem] w-[28rem] rounded-full bg-primary/20" />
+      </div>
 
-      <button
-        type="button"
-        onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-        className="text-sm underline"
-      >
-        {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-      </button>
+      <Link href="/">
+        <Logo className="text-xl" />
+      </Link>
+
+      <Card className="w-full max-w-sm border-border/60">
+        <CardHeader>
+          <CardTitle className="text-xl">{mode === 'signin' ? 'Sign in' : 'Sign up'}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <form onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-3">
+            <Input
+              type="email"
+              required
+              placeholder="Email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+            <Input
+              type="password"
+              required
+              minLength={6}
+              placeholder="Password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? 'One sec…' : mode === 'signin' ? 'Sign in' : 'Sign up'}
+            </Button>
+          </form>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => void handleGoogleSignIn()}
+          >
+            Continue with Google
+          </Button>
+
+          <Button
+            type="button"
+            variant="link"
+            className="mx-auto"
+            onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+          >
+            {mode === 'signin'
+              ? "Don't have an account? Sign up"
+              : 'Already have an account? Sign in'}
+          </Button>
+        </CardContent>
+      </Card>
     </main>
   );
 }

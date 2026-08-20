@@ -12,6 +12,7 @@
 
 import { useRef, useState } from 'react';
 import { useShapeStore, type ShapeSourceType } from '@/stores/shapeStore';
+import { Button } from '@/components/ui/button';
 
 interface UploadResponseBody {
   shape?: { paths: { points: { x: number; y: number }[]; closed: boolean }[] };
@@ -66,14 +67,14 @@ export function UploadButton() {
         className="hidden"
         onChange={(event) => void handleFileChange(event)}
       />
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={() => inputRef.current?.click()}
         disabled={isUploading}
-        className="rounded border px-3 py-1 text-sm disabled:opacity-40"
       >
         {isUploading ? 'Uploading…' : 'Upload file'}
-      </button>
+      </Button>
       {error && <span className="text-sm text-destructive">{error}</span>}
     </div>
   );

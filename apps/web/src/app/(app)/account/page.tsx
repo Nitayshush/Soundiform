@@ -21,6 +21,8 @@ import {
 } from '@soundiform/db';
 import { FREE_MONTHLY_CREATIONS, FREE_SAVED_PROJECTS } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
+import { Header } from '@/components/layout/Header';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -48,43 +50,63 @@ export default async function AccountPage() {
   const isFree = plan === 'free';
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-6 text-xl font-semibold">Account</h1>
+    <>
+      <Header />
+      <main className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-12">
+        <h1 className="text-3xl font-semibold tracking-tight">Account</h1>
 
-      <section className="mb-6 rounded border p-4">
-        <p className="text-sm text-muted-foreground">Email</p>
-        <p className="mb-3">{userRow?.email ?? user.email}</p>
-        <p className="text-sm text-muted-foreground">Plan</p>
-        <p className="capitalize">{plan}</p>
-      </section>
+        <Card className="border-border/60">
+          <CardContent className="flex flex-col gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Email</p>
+              <p>{userRow?.email ?? user.email}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Plan</p>
+              <p className="capitalize">{plan}</p>
+            </div>
+          </CardContent>
+        </Card>
 
-      <section className="mb-6 rounded border p-4">
-        <h2 className="mb-2 font-medium">Quotas</h2>
-        <p>
-          Creations this month: {monthlyCreations}
-          {isFree ? ` / ${String(FREE_MONTHLY_CREATIONS)}` : ' (unlimited)'}
-        </p>
-        <p>
-          Saved: {savedCount}
-          {isFree ? ` / ${String(FREE_SAVED_PROJECTS)}` : ' (unlimited)'}
-        </p>
-      </section>
+        <Card className="border-border/60">
+          <CardHeader>
+            <CardTitle className="text-base">Quotas</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1 text-sm">
+            <p>
+              Creations this month: {monthlyCreations}
+              {isFree ? ` / ${String(FREE_MONTHLY_CREATIONS)}` : ' (unlimited)'}
+            </p>
+            <p>
+              Saved: {savedCount}
+              {isFree ? ` / ${String(FREE_SAVED_PROJECTS)}` : ' (unlimited)'}
+            </p>
+          </CardContent>
+        </Card>
 
-      <section>
-        <h2 className="mb-2 font-medium">Saved creations</h2>
-        {myProjects.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No saved creations yet.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {myProjects.map((project) => (
-              <li key={project.id} className="rounded border px-3 py-2 text-sm">
-                {project.title ?? project.shapeHash.slice(0, 12)} —{' '}
-                {new Date(project.createdAt).toLocaleDateString('en-US')}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+        <Card className="border-border/60">
+          <CardHeader>
+            <CardTitle className="text-base">Saved creations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {myProjects.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No saved creations yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {myProjects.map((project) => (
+                  <li
+                    key={project.id}
+                    className="rounded-lg border border-border/60 px-3 py-2 text-sm"
+                  >
+                    {project.title ?? project.shapeHash.slice(0, 12)} —{' '}
+                    {new Date(project.createdAt).toLocaleDateString('en-US')}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+    </>
   );
 }
