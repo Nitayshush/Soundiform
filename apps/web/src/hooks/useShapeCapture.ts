@@ -17,8 +17,13 @@ import type PaperScopeType from 'paper';
 import type { ShapePath, ShapePoint } from '@soundiform/shared';
 import { useShapeStore } from '@/stores/shapeStore';
 
-/** טולרנס בטווח הנורמלי (0–1) — נבחר כך שקווים ישרים לא מתעקלים אך רעש דגימה נמחק. */
-const SIMPLIFY_TOLERANCE = 0.003;
+/**
+ * טולרנס בטווח הנורמלי (0–1). ⚠️ 0.003 המקורי היה גבוה מדי בפועל: paper.js Path.simplify()
+ * הוא curve-fit של Schneider (least-squares Bézier), לא סינון-רעש — בטולרנס הזה הוא היה
+ * מיישר פינות אמיתיות שהמשתמש צייר, לא רק מנקה רעש דגימה מהעכבר/מגע. הורד ל-0.0007 כך
+ * שרק רעש תת-פיקסלי בין דגימות עוקבות נמחק, לא תכונות מכוונות של הצורה.
+ */
+const SIMPLIFY_TOLERANCE = 0.0007;
 
 let paperScopePromise: Promise<typeof PaperScopeType> | null = null;
 let isPaperInitialized = false;
