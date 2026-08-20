@@ -19,10 +19,10 @@ import { analyzeShape, detectSymmetry, extractContour, geometryToMusic } from '@
 import { useShapeStore } from '@/stores/shapeStore';
 
 const SYMMETRY_TRANSFORM_LABELS: Record<string, string> = {
-  none: 'ללא סימטריה משמעותית',
-  retrograde: 'שיקוף אופקי → רטרוגרד (המחצית השנייה מתנגנת הפוך בזמן)',
-  inversion: 'שיקוף אנכי → אינוורסיה (המחצית השנייה הפוכה במרווחים)',
-  'retrograde-inversion': 'שיקוף כפול → רטרוגרד+אינוורסיה',
+  none: 'No meaningful symmetry',
+  retrograde: 'Horizontal mirror → retrograde (second half plays backward in time)',
+  inversion: 'Vertical mirror → inversion (second half is intervallically inverted)',
+  'retrograde-inversion': 'Double mirror → retrograde+inversion',
 };
 
 export function RevealOverlay() {
@@ -56,35 +56,35 @@ export function RevealOverlay() {
         }}
         className="pointer-events-auto rounded-full border bg-background/90 px-3 py-1 text-sm shadow"
       >
-        {isOpen ? 'סגור' : 'איך זה נבנה?'}
+        {isOpen ? 'Close' : 'How is this built?'}
       </button>
       {isOpen && (
         <aside className="pointer-events-auto max-w-xs rounded-lg border bg-background/95 p-4 text-sm shadow-lg">
-          <h2 className="mb-2 font-semibold">מהצורה שלכם למוזיקה</h2>
+          <h2 className="mb-2 font-semibold">From your shape to music</h2>
           <dl className="space-y-1">
             <div className="flex justify-between gap-3">
               <dt className="text-muted-foreground">
-                {features.vertexCount >= 3 ? 'קודקודים' : 'צורה חלקה (סימטריה סיבובית)'}
+                {features.vertexCount >= 3 ? 'Vertices' : 'Smooth shape (rotational symmetry)'}
               </dt>
-              <dd>מוטיב בן {intent.motifSize} תווים</dd>
+              <dd>{intent.motifSize}-note motif</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">קונטור</dt>
-              <dd>{features.closed ? 'סגור → לופ/אוסטינטו' : 'פתוח'}</dd>
+              <dt className="text-muted-foreground">Contour</dt>
+              <dd>{features.closed ? 'Closed → loop/ostinato' : 'Open'}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">סימטריית שיקוף</dt>
+              <dt className="text-muted-foreground">Mirror symmetry</dt>
               <dd className="text-right">
                 {SYMMETRY_TRANSFORM_LABELS[intent.symmetryTransform] ?? intent.symmetryTransform}
               </dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">סימטריה סיבובית</dt>
-              <dd>סדר {symmetry.rotationalOrder}</dd>
+              <dt className="text-muted-foreground">Rotational symmetry</dt>
+              <dd>Order {symmetry.rotationalOrder}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-muted-foreground">זוויות</dt>
-              <dd>{intent.articulation === 'staccato' ? 'חדות → סטקטו' : 'חלקות → לגאטו'}</dd>
+              <dt className="text-muted-foreground">Angles</dt>
+              <dd>{intent.articulation === 'staccato' ? 'Sharp → staccato' : 'Smooth → legato'}</dd>
             </div>
           </dl>
         </aside>

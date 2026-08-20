@@ -24,7 +24,7 @@ export async function PATCH(
 ): Promise<NextResponse> {
   const admin = await getAdminUser();
   if (!admin) {
-    return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }
 
   const { id } = await params;
@@ -32,7 +32,7 @@ export async function PATCH(
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'בקשה לא תקינה', details: parsed.error.issues },
+      { error: 'Invalid request', details: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -49,7 +49,7 @@ export async function PATCH(
     .returning();
 
   if (!updated) {
-    return NextResponse.json({ error: 'שורת מודרציה לא נמצאה' }, { status: 404 });
+    return NextResponse.json({ error: 'Moderation entry not found' }, { status: 404 });
   }
 
   await recordAuditLog({

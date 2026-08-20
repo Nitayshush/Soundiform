@@ -38,16 +38,16 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
 
   return (
     <main className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-6 text-xl font-semibold">גלריה</h1>
+      <h1 className="mb-6 text-xl font-semibold">Gallery</h1>
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">עדיין אין יצירות ציבוריות.</p>
+        <p className="text-sm text-muted-foreground">No public creations yet.</p>
       ) : (
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {rows.map((row) => (
             <li key={row.slug}>
               <Link href={`/s/${row.slug}`} className="block rounded border p-3 hover:bg-muted">
                 <p className="font-mono text-sm">{row.genreId}</p>
-                <p className="text-xs text-muted-foreground">{row.viewCount} צפיות</p>
+                <p className="text-xs text-muted-foreground">{row.viewCount} views</p>
               </Link>
             </li>
           ))}

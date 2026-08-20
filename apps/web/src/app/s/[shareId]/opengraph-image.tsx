@@ -17,7 +17,7 @@ import { getDb, projects, renders, shares } from '@soundiform/db';
 import type { ShapePath } from '@soundiform/shared';
 
 export const runtime = 'nodejs';
-export const alt = 'Soundiform — יצירה משותפת';
+export const alt = 'Soundiform — shared creation';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 

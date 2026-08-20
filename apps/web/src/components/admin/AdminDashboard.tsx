@@ -16,7 +16,7 @@ import { GenrePacksPanel } from './GenrePacksPanel';
 import { AuditLogPanel } from './AuditLogPanel';
 
 const TABS = [
-  { id: 'moderation', label: 'מודרציה' },
+  { id: 'moderation', label: 'Moderation' },
   { id: 'feature-flags', label: 'Feature Flags' },
   { id: 'genre-packs', label: 'GenrePacks' },
   { id: 'audit-log', label: 'Audit Log' },

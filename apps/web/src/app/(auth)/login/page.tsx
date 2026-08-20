@@ -20,7 +20,7 @@ import { createClient } from '@/lib/supabase/client';
 type Mode = 'signin' | 'signup';
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'שגיאה לא ידועה';
+  return error instanceof Error ? error.message : 'Unknown error';
 }
 
 function LoginForm() {
@@ -76,13 +76,13 @@ function LoginForm() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
-      <h1 className="text-xl font-semibold">{mode === 'signin' ? 'התחברות' : 'הרשמה'}</h1>
+      <h1 className="text-xl font-semibold">{mode === 'signin' ? 'Sign in' : 'Sign up'}</h1>
 
       <form onSubmit={(event) => void handleSubmit(event)} className="flex flex-col gap-3">
         <input
           type="email"
           required
-          placeholder="אימייל"
+          placeholder="Email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           className="rounded border px-3 py-2"
@@ -91,7 +91,7 @@ function LoginForm() {
           type="password"
           required
           minLength={6}
-          placeholder="סיסמה"
+          placeholder="Password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className="rounded border px-3 py-2"
@@ -102,7 +102,7 @@ function LoginForm() {
           disabled={isSubmitting}
           className="rounded bg-foreground px-3 py-2 text-background disabled:opacity-40"
         >
-          {isSubmitting ? 'רגע…' : mode === 'signin' ? 'התחבר' : 'הרשם'}
+          {isSubmitting ? 'One sec…' : mode === 'signin' ? 'Sign in' : 'Sign up'}
         </button>
       </form>
 
@@ -111,7 +111,7 @@ function LoginForm() {
         onClick={() => void handleGoogleSignIn()}
         className="rounded border px-3 py-2"
       >
-        המשך עם Google
+        Continue with Google
       </button>
 
       <button
@@ -119,7 +119,7 @@ function LoginForm() {
         onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
         className="text-sm underline"
       >
-        {mode === 'signin' ? 'אין לך חשבון? הרשם' : 'כבר יש לך חשבון? התחבר'}
+        {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
       </button>
     </main>
   );

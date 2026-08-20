@@ -86,7 +86,7 @@ export function flattenPathData(d: string): FlatSubpath[] {
   const appendPoint = (point: FlatPoint): void => {
     current.push(point);
     if (current.length > MAX_POINTS_PER_SUBPATH) {
-      throw new SubpathLimitError('תת-מסלול SVG חורג ממספר הנקודות המותר');
+      throw new SubpathLimitError('SVG subpath exceeds the allowed number of points');
     }
   };
 
@@ -95,7 +95,7 @@ export function flattenPathData(d: string): FlatSubpath[] {
       case SVGPathData.MOVE_TO: {
         pushCurrentSubpath();
         if (subpaths.length >= MAX_SUBPATHS) {
-          throw new SubpathLimitError('SVG חורג ממספר תתי-המסלולים המותר');
+          throw new SubpathLimitError('SVG exceeds the allowed number of subpaths');
         }
         cx = command.x;
         cy = command.y;
@@ -153,5 +153,7 @@ export function flattenPathData(d: string): FlatSubpath[] {
 }
 
 function assertUnreachableCommand(command: SVGCommand): never {
-  throw new Error(`svgPathFlatten: פקודת SVG לא צפויה אחרי נרמול: ${JSON.stringify(command)}`);
+  throw new Error(
+    `svgPathFlatten: unexpected SVG command after normalization: ${JSON.stringify(command)}`,
+  );
 }

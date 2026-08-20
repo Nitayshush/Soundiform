@@ -40,13 +40,13 @@ export function sanitizeSvg(rawSvg: string): string {
   });
 
   if (!purified.includes('<svg')) {
-    throw new SvgSanitizeError('SVG לא תקין או שכל התוכן שלו נחסם בסינון האבטחה');
+    throw new SvgSanitizeError('Invalid SVG, or all its content was blocked by security filtering');
   }
 
   try {
     return optimize(purified, { multipass: true }).data;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new SvgSanitizeError(`svgo נכשל: ${message}`);
+    throw new SvgSanitizeError(`svgo failed: ${message}`);
   }
 }

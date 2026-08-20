@@ -146,7 +146,7 @@ interface WalkState {
 function walk(element: Element, parentMatrix: Matrix2D, state: WalkState): void {
   state.visitedCount += 1;
   if (state.visitedCount > MAX_VISITED_ELEMENTS) {
-    throw new SvgConversionError('SVG חורג ממספר האלמנטים המותר');
+    throw new SvgConversionError('SVG exceeds the allowed number of elements');
   }
   const tag = element.tagName.toLowerCase();
   if (NON_RENDERED_TAGS.has(tag)) {
@@ -160,7 +160,7 @@ function walk(element: Element, parentMatrix: Matrix2D, state: WalkState): void 
 
   for (const rawSubpath of shapeElementSubpaths(element)) {
     if (state.subpaths.length >= MAX_SUBPATHS) {
-      throw new SvgConversionError('SVG חורג ממספר תתי-המסלולים המותר');
+      throw new SvgConversionError('SVG exceeds the allowed number of subpaths');
     }
     state.subpaths.push(transformSubpath(rawSubpath, worldMatrix));
   }
@@ -227,10 +227,10 @@ export function svgMarkupToShapeData(svgMarkup: string): ShapeData {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new SvgConversionError(`SVG לא תקין: ${message}`);
+    throw new SvgConversionError(`Invalid SVG: ${message}`);
   }
   if (!svgRoot) {
-    throw new SvgConversionError('לא נמצא אלמנט <svg> תקין');
+    throw new SvgConversionError('No valid <svg> element found');
   }
 
   const state: WalkState = { subpaths: [], visitedCount: 0 };
@@ -240,7 +240,7 @@ export function svgMarkupToShapeData(svgMarkup: string): ShapeData {
     (subpath) => subpath.points.length >= 2 && subpath.points.length <= MAX_POINTS_PER_SUBPATH,
   );
   if (validSubpaths.length === 0) {
-    throw new SvgConversionError('לא נמצאה אף צורה גיאומטרית ב-SVG');
+    throw new SvgConversionError('No geometric shape found in the SVG');
   }
 
   return { version: SHAPE_VERSION, paths: normalizeSubpaths(validSubpaths) };

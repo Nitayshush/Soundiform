@@ -23,13 +23,13 @@ const querySchema = z.object({
 export async function GET(request: Request): Promise<NextResponse> {
   const admin = await getAdminUser();
   if (!admin) {
-    return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
   const parsed = querySchema.safeParse({ offset: searchParams.get('offset') ?? undefined });
   if (!parsed.success) {
-    return NextResponse.json({ error: 'בקשה לא תקינה' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 
   const db = getDb();

@@ -32,7 +32,7 @@ export function SharePlayer({ score, genreId }: SharePlayerProps) {
         disabled={isLoading}
         className="rounded border px-4 py-2 disabled:opacity-40"
       >
-        {isLoading ? 'טוען…' : isPlaying ? 'עצור' : 'נגן'}
+        {isLoading ? 'Loading…' : isPlaying ? 'Stop' : 'Play'}
       </button>
       {durationSeconds > 0 && (
         <span className="font-mono text-sm">

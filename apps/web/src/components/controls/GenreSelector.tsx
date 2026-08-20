@@ -33,9 +33,9 @@ export function GenreSelector() {
   }
 
   return (
-    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="סגנון מוזיקלי">
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Musical style">
       {isLoading && packs.length === 0 ? (
-        <span className="text-sm text-muted-foreground">טוען סגנונות…</span>
+        <span className="text-sm text-muted-foreground">Loading styles…</span>
       ) : (
         packs.map((pack) => (
           <button
@@ -50,7 +50,7 @@ export function GenreSelector() {
               pack.id === genreId ? 'bg-foreground text-background' : ''
             }`}
           >
-            {pack.displayName.he}
+            {pack.displayName.en}
           </button>
         ))
       )}

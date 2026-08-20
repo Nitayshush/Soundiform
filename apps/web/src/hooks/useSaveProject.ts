@@ -23,7 +23,7 @@ import { toShapeData, useShapeStore } from '@/stores/shapeStore';
 import { useSupabaseUser } from './useSupabaseUser';
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'שמירה נכשלה';
+  return error instanceof Error ? error.message : 'Save failed';
 }
 
 export interface UseSaveProjectResult {
@@ -69,7 +69,7 @@ export function useSaveProject(): UseSaveProjectResult {
       const responseBody: unknown = await response.json();
       const parsed = responseBody as { project?: { id: string }; error?: string };
       if (!response.ok) {
-        throw new Error(parsed.error ?? 'שמירה נכשלה');
+        throw new Error(parsed.error ?? 'Save failed');
       }
       setSavedProjectId(parsed.project?.id ?? null);
     } catch (caughtError) {

@@ -30,7 +30,7 @@ interface ModerationItem {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'שגיאה';
+  return error instanceof Error ? error.message : 'Error';
 }
 
 function ShapePreview({ paths }: { paths: ShapePath[] }) {
@@ -76,7 +76,7 @@ export function ModerationPanel() {
       .then((response) =>
         response.json().then((body: { items?: ModerationItem[]; error?: string }) => {
           if (!response.ok) {
-            throw new Error(body.error ?? 'טעינה נכשלה');
+            throw new Error(body.error ?? 'Failed to load');
           }
           setItems(body.items ?? []);
           setError(null);
@@ -105,7 +105,7 @@ export function ModerationPanel() {
         });
         if (!response.ok) {
           const body = (await response.json()) as { error?: string };
-          throw new Error(body.error ?? 'הפעולה נכשלה');
+          throw new Error(body.error ?? 'Action failed');
         }
         setItems((current) => current.filter((item) => item.id !== id));
       } catch (caughtError) {
@@ -134,19 +134,19 @@ export function ModerationPanel() {
         ))}
       </div>
       {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
-      {isLoading && <p className="text-sm text-muted-foreground">טוען…</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
       {!isLoading && items.length === 0 && (
-        <p className="text-sm text-muted-foreground">אין פריטים.</p>
+        <p className="text-sm text-muted-foreground">No items.</p>
       )}
       <ul className="flex flex-col gap-3">
         {items.map((item) => (
           <li key={item.id} className="flex items-center gap-4 rounded border p-3">
             <ShapePreview paths={item.project.shapeData.paths} />
             <div className="flex-1 text-sm">
-              <p className="font-medium">{item.project.title ?? '(ללא כותרת)'}</p>
+              <p className="font-medium">{item.project.title ?? '(Untitled)'}</p>
               <p className="text-muted-foreground">
-                {item.project.sourceType} · {item.ownerEmail ?? 'אנונימי'} ·{' '}
-                {new Date(item.createdAt).toLocaleString('he-IL')}
+                {item.project.sourceType} · {item.ownerEmail ?? 'Anonymous'} ·{' '}
+                {new Date(item.createdAt).toLocaleString('en-US')}
               </p>
             </div>
             {status === 'pending' && (
@@ -157,7 +157,7 @@ export function ModerationPanel() {
                   onClick={() => void act(item.id, 'approved')}
                   className="rounded border px-3 py-1 text-sm disabled:opacity-40"
                 >
-                  אישור
+                  Approve
                 </button>
                 <button
                   type="button"
@@ -165,7 +165,7 @@ export function ModerationPanel() {
                   onClick={() => void act(item.id, 'rejected')}
                   className="rounded border px-3 py-1 text-sm text-destructive disabled:opacity-40"
                 >
-                  דחייה
+                  Reject
                 </button>
               </div>
             )}

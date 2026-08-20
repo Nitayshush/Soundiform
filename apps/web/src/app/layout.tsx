@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Soundiform',
-  description: 'הופכים צורות גאומטריות, ציורים ולוגואים למוזיקה מקצועית.',
+  description: 'Turn geometric shapes, drawings, and logos into professional music.',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

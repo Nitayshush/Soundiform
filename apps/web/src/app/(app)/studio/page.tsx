@@ -47,7 +47,7 @@ function StudioContent() {
             disabled={!canPlay || isLoading}
             className="rounded border px-3 py-1 disabled:opacity-40"
           >
-            {isLoading ? 'טוען…' : isPlaying ? 'עצור' : 'נגן'}
+            {isLoading ? 'Loading…' : isPlaying ? 'Stop' : 'Play'}
           </button>
           <button
             type="button"
@@ -55,18 +55,18 @@ function StudioContent() {
             disabled={!canPlay || isSaving}
             className="rounded border px-3 py-1 disabled:opacity-40"
           >
-            {isSaving ? 'שומר…' : savedProjectId ? 'נשמר ✓' : 'שמור'}
+            {isSaving ? 'Saving…' : savedProjectId ? 'Saved ✓' : 'Save'}
           </button>
           {durationSeconds > 0 && (
             <span className="font-mono" data-testid="playback-time">
               {currentSeconds.toFixed(1)}s / {durationSeconds.toFixed(1)}s
             </span>
           )}
-          <span className="font-mono" title="shapeHash — דטרמיניזם, §1">
-            {shapeHash ? shapeHash.slice(0, 12) : 'ציירו צורה'}
+          <span className="font-mono" title="shapeHash — determinism, §1">
+            {shapeHash ? shapeHash.slice(0, 12) : 'Draw a shape'}
           </span>
           <button type="button" onClick={clear} className="underline">
-            נקה
+            Clear
           </button>
         </div>
       </header>

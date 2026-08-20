@@ -32,14 +32,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 });
+    return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
   }
 
   const body: unknown = await request.json().catch(() => null);
   const parsed = createShareSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'בקשה לא תקינה', details: parsed.error.issues },
+      { error: 'Invalid request', details: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -53,13 +53,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     .where(eq(renders.id, renderId));
 
   if (!row || row.userId !== user.id) {
-    return NextResponse.json({ error: 'render לא נמצא' }, { status: 404 });
+    return NextResponse.json({ error: 'Render not found' }, { status: 404 });
   }
 
   const slug = generateSlug();
   const [share] = await db.insert(shares).values({ renderId, visibility, slug }).returning();
   if (!share) {
-    throw new Error('יצירת שיתוף נכשלה — לא הוחזרה שורה');
+    throw new Error('Failed to create share — no row returned');
   }
 
   return NextResponse.json({ slug: share.slug }, { status: 201 });

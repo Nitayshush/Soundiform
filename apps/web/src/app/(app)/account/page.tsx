@@ -49,37 +49,37 @@ export default async function AccountPage() {
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-6 text-xl font-semibold">חשבון</h1>
+      <h1 className="mb-6 text-xl font-semibold">Account</h1>
 
       <section className="mb-6 rounded border p-4">
-        <p className="text-sm text-muted-foreground">אימייל</p>
+        <p className="text-sm text-muted-foreground">Email</p>
         <p className="mb-3">{userRow?.email ?? user.email}</p>
-        <p className="text-sm text-muted-foreground">תוכנית</p>
+        <p className="text-sm text-muted-foreground">Plan</p>
         <p className="capitalize">{plan}</p>
       </section>
 
       <section className="mb-6 rounded border p-4">
-        <h2 className="mb-2 font-medium">מכסות</h2>
+        <h2 className="mb-2 font-medium">Quotas</h2>
         <p>
-          יצירות החודש: {monthlyCreations}
-          {isFree ? ` / ${String(FREE_MONTHLY_CREATIONS)}` : ' (ללא הגבלה)'}
+          Creations this month: {monthlyCreations}
+          {isFree ? ` / ${String(FREE_MONTHLY_CREATIONS)}` : ' (unlimited)'}
         </p>
         <p>
-          שמורות: {savedCount}
-          {isFree ? ` / ${String(FREE_SAVED_PROJECTS)}` : ' (ללא הגבלה)'}
+          Saved: {savedCount}
+          {isFree ? ` / ${String(FREE_SAVED_PROJECTS)}` : ' (unlimited)'}
         </p>
       </section>
 
       <section>
-        <h2 className="mb-2 font-medium">יצירות שמורות</h2>
+        <h2 className="mb-2 font-medium">Saved creations</h2>
         {myProjects.length === 0 ? (
-          <p className="text-sm text-muted-foreground">עדיין אין יצירות שמורות.</p>
+          <p className="text-sm text-muted-foreground">No saved creations yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {myProjects.map((project) => (
               <li key={project.id} className="rounded border px-3 py-2 text-sm">
                 {project.title ?? project.shapeHash.slice(0, 12)} —{' '}
-                {new Date(project.createdAt).toLocaleDateString('he-IL')}
+                {new Date(project.createdAt).toLocaleDateString('en-US')}
               </li>
             ))}
           </ul>

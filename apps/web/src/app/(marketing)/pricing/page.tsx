@@ -11,7 +11,7 @@ export default function PricingPage() {
   // TODO: טבלת מסלולים לפי §9 — Free / Pro ~$9 / Studio ~$29.
   return (
     <main>
-      <h1>תמחור</h1>
+      <h1>Pricing</h1>
     </main>
   );
 }

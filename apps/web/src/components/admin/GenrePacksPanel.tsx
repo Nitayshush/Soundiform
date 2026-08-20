@@ -23,7 +23,7 @@ interface GenrePackRow {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'שגיאה';
+  return error instanceof Error ? error.message : 'Error';
 }
 
 async function patchGenrePack(body: {
@@ -39,7 +39,7 @@ async function patchGenrePack(body: {
   });
   const parsed = (await response.json()) as { pack?: GenrePackRow; error?: string };
   if (!response.ok || !parsed.pack) {
-    throw new Error(parsed.error ?? 'העדכון נכשל');
+    throw new Error(parsed.error ?? 'Update failed');
   }
   return parsed.pack;
 }
@@ -62,7 +62,7 @@ function ConfigEditor({
     try {
       parsedConfig = JSON.parse(text);
     } catch {
-      setError('JSON לא תקין');
+      setError('Invalid JSON');
       return;
     }
     setIsSaving(true);
@@ -84,7 +84,7 @@ function ConfigEditor({
         onClick={() => setIsOpen(true)}
         className="rounded border px-2 py-1 text-sm"
       >
-        עריכת config
+        Edit config
       </button>
     );
   }
@@ -107,14 +107,14 @@ function ConfigEditor({
           onClick={() => void save()}
           className="rounded border px-3 py-1 text-sm disabled:opacity-40"
         >
-          {isSaving ? 'שומר…' : 'שמירה'}
+          {isSaving ? 'Saving…' : 'Save'}
         </button>
         <button
           type="button"
           onClick={() => setIsOpen(false)}
           className="rounded border px-3 py-1 text-sm"
         >
-          ביטול
+          Cancel
         </button>
       </div>
     </div>
@@ -132,7 +132,7 @@ export function GenrePacksPanel() {
       .then((response) =>
         response.json().then((body: { packs?: GenrePackRow[]; error?: string }) => {
           if (!response.ok) {
-            throw new Error(body.error ?? 'טעינה נכשלה');
+            throw new Error(body.error ?? 'Failed to load');
           }
           setPacks(body.packs ?? []);
           setError(null);
@@ -168,7 +168,7 @@ export function GenrePacksPanel() {
   return (
     <div>
       {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
-      {isLoading && <p className="text-sm text-muted-foreground">טוען…</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
       <ul className="flex flex-col gap-3">
         {packs.map((pack) => (
           <li key={pack.id} className="rounded border p-3">
@@ -180,11 +180,11 @@ export function GenrePacksPanel() {
                 }}
                 className={`rounded border px-2 py-1 ${pack.isActive ? 'bg-foreground text-background' : ''}`}
               >
-                {pack.isActive ? 'פעיל' : 'כבוי'}
+                {pack.isActive ? 'On' : 'Off'}
               </button>
               <span className="font-mono">{pack.id}</span>
               <span className="text-muted-foreground">sort={pack.sortOrder}</span>
-              <span>{pack.config.displayName?.he}</span>
+              <span>{pack.config.displayName?.en}</span>
               <ConfigEditor pack={pack} onSaved={updateRow} />
             </div>
           </li>

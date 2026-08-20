@@ -32,7 +32,7 @@ export interface UseAudioEngineResult {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'שגיאה לא ידועה בניגון';
+  return error instanceof Error ? error.message : 'Unknown playback error';
 }
 
 /**
@@ -96,7 +96,7 @@ export function useAudioEngine(): UseAudioEngineResult {
         setIsLoading(true);
         const genrePack = useGenrePacksStore.getState().packs.find((pack) => pack.id === genreId);
         if (!genrePack) {
-          throw new Error(`סגנון לא נמצא: ${genreId}`);
+          throw new Error(`Genre not found: ${genreId}`);
         }
         const shape = toShapeData(paths);
         const intent = geometryToMusic(shape, shapeHash);

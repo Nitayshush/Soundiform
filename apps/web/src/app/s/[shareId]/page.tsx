@@ -48,8 +48,8 @@ export default async function SharePage({ params }: SharePageProps) {
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-1 text-xl font-semibold">יצירה משותפת</h1>
-      <p className="mb-6 text-sm text-muted-foreground">Soundiform — מוזיקה מצורה</p>
+      <h1 className="mb-1 text-xl font-semibold">Shared creation</h1>
+      <p className="mb-6 text-sm text-muted-foreground">Soundiform — music from shape</p>
       <SharePlayer score={row.score} genreId={row.genreId} />
       <div className="mt-6">
         <RemixButton renderId={row.renderId} paths={row.shapeData.paths} />

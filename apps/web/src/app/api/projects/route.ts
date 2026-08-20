@@ -53,14 +53,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 });
+    return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
   }
 
   const body: unknown = await request.json().catch(() => null);
   const parsed = createProjectSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'בקשה לא תקינה', details: parsed.error.issues },
+      { error: 'Invalid request', details: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -72,7 +72,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   const quota = await checkSaveQuota(user.id, plan);
   if (!quota.allowed) {
     return NextResponse.json(
-      { error: `הגעת למכסת השמירות (${String(quota.limit)}) של תוכנית ${plan}`, quota },
+      {
+        error: `You've reached the save limit (${String(quota.limit)}) for the ${plan} plan`,
+        quota,
+      },
       { status: 403 },
     );
   }
@@ -90,7 +93,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     })
     .returning();
   if (!project) {
-    throw new Error('יצירת פרויקט נכשלה — לא הוחזרה שורה');
+    throw new Error('Failed to create project — no row returned');
   }
 
   await recordLedgerEntry(user.id, -1, 'project_save');
@@ -115,7 +118,7 @@ export async function GET(): Promise<NextResponse> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 });
+    return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
   }
 
   const db = getDb();

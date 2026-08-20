@@ -22,7 +22,7 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto max-w-5xl p-6">
-      <h1 className="mb-6 text-lg font-semibold">ניהול</h1>
+      <h1 className="mb-6 text-lg font-semibold">Admin</h1>
       <AdminDashboard />
     </main>
   );

@@ -30,7 +30,7 @@ const patchSchema = z.object({
 export async function GET(): Promise<NextResponse> {
   const admin = await getAdminUser();
   if (!admin) {
-    return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }
   const packs = await getDb().select().from(genrePacks).orderBy(genrePacks.sortOrder);
   return NextResponse.json({ packs });
@@ -39,20 +39,20 @@ export async function GET(): Promise<NextResponse> {
 export async function PATCH(request: Request): Promise<NextResponse> {
   const admin = await getAdminUser();
   if (!admin) {
-    return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }
 
   const body: unknown = await request.json().catch(() => null);
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'בקשה לא תקינה', details: parsed.error.issues },
+      { error: 'Invalid request', details: parsed.error.issues },
       { status: 400 },
     );
   }
   const { id, config, isActive, sortOrder } = parsed.data;
   if (config === undefined && isActive === undefined && sortOrder === undefined) {
-    return NextResponse.json({ error: 'לא נשלח שדה לעדכון' }, { status: 400 });
+    return NextResponse.json({ error: 'No field to update was sent' }, { status: 400 });
   }
 
   const db = getDb();
@@ -68,7 +68,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     .returning();
 
   if (!updated) {
-    return NextResponse.json({ error: 'GenrePack לא נמצא' }, { status: 404 });
+    return NextResponse.json({ error: 'GenrePack not found' }, { status: 404 });
   }
 
   await recordAuditLog({

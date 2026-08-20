@@ -20,7 +20,7 @@ interface FeatureFlag {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'שגיאה';
+  return error instanceof Error ? error.message : 'Error';
 }
 
 export function FeatureFlagsPanel() {
@@ -35,7 +35,7 @@ export function FeatureFlagsPanel() {
       .then((response) =>
         response.json().then((body: { flags?: FeatureFlag[]; error?: string }) => {
           if (!response.ok) {
-            throw new Error(body.error ?? 'טעינה נכשלה');
+            throw new Error(body.error ?? 'Failed to load');
           }
           setFlags(body.flags ?? []);
           setError(null);
@@ -62,7 +62,7 @@ export function FeatureFlagsPanel() {
       });
       const body = (await response.json()) as { flag?: FeatureFlag; error?: string };
       if (!response.ok || !body.flag) {
-        throw new Error(body.error ?? 'העדכון נכשל');
+        throw new Error(body.error ?? 'Update failed');
       }
       const updatedFlag = body.flag;
       setFlags((current) => {
@@ -79,7 +79,7 @@ export function FeatureFlagsPanel() {
   return (
     <div>
       {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
-      {isLoading && <p className="text-sm text-muted-foreground">טוען…</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
       <ul className="mb-4 flex flex-col gap-2">
         {flags.map((flag) => (
           <li key={flag.key} className="flex items-center gap-3 rounded border p-3 text-sm">
@@ -88,7 +88,7 @@ export function FeatureFlagsPanel() {
               onClick={() => void setFlag(flag.key, !flag.value)}
               className={`rounded border px-2 py-1 ${flag.value ? 'bg-foreground text-background' : ''}`}
             >
-              {flag.value ? 'פעיל' : 'כבוי'}
+              {flag.value ? 'On' : 'Off'}
             </button>
             <span className="font-mono">{flag.key}</span>
             {flag.description && (
@@ -112,11 +112,11 @@ export function FeatureFlagsPanel() {
           onChange={(event) => {
             setNewKey(event.target.value);
           }}
-          placeholder="key חדש, למשל signups.enabled"
+          placeholder="new key, e.g. signups.enabled"
           className="rounded border px-2 py-1 text-sm"
         />
         <button type="submit" className="rounded border px-3 py-1 text-sm">
-          הוספה (כבוי כברירת מחדל)
+          Add (off by default)
         </button>
       </form>
     </div>

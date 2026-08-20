@@ -21,7 +21,7 @@ interface AuditLogEntry {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'שגיאה';
+  return error instanceof Error ? error.message : 'Error';
 }
 
 export function AuditLogPanel() {
@@ -39,7 +39,7 @@ export function AuditLogPanel() {
           .json()
           .then((body: { entries?: AuditLogEntry[]; pageSize?: number; error?: string }) => {
             if (!response.ok) {
-              throw new Error(body.error ?? 'טעינה נכשלה');
+              throw new Error(body.error ?? 'Failed to load');
             }
             setEntries(body.entries ?? []);
             setPageSize(body.pageSize ?? 100);
@@ -61,7 +61,7 @@ export function AuditLogPanel() {
   return (
     <div>
       {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
-      {isLoading && <p className="text-sm text-muted-foreground">טוען…</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
       <ul className="flex flex-col gap-2">
         {entries.map((entry) => (
           <li key={entry.id} className="rounded border p-2 text-sm">
@@ -69,7 +69,7 @@ export function AuditLogPanel() {
             {' → '}
             <span className="font-mono text-muted-foreground">{entry.target}</span>
             <div className="text-xs text-muted-foreground">
-              {entry.actorEmail ?? '?'} · {new Date(entry.createdAt).toLocaleString('he-IL')}
+              {entry.actorEmail ?? '?'} · {new Date(entry.createdAt).toLocaleString('en-US')}
             </div>
           </li>
         ))}
@@ -81,7 +81,7 @@ export function AuditLogPanel() {
           onClick={() => setOffset((current) => Math.max(0, current - pageSize))}
           className="rounded border px-3 py-1 text-sm disabled:opacity-40"
         >
-          הקודם
+          Previous
         </button>
         <button
           type="button"
@@ -89,7 +89,7 @@ export function AuditLogPanel() {
           onClick={() => setOffset((current) => current + pageSize)}
           className="rounded border px-3 py-1 text-sm disabled:opacity-40"
         >
-          הבא
+          Next
         </button>
       </div>
     </div>

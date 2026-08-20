@@ -28,7 +28,7 @@ export interface UsePlayScoreResult {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'שגיאה לא ידועה בניגון';
+  return error instanceof Error ? error.message : 'Unknown playback error';
 }
 
 export function usePlayScore(score: MusicalScore, genreId: string): UsePlayScoreResult {
@@ -72,7 +72,7 @@ export function usePlayScore(score: MusicalScore, genreId: string): UsePlayScore
         setIsLoading(true);
         const genrePack = loadGenrePackById(genreId);
         if (!genrePack) {
-          throw new Error(`סגנון לא נמצא: ${genreId}`);
+          throw new Error(`Genre not found: ${genreId}`);
         }
         const { createBrowserRenderer } = await import('@soundiform/audio');
         rendererRef.current = await createBrowserRenderer(score, toGenreAudioConfig(genrePack));

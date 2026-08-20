@@ -21,7 +21,7 @@ interface UploadResponseBody {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'העלאה נכשלה';
+  return error instanceof Error ? error.message : 'Upload failed';
 }
 
 export function UploadButton() {
@@ -44,7 +44,7 @@ export function UploadButton() {
       const response = await fetch('/api/upload', { method: 'POST', body });
       const parsed = (await response.json()) as UploadResponseBody;
       if (!response.ok || !parsed.shape || !parsed.sourceType) {
-        throw new Error(parsed.error ?? 'העלאה נכשלה');
+        throw new Error(parsed.error ?? 'Upload failed');
       }
       loadShape(parsed.shape.paths, {
         sourceType: parsed.sourceType,
@@ -72,7 +72,7 @@ export function UploadButton() {
         disabled={isUploading}
         className="rounded border px-3 py-1 text-sm disabled:opacity-40"
       >
-        {isUploading ? 'מעלה…' : 'העלאת קובץ'}
+        {isUploading ? 'Uploading…' : 'Upload file'}
       </button>
       {error && <span className="text-sm text-destructive">{error}</span>}
     </div>

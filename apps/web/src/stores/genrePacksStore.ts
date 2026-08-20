@@ -24,7 +24,7 @@ interface GenrePacksState {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'טעינת סגנונות נכשלה';
+  return error instanceof Error ? error.message : 'Failed to load styles';
 }
 
 export const useGenrePacksStore = create<GenrePacksState>((set, get) => ({
@@ -41,7 +41,7 @@ export const useGenrePacksStore = create<GenrePacksState>((set, get) => ({
       const body: unknown = await response.json();
       const parsed = body as { packs?: GenrePack[]; error?: string };
       if (!response.ok) {
-        throw new Error(parsed.error ?? 'טעינת סגנונות נכשלה');
+        throw new Error(parsed.error ?? 'Failed to load styles');
       }
       set({ packs: parsed.packs ?? [], isLoading: false });
     } catch (caughtError) {

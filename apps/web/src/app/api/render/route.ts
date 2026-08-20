@@ -63,14 +63,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ error: 'נדרשת התחברות' }, { status: 401 });
+    return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
   }
 
   const body: unknown = await request.json().catch(() => null);
   const parsed = renderRequestSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'בקשה לא תקינה', details: parsed.error.issues },
+      { error: 'Invalid request', details: parsed.error.issues },
       { status: 400 },
     );
   }
@@ -84,12 +84,12 @@ export async function POST(request: Request): Promise<NextResponse> {
     .where(eq(genrePacks.id, genreId));
   const genrePack = genrePackRow?.config;
   if (!genrePack) {
-    return NextResponse.json({ error: `סגנון לא נמצא: ${genreId}` }, { status: 400 });
+    return NextResponse.json({ error: `Genre not found: ${genreId}` }, { status: 400 });
   }
 
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
   if (!project || project.userId !== user.id) {
-    return NextResponse.json({ error: 'פרויקט לא נמצא' }, { status: 404 });
+    return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
 
   const [userRow] = await db.select({ plan: users.plan }).from(users).where(eq(users.id, user.id));
@@ -98,7 +98,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   const quota = await checkCreationQuota(user.id, plan);
   if (!quota.allowed) {
     return NextResponse.json(
-      { error: `הגעת למכסת היצירות (${String(quota.limit)}) של תוכנית ${plan}`, quota },
+      {
+        error: `You've reached the creation limit (${String(quota.limit)}) for the ${plan} plan`,
+        quota,
+      },
       { status: 403 },
     );
   }

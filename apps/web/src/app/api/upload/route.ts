@@ -44,7 +44,7 @@ async function putToR2(
   });
   if (!response.ok) {
     throw new Error(
-      `העלאה ל-R2 נכשלה עבור ${key}: ${String(response.status)} ${response.statusText}`,
+      `R2 upload failed for ${key}: ${String(response.status)} ${response.statusText}`,
     );
   }
 }
@@ -53,20 +53,20 @@ export async function POST(request: Request): Promise<NextResponse> {
   const formData = await request.formData().catch(() => null);
   const file = formData?.get('file');
   if (!file || !(file instanceof File)) {
-    return NextResponse.json({ error: 'לא נשלח קובץ (שדה file)' }, { status: 400 });
+    return NextResponse.json({ error: 'No file sent (field: file)' }, { status: 400 });
   }
   if (file.size === 0) {
-    return NextResponse.json({ error: 'קובץ ריק' }, { status: 400 });
+    return NextResponse.json({ error: 'Empty file' }, { status: 400 });
   }
   if (file.size > MAX_UPLOAD_BYTES) {
-    return NextResponse.json({ error: 'הקובץ גדול מ-10MB' }, { status: 413 });
+    return NextResponse.json({ error: 'File is larger than 10MB' }, { status: 413 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const kind = await detectFileKind(buffer);
   if (!kind) {
     return NextResponse.json(
-      { error: 'סוג קובץ לא נתמך — רק SVG, PNG, JPEG או WebP' },
+      { error: 'Unsupported file type — only SVG, PNG, JPEG, or WebP' },
       { status: 415 },
     );
   }
@@ -102,7 +102,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (caughtError instanceof SvgSanitizeError || caughtError instanceof SvgConversionError) {
       return NextResponse.json({ error: caughtError.message }, { status: 400 });
     }
-    console.error('api/upload: עיבוד הקובץ נכשל', caughtError);
-    return NextResponse.json({ error: 'עיבוד הקובץ נכשל' }, { status: 422 });
+    console.error('api/upload: file processing failed', caughtError);
+    return NextResponse.json({ error: 'File processing failed' }, { status: 422 });
   }
 }
