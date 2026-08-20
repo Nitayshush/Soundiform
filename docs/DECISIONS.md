@@ -251,3 +251,35 @@ Sprint 9 "פריט מרכזי"), Audit Log (צפייה בלבד, append-only). *
 
 **נבדק אחרי הכל:** typecheck/lint/format/test מלאים על כל המונוריפו — נקיים, 152 בדיקות
 (45 חדשות + 107 קודמות), כולל בדיקות worker אמיתיות מול ffmpeg אמיתי.
+
+## 2026-08-20 — R2 + Redis הוגדרו בפועל; שרשרת render→save→share אומתה חי בפעם הראשונה
+
+Nitay פתח חשבון Cloudflare (R2 bucket `soundiform`, Standard storage class) וחשבון Upstash
+(Redis, Regional) והזין את הקרדנציאלים ב-`.env`. זו הפעם הראשונה בפרויקט כולו שהתור
+(BullMQ/Redis) וה-worker הופעלו כתהליך חי אמיתי — עד עכשיו זה היה כתוב ונבדק רק ביחידה מול
+`StorageProvider`/Redis מזויפים (§11 Sprint 6/8: "אין Redis מקומי זמין" חזר בכל ספרינט).
+
+**שני באגים אמיתיים, לא-היפותטיים, נתפסו ותוקנו רק דרך ההרצה החיה הזו (לא typecheck/lint):**
+
+1. **`apps/web/.env.local` / `apps/worker/.env.local` / `packages/db/.env` (hard links לשורש
+   `.env`) נשברים בכל עריכה של `.env` דרך כלי העריכה** — ה-write מחליף את הקובץ (inode חדש)
+   במקום לערוך במקום, מה שמנתק hard link. זה גרם לבאג אמיתי ומבלבל: Google OAuth הצליח,
+   אבל `/admin` המשיך להפנות ל-login כי `getAdminUser()` קרא עותק ישן-לא-מעודכן של
+   `apps/web/.env.local` בלי `ADMIN_EMAILS`. **תיקון:** לבדוק inode אחרי כל עריכת `.env`
+   ו-relink+restart dev server אם נשבר — נשמר כזיכרון קבוע (לא רק ל-session הזה).
+2. **`apps/worker`'s `pnpm dev` (`tsx watch src/index.ts`) מעולם לא טען `.env` בפועל** —
+   בניגוד ל-Next.js, ל-tsx אין טעינת env אוטומטית. ניסיון ראשון עם `tsx watch --env-file=...`
+   נראה כמו פתרון אבל ה-flag לא שורד את ה-respawn הפנימי של watch mode על שינוי קובץ (worker
+   קרס על `REDIS_URL` חסר אחרי rerun ראשון). **תוקן נכון**: `process.loadEnvFile('.env.local')`
+   בקוד עצמו (Node native API, לא CLI flag) — שורד restarts כי הוא חלק מהריצה עצמה.
+3. **תופעת-לוואי שנתפסה תוך כדי**: `renderWorker.on('failed', (job, error) => server.log.error({error}, ...))`
+   בלע את השגיאה האמיתית בשקט — pino מפעיל serializer ל-Error רק עבור מפתח בשם `err` בדיוק,
+   לא `error`, אז השגיאה נדפסה כ-`{}`. תוקן ל-`err`. בלעדיו, הבאג הבא (ffmpeg לא ב-PATH,
+   סביבתי-בלבד לסשן הזה) היה נשאר לא-מוסבר.
+
+**נבדק חי, מקצה-לקצה, בפעם הראשונה בפרויקט:** `enqueueRenderJob` אמיתי (לא מוק) → BullMQ
+Worker קלט job → `runRenderAudioJob` רינדר WAV+MIDI אמיתיים → הועלו ל-R2 האמיתי (מאומת
+`headObject`) → שורת `renders` נכתבה עם `status='completed'` → שורת `shares` נוצרה → דף
+`/s/[slug]` נטען בדפדפן אמיתי (Playwright), ניגן בפועל (מד הזמן התקדם 2.4s/2.7s), אפס שגיאות
+קונסולה. גם בדיקת R2 עצמאית (PUT→headObject→GET עם התאמת בייטים→DELETE→אימות היעלמות) רצה
+נקי מול ה-bucket האמיתי.

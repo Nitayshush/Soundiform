@@ -10,16 +10,20 @@
  * (נקודת הכניסה האמיתית של כל תהליך ה-worker): מתקין polyfill ל-globalThis.window לפני
  * ש-'tone' נטען בכל מקום אחר בתהליך. הגנה כפולה מעבר לסדר הנכון ב-queue/renderQueue.ts —
  * ראה packages/audio/src/index.ts להסבר המלא (זה *לא* import שנכשל בשקט, הוא side-effect בלבד).
+ *
+ * ⚠️ process.loadEnvFile('.env.local') — בניגוד ל-Next.js, tsx לא טוען .env אוטומטית.
+ * `tsx watch --env-file=...` נראה כמו פתרון, אבל ה-flag *לא* שורד את ה-respawn הפנימי של
+ * watch mode על שינוי קובץ (נתפס בבדיקה חיה: קריסה על REDIS_URL חסר אחרי rerun ראשון) —
+ * לכן הטעינה חייבת להיות בקוד עצמו, לא ב-CLI flag. .env.local כאן הוא hard link לשורש .env
+ * (אותו דפוס בדיוק כמו apps/web, ראה docs/DECISIONS.md).
  */
 
 import '@soundiform/audio/server';
+process.loadEnvFile('.env.local');
+
 import Fastify from 'fastify';
 import { createR2ProviderFromEnv } from '@soundiform/storage';
 import { createRenderWorker } from './queue/renderQueue';
-
-// ⚠️ נכתב אבל לא נבדק חי בסשן הזה — אין Redis מקומי/Upstash זמין (הוחלט מראש כחלק
-// מהיקף Sprint 6 המאושר). /health לא דורש WORKER_SECRET בכוונה — infra health-check ציבורי;
-// אין כרגע endpoint HTTP נוסף שדורש אימות (הרינדור מגיע דרך BullMQ/Redis, לא HTTP).
 
 const server = Fastify({ logger: true });
 
@@ -32,7 +36,9 @@ renderWorker.on('completed', (job) => {
   server.log.info({ jobId: job.id }, 'render job completed');
 });
 renderWorker.on('failed', (job, error) => {
-  server.log.error({ jobId: job?.id, error }, 'render job failed');
+  // ⚠️ המפתח חייב להיות 'err' (לא 'error') — pino מפעיל serializer מובנה ל-Error רק
+  // עבור המפתח הזה בדיוק; אחרת message/stack נבלעים בשקט (JSON.stringify על Error → {}).
+  server.log.error({ jobId: job?.id, err: error }, 'render job failed');
 });
 
 const port = Number(process.env.PORT ?? 3001);
