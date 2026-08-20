@@ -18,6 +18,7 @@ import { MusicalGrid } from '@/components/canvas/MusicalGrid';
 import { Playhead } from '@/components/canvas/Playhead';
 import { RevealOverlay } from '@/components/canvas/RevealOverlay';
 import { GenreSelector } from '@/components/controls/GenreSelector';
+import { UploadButton } from '@/components/controls/UploadButton';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useSaveProject } from '@/hooks/useSaveProject';
 import { useShapeStore } from '@/stores/shapeStore';
@@ -36,6 +37,7 @@ function StudioContent() {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
         <h1 className="text-lg font-semibold">Studio</h1>
         <GenreSelector />
+        <UploadButton />
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           {error && <span className="text-destructive">{error}</span>}
           {saveError && <span className="text-destructive">{saveError}</span>}

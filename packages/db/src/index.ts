@@ -10,3 +10,4 @@
 export * from './schema';
 export * from './client';
 export * from './credits';
+export * from './audit';

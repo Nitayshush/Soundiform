@@ -38,6 +38,8 @@ export function useSaveProject(): UseSaveProjectResult {
   const searchParams = useSearchParams();
   const paths = useShapeStore((state) => state.paths);
   const shapeHash = useShapeStore((state) => state.shapeHash);
+  const sourceType = useShapeStore((state) => state.sourceType);
+  const uploadKey = useShapeStore((state) => state.uploadKey);
   const { user, isLoading: isUserLoading } = useSupabaseUser();
 
   const [isSaving, setIsSaving] = useState(false);
@@ -59,7 +61,8 @@ export function useSaveProject(): UseSaveProjectResult {
         body: JSON.stringify({
           shape: toShapeData(paths),
           shapeHash,
-          sourceType: 'drawing',
+          sourceType,
+          ...(uploadKey && { uploadKey }),
           ...(remixOf && { remixOf }),
         }),
       });
@@ -74,7 +77,7 @@ export function useSaveProject(): UseSaveProjectResult {
     } finally {
       setIsSaving(false);
     }
-  }, [paths, shapeHash, searchParams]);
+  }, [paths, shapeHash, sourceType, uploadKey, searchParams]);
 
   const requestSave = useCallback(() => {
     if (!user) {

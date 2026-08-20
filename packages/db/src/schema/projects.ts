@@ -11,6 +11,11 @@
  * דורשת אכיפת מכסה (credits_ledger) שלא ניתן לממש ברמת row-ownership בלבד.
  * user_id NULLABLE לפי §6 ("NULL = אנונימי") — בפועל אין ליצור שורה כזו מהאפליקציה
  * (§9: יצירה אנונימית חיה רק ב-localStorage, נכתבת ל-DB רק ברגע ההרשמה/הורדה, עם user_id אמיתי).
+ *
+ * ⭐ Sprint 9: upload_key (nullable) — מפתח R2 של הקובץ המקורי-הנקי (uploads/{userId}/{id}.{ext},
+ * ראה api/upload/route.ts + PROJECT.md §7 "מבנה מפתחות"), רק ל-sourceType 'svg'/'raster'.
+ * זה מה שמאפשר לאדמין ב-moderation queue לראות את הקובץ שהמשתמש בפועל העלה, לא רק את
+ * ה-ShapeData הנגזר ממנו.
  */
 
 import { sql } from 'drizzle-orm';
@@ -31,6 +36,7 @@ export const projects = pgTable(
     shapeHash: text('shape_hash').notNull(),
     sourceType: text('source_type', { enum: SOURCE_TYPE_VALUES }).notNull(),
     thumbnailKey: text('thumbnail_key'),
+    uploadKey: text('upload_key'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),

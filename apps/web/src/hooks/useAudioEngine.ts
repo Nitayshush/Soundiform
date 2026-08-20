@@ -5,6 +5,9 @@
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ Sprint 9: הסגנון נלקח מ-genrePacksStore.getState() (DB, נטען כבר ע"י GenreSelector) —
+ * לא מ-@soundiform/genres הסטטי — ראה genrePacksStore.ts.
  */
 
 'use client';
@@ -12,9 +15,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BrowserRendererHandle } from '@soundiform/audio';
 import { geometryToMusic, composeMusicalScore } from '@soundiform/core';
-import { loadGenrePackById } from '@soundiform/genres';
 import { useShapeStore, toShapeData } from '@/stores/shapeStore';
 import { useGenreStore } from '@/stores/genreStore';
+import { useGenrePacksStore } from '@/stores/genrePacksStore';
 import { toCompositionConfig, toGenreAudioConfig } from '@/lib/genreAdapter';
 
 export interface UseAudioEngineResult {
@@ -91,7 +94,7 @@ export function useAudioEngine(): UseAudioEngineResult {
     try {
       if (!rendererRef.current) {
         setIsLoading(true);
-        const genrePack = loadGenrePackById(genreId);
+        const genrePack = useGenrePacksStore.getState().packs.find((pack) => pack.id === genreId);
         if (!genrePack) {
           throw new Error(`סגנון לא נמצא: ${genreId}`);
         }

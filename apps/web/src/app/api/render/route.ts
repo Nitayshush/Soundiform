@@ -16,6 +16,9 @@
  * ⚠️ נכתב אבל לא נבדק חי מקצה-לקצה בסשן הזה — אין Redis מקומי/Upstash זמין (הוחלט מראש
  * כחלק מהיקף Sprint 6 המאושר, עדיין נכון ל-Sprint 8).
  *
+ * ⭐ Sprint 9: הסגנון נטען מ-genre_packs ב-DB (Drizzle), לא מ-@soundiform/genres הסטטי —
+ * ראה api/genres/route.ts. כך עריכת GenrePack באדמין משפיעה גם על הרינדור הסופי בשרת.
+ *
  * TODO(Sprint 8+): rate limiting אנונימי (§8: 3/שעה) — דורש תשתית IP-tracking/Redis נפרדת.
  */
 
@@ -23,10 +26,10 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { geometryToMusic, composeMusicalScore } from '@soundiform/core';
-import { loadGenrePackById } from '@soundiform/genres';
 import { VIDEO_ASPECT_RATIOS, type VideoQuality } from '@soundiform/audio';
 import {
   checkCreationQuota,
+  genrePacks,
   getDb,
   projects,
   recordLedgerEntry,
@@ -73,12 +76,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const { projectId, genreId, video } = parsed.data;
-  const genrePack = loadGenrePackById(genreId);
+  const db = getDb();
+
+  const [genrePackRow] = await db
+    .select({ config: genrePacks.config })
+    .from(genrePacks)
+    .where(eq(genrePacks.id, genreId));
+  const genrePack = genrePackRow?.config;
   if (!genrePack) {
     return NextResponse.json({ error: `סגנון לא נמצא: ${genreId}` }, { status: 400 });
   }
 
-  const db = getDb();
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
   if (!project || project.userId !== user.id) {
     return NextResponse.json({ error: 'פרויקט לא נמצא' }, { status: 404 });

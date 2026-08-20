@@ -22,6 +22,20 @@
       "when": 1787170266285,
       "tag": "0002_slow_salo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787201946673,
+      "tag": "0003_ambitious_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787220371560,
+      "tag": "0004_hot_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

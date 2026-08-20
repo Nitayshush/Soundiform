@@ -1,17 +1,108 @@
 /**
  * @file        route.ts
- * @description העלאת קבצים (SVG/raster) — presigned URL ל-R2. ראה PROJECT.md §7, §8 שרשרת ההגנה.
+ * @description ⭐ העלאת קבצים (SVG/raster) → ShapeData. שרשרת ההגנה המלאה של §8:
+ *              1. גודל (מקס 10MB) → 2. magic bytes → 3. SVG: svgo+DOMPurify /
+ *              4. raster: sharp re-encode+potrace → מעלה את הקובץ *הנקי* ל-R2 (uploads/).
  * @author      Soundiform
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⚠️ לא דורש התחברות בכוונה — §8 Rate Limiting מגדיר מפורשות מכסת "אנונימי" (5/שעה) מול
+ * "רשום" (50/שעה) לנתיב הזה, בדיוק כמו הציור החופשי שעובד בלי חשבון (§9). ה-ShapeData
+ * המתקבל נטען ל-shapeStore בקליינט בדיוק כמו צורה מצוירת-ביד — לא נכתב ל-DB כאן; שורת
+ * moderation_queue נוצרת רק כשהפרויקט נשמר בפועל (api/projects/route.ts), כי לה יש
+ * project_id שלא קיים עדיין בשלב הזה (ראה moderationQueue.ts).
+ *
+ * TODO(Sprint 8+/9+): rate limiting אנונימי (§8) — אותו TODO קיים כבר ב-api/render/route.ts,
+ * דורש תשתית IP-tracking/Redis נפרדת שלא הוקמה בסשן הזה.
  */
 
+import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
+import { shapeDataSchema } from '@soundiform/shared';
+import { createR2ProviderFromEnv, type StorageProvider } from '@soundiform/storage';
+import { createClient } from '@/lib/supabase/server';
+import { detectFileKind } from '@/lib/upload/detectFileKind';
+import { sanitizeSvg, SvgSanitizeError } from '@/lib/upload/sanitizeSvg';
+import { svgMarkupToShapeData, SvgConversionError } from '@/lib/upload/svgToShapeData';
+import { rasterToShapeData } from '@/lib/upload/rasterToShapeData';
 
-// TODO(Sprint 0/2): מימוש שרשרת ההגנה המלאה מ-§8 — גודל, magic bytes, svgo+DOMPurify,
-// sharp re-encode, תור מודרציה — לפני חיבור בפועל ל-packages/storage.
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // §8 שלב 1: מקס 10MB
 
-export function POST() {
-  return NextResponse.json({ error: 'לא ממומש עדיין' }, { status: 501 });
+async function putToR2(
+  storage: StorageProvider,
+  key: string,
+  body: Buffer,
+  contentType: string,
+): Promise<void> {
+  const uploadUrl = await storage.getUploadUrl(key, { contentType });
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: new Uint8Array(body),
+    headers: { 'Content-Type': contentType },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `העלאה ל-R2 נכשלה עבור ${key}: ${String(response.status)} ${response.statusText}`,
+    );
+  }
+}
+
+export async function POST(request: Request): Promise<NextResponse> {
+  const formData = await request.formData().catch(() => null);
+  const file = formData?.get('file');
+  if (!file || !(file instanceof File)) {
+    return NextResponse.json({ error: 'לא נשלח קובץ (שדה file)' }, { status: 400 });
+  }
+  if (file.size === 0) {
+    return NextResponse.json({ error: 'קובץ ריק' }, { status: 400 });
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: 'הקובץ גדול מ-10MB' }, { status: 413 });
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const kind = await detectFileKind(buffer);
+  if (!kind) {
+    return NextResponse.json(
+      { error: 'סוג קובץ לא נתמך — רק SVG, PNG, JPEG או WebP' },
+      { status: 415 },
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const ownerSegment = user?.id ?? 'anon';
+  const uploadId = randomUUID();
+
+  try {
+    if (kind === 'svg') {
+      const sanitized = sanitizeSvg(buffer.toString('utf-8'));
+      const shape = shapeDataSchema.parse(svgMarkupToShapeData(sanitized));
+
+      const storage = createR2ProviderFromEnv();
+      const uploadKey = `uploads/${ownerSegment}/${uploadId}.svg`;
+      await putToR2(storage, uploadKey, Buffer.from(sanitized, 'utf-8'), 'image/svg+xml');
+
+      return NextResponse.json({ shape, sourceType: 'svg', uploadKey }, { status: 200 });
+    }
+
+    const { shapeData, sanitizedPngBuffer } = await rasterToShapeData(buffer);
+    const shape = shapeDataSchema.parse(shapeData);
+
+    const storage = createR2ProviderFromEnv();
+    const uploadKey = `uploads/${ownerSegment}/${uploadId}.png`;
+    await putToR2(storage, uploadKey, sanitizedPngBuffer, 'image/png');
+
+    return NextResponse.json({ shape, sourceType: 'raster', uploadKey }, { status: 200 });
+  } catch (caughtError) {
+    if (caughtError instanceof SvgSanitizeError || caughtError instanceof SvgConversionError) {
+      return NextResponse.json({ error: caughtError.message }, { status: 400 });
+    }
+    console.error('api/upload: עיבוד הקובץ נכשל', caughtError);
+    return NextResponse.json({ error: 'עיבוד הקובץ נכשל' }, { status: 422 });
+  }
 }

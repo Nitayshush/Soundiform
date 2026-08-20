@@ -6,8 +6,6 @@
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * ⚠️ עדיין חסרות מ-§6: genre_packs/moderation_queue/audit_log/feature_flags — שייכות
- * ל-Sprint 9 (אדמין ומודרציה) ויתווספו כשהתכונות שלהן ייבנו.
  */
 
 export * from './users';
@@ -17,3 +15,7 @@ export * from './creditsLedger';
 export * from './shares';
 export * from './remixes';
 export * from './likes';
+export * from './genrePacks';
+export * from './moderationQueue';
+export * from './auditLog';
+export * from './featureFlags';

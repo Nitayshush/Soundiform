@@ -204,3 +204,50 @@ provider ב-Supabase, והוסיף `http://localhost:3210/**` לרשימת redir
 **נבדק אחרי השינוי**: typecheck/lint/test מלאים על כל המונוריפו (נקיים, 107 בדיקות), ו-
 בדיקת דפדפן אמיתית ל-`/studio` (הדף שהיה שביר במיוחד ל-regressions מסוג bundling ב-Sprint 7)
 — טעינה תקינה, `<title>Soundiform</title>` מאומת ב-HTML בפועל.
+
+## 2026-08-20 — Sprint 9: אדמין, מודרציה, GenrePacks חיים מה-DB, שרשרת העלאה מלאה
+
+**GenrePacks חיים מה-DB.** `GET /api/genres` (ציבורי, is_active בלבד) → `genrePacksStore`
+(Zustand, נטען פעם אחת) → `GenreSelector`/`useAudioEngine` (client) ו-`api/render/route.ts`
+(server, Drizzle ישיר) — כל הצרכנים הוסטו מ-`@soundiform/genres` הסטטי לשורות `genre_packs`.
+`useAudioEngine.play()` קורא ל-`genrePacksStore.getState()` (לא ה-hook) כי `play()` הוא
+callback לא-רי-אקטיבי — מתועד בקובץ. `usePlayScore.ts` (דף שיתוף) **נשאר** על הטעינה
+הסטטית בכוונה — לא היה חלק מהתחום שאושר, ונשאר עקבי-לעצמו (score כבר-מוכן, לא מורכב מחדש).
+
+**שרשרת העלאה מלאה (SVG/PNG/JPEG/WebP → ShapeData), §8.** `POST /api/upload`: גודל (10MB)
+→ magic bytes (`file-type`; ל-SVG אין magic bytes אמיתיים — היוריסטיקת-תוכן נפרדת) → SVG:
+DOMPurify (jsdom, שרת-בלבד) + svgo → פירסור path-data (`svg-pathdata`, aToC/qtToC ממירים
+קשתות/quadratic ל-cubic כדי שיהיה רק סוג עקומה אחד לשטח) → נרמול 0–1 עם **שימור aspect-ratio**
+(fit-to-square ממורכז — בניגוד ל-DrawingCanvas שמנרמל כל ציר בנפרד, כי שם הקנבס כמעט תמיד
+ריבועי; ל-SVG/לוגו זה לא תמיד נכון, ונרמול-עצמאי היה מעוות צורות). raster: sharp re-encode
+(מסיר EXIF/payloads) → **potrace** (מעקב-קונטור אמיתי, כמו Inkscape) → אותו path-parsing.
+
+- **החלטה (בשיתוף עם Nitay):** וקטוריזציית raster דרך potrace אמיתי (לא נדחה לספרינט אחר,
+  לא היוריסטיקת edge-detection פשוטה) — PROJECT.md §11 עצמו סימן את זה כשאלה פתוחה ליד
+  Sprint 2. `potrace` תלוי ב-`jimp` (טהור-JS, בלי native bindings).
+- **קובץ מקור נשמר ב-R2** (`uploads/{userId|anon}/{id}.{ext}`) — עמודה חדשה `projects.upload_key`
+  (מיגרציה `0004_hot_gorilla_man.sql`, אדיטיבית, יושמה חי). שורת `moderation_queue` נוצרת
+  ב-`api/projects/route.ts` (לא ב-`api/upload`) כי יש לה `project_id NOT NULL` שעדיין לא
+  קיים בזמן ההעלאה עצמה.
+- **נבדק אמיתי:** 45 בדיקות Vitest חדשות (לא mocked) — כולל payloads XSS אמיתיים
+  (`<script>`, `onload=`, `javascript:` href, `<foreignObject>`, `<use>` חיצוני) שמאומת
+  שנחסמים בפועל ע"י DOMPurify; PNG/JPEG אמיתיים (sharp) מול `file-type`; תמונת ריבוע שחור
+  אמיתית → potrace → ShapeData מרובע ותקין; אימות הסרת EXIF אמיתי. **בדיקת דפדפן אמיתית**
+  (Playwright, `/studio`, קובץ SVG אמיתי דרך `<input type=file>`): הצינור המלא (זיהוי→סניטציה→
+  וקטוריזציה→Zod) עובד עד לשלב ה-R2 PUT; שם נכשל כי **R2 מעולם לא הוגדר בפועל בסביבה הזו**
+  (כל 5 משתני `R2_*` ב-`.env` קיימים כמפתחות אך ריקים — לא רק בסשן הזה; גם בדיקות ה-worker
+  ל-render, מ-Sprint 6/8, תמיד השתמשו ב-`StorageProvider` מזויף בזיכרון מאותה סיבה בדיוק).
+  אומת שה-UI מציג שגיאה גנרית נקייה בלי לחשוף פרטים פנימיים (§0.3/§8).
+
+**פאנל אדמין.** `ADMIN_EMAILS` (allowlist מקודד ב-env, לא עמודת `is_admin`ב-DB — הוחלט מראש)
+נבדק דרך `getAdminUser()` גם ב-Server Component (`admin/page.tsx`, `redirect()` לפני שהדף
+בכלל נרנדר) וגם בכל `api/admin/*` route בנפרד. ארבעה טאבים: מודרציה (אישור/דחייה, כותב
+audit_log), Feature Flags (טוגלים גלובליים — **לא** להפעלה/כיבוי סגנון, זה כבר מכוסה ע"י
+`genre_packs.is_active`), GenrePacks (עריכת config/is_active/sort_order ללא דיפלוי — §11
+Sprint 9 "פריט מרכזי"), Audit Log (צפייה בלבד, append-only). **נבדק אמיתי (Playwright):**
+כניסה אנונימית ל-`/admin` מבצעת redirect אמיתי (307) ל-`/login?next=/admin` ואף פעם לא
+מרנדרת את הדשבורד עצמו. **נשאר לא נבדק:** גישת אדמין אמיתית (דורשת `ADMIN_EMAILS` מאוכלס +
+חשבון מחובר אמיתי — לא הוגדר בסביבה הזו; Nitay צריך למלא את `ADMIN_EMAILS` ב-`.env` בעצמו).
+
+**נבדק אחרי הכל:** typecheck/lint/format/test מלאים על כל המונוריפו — נקיים, 152 בדיקות
+(45 חדשות + 107 קודמות), כולל בדיקות worker אמיתיות מול ffmpeg אמיתי.

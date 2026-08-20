@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
   // @soundiform/db/postgres (Sprint 7): postgres.js משתמש ב-node:net/node:tls ישירות —
   // בלי זה Turbopack קורס (panic) בניסיון לבנות chunk לקוח שמגיע ל-@soundiform/db, גם
   // כשהאימפורט בפועל הוא רק ב-Server Components/Route Handlers (account/page.tsx, api/*).
+  // sharp/potrace/jsdom (Sprint 9, api/upload): sharp טוען binding נייטיבי, jsdom נוגע ב-fs/
+  // node:vm — אותה סיבה עקרונית, גם אם ה-import בפועל הוא רק בתוך apps/web/src/lib/upload/*
+  // (route-only, לעולם לא נטען מקומפוננטת קליינט).
   serverExternalPackages: [
     'paper',
     'tone',
@@ -27,6 +30,9 @@ const nextConfig: NextConfig = {
     'ioredis',
     '@soundiform/db',
     'postgres',
+    'sharp',
+    'potrace',
+    'jsdom',
   ],
 };
 

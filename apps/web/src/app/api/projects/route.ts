@@ -16,6 +16,10 @@
  *
  * ⭐ Sprint 8: remixOf (אופציונלי) — כפתור Remix בדף שיתוף טוען את הצורה ל-shapeStore ומעביר
  * ל-studio; ברגע שהפרויקט-הבן נשמר כאן, נרשמת שורת remixes (§9 "כל צופה הופך ליוצר בקליק").
+ *
+ * ⭐ Sprint 9: sourceType !== 'drawing' (כלומר svg/raster, מגיע מ-api/upload) → נרשמת שורת
+ * moderation_queue (status='pending') — זה קורה כאן ולא ב-api/upload, כי לשורת המודרציה יש
+ * project_id NOT NULL (ראה moderationQueue.ts) שעדיין לא קיים בשלב ההעלאה עצמה.
  */
 
 import { NextResponse } from 'next/server';
@@ -24,6 +28,7 @@ import { shapeDataSchema } from '@soundiform/shared';
 import {
   checkSaveQuota,
   getDb,
+  moderationQueue,
   projects,
   recordLedgerEntry,
   remixes,
@@ -37,6 +42,7 @@ const createProjectSchema = z.object({
   shape: shapeDataSchema,
   shapeHash: z.string().min(1),
   sourceType: z.enum(['drawing', 'svg', 'raster']),
+  uploadKey: z.string().min(1).optional(),
   title: z.string().min(1).max(200).optional(),
   remixOf: z.uuid().optional(),
 });
@@ -71,7 +77,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { shape, shapeHash, sourceType, title, remixOf } = parsed.data;
+  const { shape, shapeHash, sourceType, uploadKey, title, remixOf } = parsed.data;
   const [project] = await db
     .insert(projects)
     .values({
@@ -79,6 +85,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       shapeData: shape,
       shapeHash,
       sourceType,
+      ...(uploadKey !== undefined && { uploadKey }),
       ...(title !== undefined && { title }),
     })
     .returning();
@@ -87,6 +94,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   await recordLedgerEntry(user.id, -1, 'project_save');
+
+  if (sourceType !== 'drawing') {
+    await db.insert(moderationQueue).values({ projectId: project.id, status: 'pending' });
+  }
 
   if (remixOf) {
     const [parentRender] = await db.select().from(renders).where(eq(renders.id, remixOf));

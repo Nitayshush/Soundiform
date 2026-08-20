@@ -5,17 +5,19 @@
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ Sprint 9: DEFAULT_GENRE_ID קבוע מראש (לא נגזר מ-loadActiveGenrePacks) — הסגנונות
+ * הפעילים בפועל נטענים אסינכרונית מ-/api/genres (genrePacksStore.ts), ואין להם ערך
+ * מיידי/סינכרוני בזמן אתחול ה-store הזה. 'cinematic' תמיד קיים וזה בדיוק הפולבק שהיה כבר.
  */
 
 'use client';
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { loadActiveGenrePacks } from '@soundiform/genres';
 
 const STORAGE_KEY = 'soundiform:selected-genre';
-const [firstActivePack] = loadActiveGenrePacks();
-const DEFAULT_GENRE_ID = firstActivePack?.id ?? 'cinematic';
+const DEFAULT_GENRE_ID = 'cinematic';
 
 interface GenreStoreState {
   genreId: string;
