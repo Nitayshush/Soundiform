@@ -366,7 +366,7 @@ Nitay ביקש מנגנון ניהול חשבון מלא: עריכת פרופי�
 מלא (typecheck/lint/format/test) + בדיקה חיה אמיתית (Playwright/ffprobe, לא רק קוד).
 
 **1. פרופיל:** `username` (ייחודי, nullable) + `planSource`/`paypalSubscriptionId` (לתשתית
-תשלום, ראה 4) נוספו ל-`users`. `PATCH /api/account` (route חדש) מעדכן *רק* את העמודות
+תשלום, ראה 4) נוספו ל-`users`. `PATCH /api/account` (route חדש) מעדכן _רק_ את העמודות
 הבטוחות (username/display_name/avatar_url) — ה-RLS על `users` בכוונה בלי UPDATE policy
 ללקוח, בדיוק כפי שתועד מראש ב-`users.ts`. העלאת אווטאר: resize ל-256×256 (sharp) → R2
 (`avatars/{userId}.png`) → `avatarUrl` נשמר כנתיב יציב (`/api/account/avatar/{userId}`) שמנפיק
@@ -387,10 +387,10 @@ URL חתום טרי בכל בקשה (§7: "לעולם לא bucket ציבורי" 
 
 **5. הורדות מדורגות + Stems אמיתיים (הוחלט: לבנות גם Stems עכשיו, לא לדחות):** ה-worker כבר
 קידד MP3 בנוסף ל-WAV אבל שמר רק את מפתח ה-WAV — `mp3Key` נוסף ונשמר עכשיו. Stems (studio
-בלבד): לולאה על טראקים, כל אחד מרונדר דרך *אותה* `renderToBuffer({...score, tracks:[track]})`
+בלבד): לולאה על טראקים, כל אחד מרונדר דרך _אותה_ `renderToBuffer({...score, tracks:[track]})`
 — אפס לוגיקת רינדור חדשה, דטרמיניזם נשמר (reverb כבר seed-י per-track). `GET
 /api/renders/[id]/download?type=audio|midi|stem` — פורמט האודיו (mp3/wav) נקבע לפי plan
-של *היוצר* (לא המוריד, עקרון זהה ל-watermark הווידאו); midi/stems דורשים גם בעלות וגם
+של _היוצר_ (לא המוריד, עקרון זהה ל-watermark הווידאו); midi/stems דורשים גם בעלות וגם
 studio. **נבדק חי מקצה-לקצה:** render אמיתי (BullMQ→worker→R2→Postgres) עם משתמש studio
 אמיתי — stem_keys נוצרו בדיוק לפי טראקי הסגנון (trance: bass/lead/pad/drums), הורדות
 audio/midi/stem הצליחו (307→קובץ אמיתי תקין), stem לא-קיים→404 נקי, לא-בעלים→403/404 נכון.

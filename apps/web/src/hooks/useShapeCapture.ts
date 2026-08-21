@@ -6,60 +6,94 @@
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * זרימת הנתונים: עכבר/מגע → נקודות גולמיות מנורמלות (0–1) → paper.js Path.simplify()
- * (מפחית רעש/צפיפות דגימה, ⭐ "ייצוא הצורה כווקטור" ב-§11 Sprint 1) → shapeStore (נשמר).
+ * זרימת הנתונים: עכבר/מגע → נקודות גולמיות מנורמלות (0–1) → Ramer–Douglas–Peucker
+ * (מפחית רעש/צפיפות דגימה) → shapeStore (נשמר).
+ *
+ * ⭐ עדכון 2026-08-21: הוחלף paper.js Path.simplify() ב-RDP. הבעיה המקורית לא הייתה רק
+ * "טולרנס גבוה מדי" (כפי שתוקן בסבב הקודם) — paper.js's simplify() הוא least-squares
+ * Bézier curve-fit: הוא בונה מחדש את המסלול כעקומה חלקה עם *מעט* נקודות-עוגן+ידיות, לא
+ * רק מסנן רעש. הקוד כאן שמר רק את `segment.point` (בלי הידיות), ו-DrawingCanvas.tsx מצייר
+ * קווים ישרים בין הנקודות השרידות — כך שגם fit "נכון" נראה "מיושר" ברגע שמצטיירים קווים
+ * ישרים בין נקודות-עוגן דלילות. RDP שונה מהותית: כל נקודה ששורדת יושבת (בטווח tolerance)
+ * *על* המסלול המקורי במרחק ניצב מהקטע הנוכחי — לא בנייה-מחדש כעקומה — כך שציור-קווים-ישרים
+ * בין הנקודות השרידות נשאר נאמן לצורה שצוירה בפועל, לא רק לצורות פוליגונליות עם פינות חדות.
  */
 
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import type PaperScopeType from 'paper';
 import type { ShapePath, ShapePoint } from '@soundiform/shared';
 import { useShapeStore } from '@/stores/shapeStore';
 
 /**
- * טולרנס בטווח הנורמלי (0–1). ⚠️ 0.003 המקורי היה גבוה מדי בפועל: paper.js Path.simplify()
- * הוא curve-fit של Schneider (least-squares Bézier), לא סינון-רעש — בטולרנס הזה הוא היה
- * מיישר פינות אמיתיות שהמשתמש צייר, לא רק מנקה רעש דגימה מהעכבר/מגע. הורד ל-0.0007 כך
- * שרק רעש תת-פיקסלי בין דגימות עוקבות נמחק, לא תכונות מכוונות של הצורה.
+ * טולרנס במרחק ניצב, בטווח הנורמלי (0–1) — כ-2px על קנבס ברוחב ~800px. RDP מבטיח שכל
+ * נקודה שנמחקת הייתה בתוך המרחק הזה מהקו בין שכנותיה השרידות, אז זו סטייה בלתי-מורגשת,
+ * לא "יישור" של תכונה אמיתית של הצורה.
  */
-const SIMPLIFY_TOLERANCE = 0.0007;
-
-let paperScopePromise: Promise<typeof PaperScopeType> | null = null;
-let isPaperInitialized = false;
-
-/**
- * טוען את paper.js דינמית, רק בדפדפן, רק כשבאמת מסיימים מסלול.
- * למה לא ייבוא סטטי בראש הקובץ: paper.js מזהה סביבת Node (SSR של Next.js) ומנסה לטעון
- * שכבת חיקוי מבוססת jsdom — שלא מותקנת אצלנו בכוונה (לא צריך רינדור אמיתי, רק מתמטיקה וקטורית).
- * ייבוא דינמי, שמופעל רק מתוך מאזין אירוע בדפדפן, לעולם לא רץ בזמן SSR.
- */
-function loadPaper(): Promise<typeof PaperScopeType> {
-  paperScopePromise ??= import('paper').then((paperModule) => paperModule.default);
-  return paperScopePromise;
-}
+const SIMPLIFY_TOLERANCE = 0.0025;
 
 function clampUnit(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-async function simplifyStroke(points: ShapePoint[], tolerance: number): Promise<ShapePoint[]> {
-  const paper = await loadPaper();
-  if (!isPaperInitialized) {
-    paper.setup([1, 1]);
-    isPaperInitialized = true;
+function perpendicularDistance(
+  point: ShapePoint,
+  lineStart: ShapePoint,
+  lineEnd: ShapePoint,
+): number {
+  const dx = lineEnd.x - lineStart.x;
+  const dy = lineEnd.y - lineStart.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) {
+    return Math.hypot(point.x - lineStart.x, point.y - lineStart.y);
   }
-  const path = new paper.Path();
-  for (const point of points) {
-    path.add(point);
+  const t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lengthSquared;
+  const projectedX = lineStart.x + t * dx;
+  const projectedY = lineStart.y + t * dy;
+  return Math.hypot(point.x - projectedX, point.y - projectedY);
+}
+
+/**
+ * Ramer–Douglas–Peucker: מפשט פוליליין תוך שמירה על כל נקודה ששורדת *על* המסלול המקורי
+ * (בטווח tolerance) — בניגוד לcurve-fit, אין כאן בנייה-מחדש של הצורה כעקומה חלקה.
+ */
+function simplifyRDP(points: readonly ShapePoint[], tolerance: number): ShapePoint[] {
+  if (points.length < 3) {
+    return [...points];
   }
-  path.simplify(tolerance);
-  const simplifiedPoints = path.segments.map((segment) => ({
-    x: clampUnit(segment.point.x),
-    y: clampUnit(segment.point.y),
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (!first || !last) {
+    return [...points];
+  }
+
+  let maxDistance = 0;
+  let maxIndex = 0;
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const current = points[index];
+    if (!current) {
+      continue;
+    }
+    const distance = perpendicularDistance(current, first, last);
+    if (distance > maxDistance) {
+      maxDistance = distance;
+      maxIndex = index;
+    }
+  }
+
+  if (maxDistance > tolerance) {
+    const left = simplifyRDP(points.slice(0, maxIndex + 1), tolerance);
+    const right = simplifyRDP(points.slice(maxIndex), tolerance);
+    return [...left.slice(0, -1), ...right];
+  }
+  return [first, last];
+}
+
+function simplifyStroke(points: ShapePoint[], tolerance: number): ShapePoint[] {
+  return simplifyRDP(points, tolerance).map((point) => ({
+    x: clampUnit(point.x),
+    y: clampUnit(point.y),
   }));
-  path.remove();
-  return simplifiedPoints;
 }
 
 export interface UseShapeCaptureResult {
@@ -106,14 +140,8 @@ export function useShapeCapture(): UseShapeCaptureResult {
     if (strokePoints.length < 2) {
       return;
     }
-    simplifyStroke(strokePoints, SIMPLIFY_TOLERANCE)
-      .then((simplifiedPoints) => {
-        addPath({ points: simplifiedPoints, closed: false });
-      })
-      .catch((error: unknown) => {
-        // אין UI לשגיאות עדיין — לפחות לא נבלע בשקט (§0.3/§0.4).
-        console.error('useShapeCapture: simplifyStroke נכשל', error);
-      });
+    const simplifiedPoints = simplifyStroke(strokePoints, SIMPLIFY_TOLERANCE);
+    addPath({ points: simplifiedPoints, closed: false });
   }, [addPath]);
 
   const clear = useCallback(() => {

@@ -10,10 +10,8 @@ const nextConfig: NextConfig = {
     '@soundiform/shared',
     '@soundiform/ui',
   ],
-  // paper.js מזהה סביבת Node (כולל ב-SSR של קומפוננטות client) ומנסה לטעון שכבת חיקוי
-  // מבוססת jsdom שלא מותקנת אצלנו בכוונה — אנחנו משתמשים בו רק למתמטיקה וקטורית בדפדפן.
-  // tone/pixi.js נוספו מראש (Sprint 4) מאותה סיבה עקרונית — ספריות Web Audio/WebGL שלא
-  // אמורות להיבנות עבור ה-SSR target כלל; שתיהן נטענות רק דרך import() דינמי בתוך useEffect.
+  // tone/pixi.js נוספו מראש (Sprint 4) — ספריות Web Audio/WebGL שלא אמורות להיבנות עבור
+  // ה-SSR target כלל; שתיהן נטענות רק דרך import() דינמי בתוך useEffect.
   // bullmq/ioredis (Sprint 6): שרת-בלבד (api/render/route.ts), עם dynamic requires פנימיים —
   // לא אמורות לעבור דרך bundler הצד-לקוח כלל.
   // @soundiform/db/postgres (Sprint 7): postgres.js משתמש ב-node:net/node:tls ישירות —
@@ -22,8 +20,9 @@ const nextConfig: NextConfig = {
   // sharp/potrace/jsdom (Sprint 9, api/upload): sharp טוען binding נייטיבי, jsdom נוגע ב-fs/
   // node:vm — אותה סיבה עקרונית, גם אם ה-import בפועל הוא רק בתוך apps/web/src/lib/upload/*
   // (route-only, לעולם לא נטען מקומפוננטת קליינט).
+  // ⭐ 'paper' הוסר מהרשימה (2026-08-21): useShapeCapture.ts הוחלף מ-paper.js Path.simplify()
+  // ל-RDP עצמאי — paper.js כבר לא בשימוש באף מקום בפרויקט.
   serverExternalPackages: [
-    'paper',
     'tone',
     'pixi.js',
     'bullmq',
