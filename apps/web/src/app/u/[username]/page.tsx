@@ -12,13 +12,14 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { and, desc, eq } from 'drizzle-orm';
-import { getDb, projects, renders, shares, users } from '@soundiform/db';
+import { and, count, desc, eq } from 'drizzle-orm';
+import { follows, getDb, projects, renders, shares, users } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FollowButton } from '@/components/account/FollowButton';
 
 interface ProfilePageProps {
   params: Promise<{ username: string }>;
@@ -48,18 +49,29 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   } = await supabase.auth.getUser();
   const isOwnProfile = sessionUser?.id === profile.id;
 
-  const creations = await db
-    .select({
-      slug: shares.slug,
-      viewCount: shares.viewCount,
-      genreId: renders.genreId,
-      createdAt: shares.createdAt,
-    })
-    .from(shares)
-    .innerJoin(renders, eq(shares.renderId, renders.id))
-    .innerJoin(projects, eq(renders.projectId, projects.id))
-    .where(and(eq(projects.userId, profile.id), eq(shares.visibility, 'public')))
-    .orderBy(desc(shares.createdAt));
+  const [creations, [followerRow], isFollowingRow] = await Promise.all([
+    db
+      .select({
+        slug: shares.slug,
+        viewCount: shares.viewCount,
+        genreId: renders.genreId,
+        createdAt: shares.createdAt,
+      })
+      .from(shares)
+      .innerJoin(renders, eq(shares.renderId, renders.id))
+      .innerJoin(projects, eq(renders.projectId, projects.id))
+      .where(and(eq(projects.userId, profile.id), eq(shares.visibility, 'public')))
+      .orderBy(desc(shares.createdAt)),
+    db.select({ total: count() }).from(follows).where(eq(follows.followingId, profile.id)),
+    sessionUser
+      ? db
+          .select({ followerId: follows.followerId })
+          .from(follows)
+          .where(and(eq(follows.followerId, sessionUser.id), eq(follows.followingId, profile.id)))
+      : Promise.resolve([]),
+  ]);
+  const followerCount = followerRow?.total ?? 0;
+  const isFollowing = isFollowingRow.length > 0;
 
   return (
     <>
@@ -78,13 +90,16 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             </h1>
             <p className="text-sm text-muted-foreground">
               @{profile.username} · {creations.length}{' '}
-              {creations.length === 1 ? 'creation' : 'creations'}
+              {creations.length === 1 ? 'creation' : 'creations'} · {followerCount}{' '}
+              {followerCount === 1 ? 'follower' : 'followers'}
             </p>
           </div>
-          {isOwnProfile && (
+          {isOwnProfile ? (
             <Button variant="outline" nativeButton={false} render={<Link href="/account" />}>
               Edit profile
             </Button>
+          ) : (
+            <FollowButton profileUserId={profile.id} initialIsFollowing={isFollowing} />
           )}
         </div>
 

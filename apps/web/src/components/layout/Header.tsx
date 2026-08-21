@@ -22,9 +22,12 @@ const NAV_LINKS = [
   { href: '/pricing', label: 'Pricing' },
 ];
 
+const LOGGED_IN_NAV_LINKS = [...NAV_LINKS, { href: '/feed', label: 'Feed' }];
+
 export function Header() {
   const { user, isLoading } = useSupabaseUser();
   const username = useUsername();
+  const navLinks = user ? LOGGED_IN_NAV_LINKS : NAV_LINKS;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
@@ -33,7 +36,7 @@ export function Header() {
           <Logo />
         </Link>
         <nav className="hidden items-center gap-1 sm:flex">
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <Button
               key={link.href}
               variant="ghost"

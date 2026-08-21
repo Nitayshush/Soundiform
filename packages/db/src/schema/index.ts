@@ -15,6 +15,7 @@ export * from './creditsLedger';
 export * from './shares';
 export * from './remixes';
 export * from './likes';
+export * from './follows';
 export * from './genrePacks';
 export * from './moderationQueue';
 export * from './auditLog';
