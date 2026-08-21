@@ -23,6 +23,7 @@ import { FREE_MONTHLY_CREATIONS, FREE_SAVED_PROJECTS } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ProfileEditForm } from '@/components/account/ProfileEditForm';
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -54,6 +55,12 @@ export default async function AccountPage() {
       <Header />
       <main className="mx-auto flex max-w-2xl flex-col gap-6 px-6 py-12">
         <h1 className="text-3xl font-semibold tracking-tight">Account</h1>
+
+        <ProfileEditForm
+          initialUsername={userRow?.username ?? null}
+          initialDisplayName={userRow?.displayName ?? null}
+          initialAvatarUrl={userRow?.avatarUrl ?? null}
+        />
 
         <Card className="border-border/60">
           <CardContent className="flex flex-col gap-3">
