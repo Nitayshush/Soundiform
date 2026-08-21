@@ -115,7 +115,6 @@ export async function POST(request: Request): Promise<NextResponse> {
     score,
     audioConfig,
     stems: plan === 'studio',
-    ...(video && { shape: project.shapeData }),
     ...(video && {
       video: {
         aspectRatio: video.aspectRatio,

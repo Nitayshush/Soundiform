@@ -11,7 +11,6 @@
  */
 
 import type { MusicalScore, TrackRole } from '@soundiform/core';
-import type { ShapeData } from '@soundiform/shared';
 import type { GenreAudioConfig } from './sharedScheduling';
 
 /** שם התור ב-BullMQ — חייב להיות זהה בין ה-Queue (apps/web) וה-Worker (apps/worker). */
@@ -36,8 +35,10 @@ export interface VideoExportOptions {
  *
  * ⭐ Sprint 8: projectId חובה — כדי ש-apps/worker יוכל לכתוב שורת renders אמיתית (§6),
  * שדף השיתוף/גלריה/רמיקס נשענים עליה. אין רינדור בלי פרויקט שמור (§9: לא ניתן לשתף
- * יצירה אנונימית/לא-שמורה). shape+video אופציונליים: בלי video, זה רינדור אודיו בלבד
- * (כמו Sprint 6) — shape נחוץ רק אם video מבוקש (מצייר את הפריימים).
+ * יצירה אנונימית/לא-שמורה). video אופציונלי: בלי זה, זה רינדור אודיו בלבד (כמו Sprint 6).
+ *
+ * ⭐ §11 עדכון 2026-08-21: video לא צריך יותר shape — frameRenderer.ts מצייר את סרגל
+ * התווים (ScoreStaff.tsx), לא את הצורה המקורית, אז score מספיק (הוא כבר כאן ממילא).
  *
  * ⭐ §11 stems: stems נקבע ב-apps/web מ-plan של המשתמש (studio בלבד) — בדיוק כמו
  * video.quality/watermark למעלה, לעולם לא נלקח/נסמך על קלט מהקליינט.
@@ -46,7 +47,6 @@ export interface RenderJobData {
   projectId: string;
   score: MusicalScore;
   audioConfig: GenreAudioConfig;
-  shape?: ShapeData;
   video?: VideoExportOptions;
   stems?: boolean;
 }

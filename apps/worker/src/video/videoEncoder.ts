@@ -15,7 +15,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import ffmpeg from 'fluent-ffmpeg';
-import type { ShapePoint } from '@soundiform/shared';
+import type { MusicalScore } from '@soundiform/core';
 import type { VideoAspectRatio, VideoQuality } from '@soundiform/audio';
 import { renderVideoFrame, type FrameDimensions } from './frameRenderer';
 
@@ -48,14 +48,8 @@ export function computeVideoDimensions(
   }
 }
 
-interface DrawablePath {
-  points: ShapePoint[];
-  closed: boolean;
-}
-
 export interface VideoEncodeInput {
-  paths: readonly DrawablePath[];
-  contourPoints: readonly ShapePoint[];
+  score: MusicalScore;
   durationSeconds: number;
   audioBuffer: Buffer;
   dimensions: FrameDimensions;
@@ -70,9 +64,8 @@ export async function encodeVideo(input: VideoEncodeInput): Promise<Buffer> {
   try {
     for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
       const progress = frameCount <= 1 ? 0 : frameIndex / frameCount;
-      const frameBuffer = renderVideoFrame(
-        input.paths,
-        input.contourPoints,
+      const frameBuffer = await renderVideoFrame(
+        input.score,
         progress,
         input.dimensions,
         input.watermark,

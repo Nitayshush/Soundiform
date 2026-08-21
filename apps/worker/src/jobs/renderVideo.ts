@@ -6,30 +6,27 @@
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * זרימה: extractContour (פעם אחת) → encodeVideo (פריימים + מיקס עם ה-WAV שכבר מרונדר) → PUT ל-R2.
+ * זרימה: encodeVideo (פריימים של סרגל התווים + מיקס עם ה-WAV שכבר מרונדר) → PUT ל-R2.
  * נקרא מ-jobs/renderAudio.ts כהמשך אופציונלי לאותו job (לא queue נפרד) — ראה שם.
  */
 
-import { extractContour } from '@soundiform/core';
-import type { ShapeData } from '@soundiform/shared';
+import type { MusicalScore } from '@soundiform/core';
 import type { VideoExportOptions } from '@soundiform/audio';
 import type { StorageProvider } from '@soundiform/storage';
 import { computeVideoDimensions, encodeVideo } from '../video/videoEncoder';
 
 export async function runRenderVideoJob(
-  shape: ShapeData,
+  score: MusicalScore,
   durationSeconds: number,
   audioBuffer: Buffer,
   options: VideoExportOptions,
   storage: StorageProvider,
   keyPrefix: string,
 ): Promise<string> {
-  const contour = extractContour(shape);
   const dimensions = computeVideoDimensions(options.quality, options.aspectRatio);
 
   const videoBuffer = await encodeVideo({
-    paths: shape.paths,
-    contourPoints: contour.points,
+    score,
     durationSeconds,
     audioBuffer,
     dimensions,

@@ -82,7 +82,7 @@ export async function runRenderAudioJob(
   data: RenderJobData,
   storage: StorageProvider,
 ): Promise<RenderJobResult> {
-  const { projectId, score, audioConfig, shape, video, stems } = data;
+  const { projectId, score, audioConfig, video, stems } = data;
 
   const rendered = await renderToBuffer(score, audioConfig);
   const normalizedChannels = normalizeToTargetLufs(rendered.channels);
@@ -127,9 +127,9 @@ export async function runRenderAudioJob(
   }
 
   let videoKey: string | undefined;
-  if (video && shape) {
+  if (video) {
     videoKey = await runRenderVideoJob(
-      shape,
+      score,
       rendered.durationSeconds,
       wavBuffer,
       video,

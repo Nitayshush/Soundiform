@@ -15,7 +15,34 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import ffmpeg from 'fluent-ffmpeg';
+import { composeMusicalScore, geometryToMusic, type CompositionConfig } from '@soundiform/core';
 import { encodeVideo, computeVideoDimensions } from './videoEncoder';
+
+const TEST_CONFIG: CompositionConfig = {
+  genreId: 'test',
+  tempoBpm: 120,
+  mode: 'aeolian',
+  gridSubdivision: 16,
+  swingAmount: 0,
+};
+
+function makeTestScore() {
+  const shape = {
+    version: '1.0.0',
+    paths: [
+      {
+        closed: true,
+        points: [
+          { x: 0.5, y: 0.1 },
+          { x: 0.9, y: 0.9 },
+          { x: 0.1, y: 0.9 },
+        ],
+      },
+    ],
+  };
+  const intent = geometryToMusic(shape, 'video-encoder-test-seed');
+  return composeMusicalScore(intent, TEST_CONFIG);
+}
 
 function makeToneWav(durationSeconds: number): Buffer {
   const sampleRate = 44100;
@@ -79,23 +106,7 @@ describe('encodeVideo', () => {
     const durationSeconds = 1;
     const dimensions = computeVideoDimensions('720p', '9:16');
     const videoBuffer = await encodeVideo({
-      paths: [
-        {
-          closed: true,
-          points: [
-            { x: 0.5, y: 0.1 },
-            { x: 0.9, y: 0.9 },
-            { x: 0.1, y: 0.9 },
-          ],
-        },
-      ],
-      contourPoints: [
-        { x: 0.5, y: 0.1 },
-        { x: 0.7, y: 0.5 },
-        { x: 0.9, y: 0.9 },
-        { x: 0.5, y: 0.9 },
-        { x: 0.1, y: 0.9 },
-      ],
+      score: makeTestScore(),
       durationSeconds,
       audioBuffer: makeToneWav(durationSeconds),
       dimensions,

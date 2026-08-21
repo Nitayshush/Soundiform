@@ -127,21 +127,8 @@ describe('runRenderAudioJob', () => {
     }
   }, 30000);
 
-  it('Sprint 8: כשמבקשים video, מרנדר MP4 אמיתי, מעלה אותו, וכותב video_key על שורת ה-render', async () => {
+  it('Sprint 8: כשמבקשים video, מרנדר MP4 אמיתי (סרגל תווים, לא הצורה), מעלה אותו, וכותב video_key על שורת ה-render', async () => {
     const score = makeTestScore();
-    const shape = {
-      version: '1.0.0',
-      paths: [
-        {
-          closed: true,
-          points: [
-            { x: 0.5, y: 0.1 },
-            { x: 0.9, y: 0.9 },
-            { x: 0.1, y: 0.9 },
-          ],
-        },
-      ],
-    };
     const { storage, uploads } = createFakeStorage();
     const db = getDb();
 
@@ -149,7 +136,7 @@ describe('runRenderAudioJob', () => {
       .insert(projects)
       .values({
         userId: null,
-        shapeData: shape,
+        shapeData: { version: '1.0.0', paths: [] },
         shapeHash: 'render-job-video-test-seed',
         sourceType: 'drawing',
       })
@@ -174,7 +161,6 @@ describe('runRenderAudioJob', () => {
           projectId: project.id,
           score,
           audioConfig: DEFAULT_AUDIO_CONFIG,
-          shape,
           video: { aspectRatio: '9:16', quality: '720p', watermark: true },
         },
         storage,
@@ -187,6 +173,60 @@ describe('runRenderAudioJob', () => {
 
       const [renderRow] = await db.select().from(renders).where(eq(renders.id, result.renderId));
       expect(renderRow?.videoKey).toBe(result.videoKey);
+    } finally {
+      fetchSpy.mockRestore();
+      await db.delete(renders).where(eq(renders.projectId, project.id));
+      await db.delete(projects).where(eq(projects.id, project.id));
+    }
+  }, 60000);
+
+  it('§11: כשמבקשים stems, מרנדר WAV נפרד לכל track ומעלה תחת stems/{role}.wav', async () => {
+    const score = makeTestScore();
+    const { storage, uploads } = createFakeStorage();
+    const db = getDb();
+
+    const [project] = await db
+      .insert(projects)
+      .values({
+        userId: null,
+        shapeData: { version: '1.0.0', paths: [] },
+        shapeHash: 'render-job-stems-test-seed',
+        sourceType: 'drawing',
+      })
+      .returning();
+    if (!project) {
+      throw new Error('יצירת פרויקט-בדיקה נכשלה');
+    }
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const key = url.replace('http://fake-upload.local/', '');
+      const body = init?.body;
+      if (body instanceof Uint8Array) {
+        uploads.set(key, Buffer.from(body));
+      }
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+
+    try {
+      const result = await runRenderAudioJob(
+        { projectId: project.id, score, audioConfig: DEFAULT_AUDIO_CONFIG, stems: true },
+        storage,
+      );
+
+      expect(result.stemKeys).toBeDefined();
+      const stemRoles = Object.keys(result.stemKeys ?? {});
+      expect(stemRoles.length).toBe(score.tracks.length);
+      for (const track of score.tracks) {
+        const stemKey = result.stemKeys?.[track.role];
+        expect(stemKey).toBe(`renders/${score.seed}/${score.genreId}/stems/${track.role}.wav`);
+        const stemBuffer = uploads.get(stemKey ?? '');
+        expect(stemBuffer).toBeDefined();
+        expect(stemBuffer?.subarray(0, 4).toString('ascii')).toBe('RIFF');
+      }
+
+      const [renderRow] = await db.select().from(renders).where(eq(renders.id, result.renderId));
+      expect(renderRow?.stemKeys).toEqual(result.stemKeys);
     } finally {
       fetchSpy.mockRestore();
       await db.delete(renders).where(eq(renders.projectId, project.id));
