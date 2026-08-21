@@ -40,7 +40,7 @@ function StudioContent() {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-card/60 px-4 py-3 backdrop-blur-md">
         <Link href="/" className="transition-opacity hover:opacity-80">
           <Logo markOnly className="sm:hidden" />
-          <Logo className="hidden sm:inline-flex" />
+          <Logo className="hidden sm:block" />
         </Link>
         <GenreSelector />
         <UploadButton />
@@ -76,7 +76,10 @@ function StudioContent() {
           </Button>
         </div>
       </header>
-      <div className="relative flex-1">
+      {/* ⭐ הרקע הזה לבן במכוון (לא bg-background) — סרגל התווים/קנבס הציור, בניגוד
+          ל-header שנשאר על הפלטה הכהה. text-[#211B4A] נותן ל-MusicalGrid (currentColor)
+          קו כהה-על-לבן במקום הבהיר-על-כהה שהיה מתאים לרקע הקודם. */}
+      <div className="relative flex-1 bg-white text-[#211B4A]">
         <DrawingCanvas />
         <MusicalGrid />
         <ScoreStaff progress={progress} />

@@ -89,7 +89,7 @@ function LoginForm() {
       </div>
 
       <Link href="/">
-        <Logo className="text-xl" />
+        <Logo className="h-9" />
       </Link>
 
       <Card className="w-full max-w-sm border-border/60">

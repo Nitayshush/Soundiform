@@ -14,9 +14,9 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { ShapePoint } from '@soundiform/shared';
 import { useShapeCapture } from '@/hooks/useShapeCapture';
 
-/** ⚠️ צבעי הקו — עודכנו יחד עם פלטת המותג (globals.css): לבן על רקע כהה, לא שחור-על-כהה. */
-const STROKE_COLOR = '#f5f3fc';
-const ACTIVE_STROKE_COLOR = '#8b7cf6';
+/** ⚠️ הקנבס עצמו לבן (studio/page.tsx) — קו כהה (לא בהיר-על-כהה כמו קודם). */
+const STROKE_COLOR = '#211b4a';
+const ACTIVE_STROKE_COLOR = '#6c5fc4';
 const LINE_WIDTH = 2;
 
 function toNormalizedPoint(event: PointerEvent, canvas: HTMLCanvasElement): ShapePoint {

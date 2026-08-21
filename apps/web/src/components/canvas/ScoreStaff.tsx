@@ -32,7 +32,8 @@ import { useGenreStore } from '@/stores/genreStore';
 import { useGenrePacksStore } from '@/stores/genrePacksStore';
 import { toCompositionConfig } from '@/lib/genreAdapter';
 
-const SCAN_LINE_COLOR = 0xf5f3fc;
+/** ⚠️ הסרגל על רקע לבן (studio/page.tsx) — כל הצבעים כאן כהים/רוויים, לא בהירים-על-כהה. */
+const SCAN_LINE_COLOR = 0x211b4a;
 const SCAN_LINE_WIDTH = 2;
 const NOTE_BAR_MIN_HEIGHT = 4;
 const NOTE_BAR_ALPHA = 0.85;
@@ -41,7 +42,7 @@ const ROLE_COLORS: Record<TrackRole, number> = {
   lead: 0x8b7cf6,
   bass: 0xf59e0b,
   pad: 0x34d399,
-  drums: 0xf5f3fc,
+  drums: 0xe11d48,
   skank: 0xf472b6,
 };
 

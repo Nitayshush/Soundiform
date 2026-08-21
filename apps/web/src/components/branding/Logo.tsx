@@ -1,58 +1,97 @@
 /**
  * @file        Logo.tsx
- * @description ⭐ סימן המותג — משולש מתאר + 3 עמודות עולות (כמו equalizer) + wordmark
- *              "sound" (foreground) + "iform" (primary/accent). ראה docs/DECISIONS.md.
+ * @description ⭐ סימן המותג — קבצי SVG מקוריים שסופקו (2026-08-20), לא שחזור. מוטמע כ-SVG
+ *              בודד לכל וריאנט (לא הרכבת flex+SVG נפרד) כדי לשמר במדויק את המיקום היחסי
+ *              בין האיקון ל-wordmark שנקבע במקור — הרכבת flex גרמה לאיקון "לזוז"/לחפוף לטקסט.
  * @author      Soundiform
  * @created     2026-08-20
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * ⭐ ה-wordmark הוא טקסט DOM אמיתי (לא SVG <text>) — נגישות/render חד יותר; רק הסימן
- * הגרפי (משולש+עמודות) הוא SVG. משתמש ב-currentColor/fill-primary כך שהוא עוקב אחרי
- * טוקני העיצוב ב-globals.css אוטומטית, בלי צבעים מקודדים-קשיח.
+ * ⚠️ צבעי הגרסה הכהה (light-on-dark) — כל שימוש היום הוא על רקע כהה (Header/Studio/Login).
+ * אם יתווסף אי-פעם הקשר בהיר (למשל favicon על שבב בהיר), יש להוסיף וריאנט נפרד עם צבעי
+ * ה-light-lockup שסופקו (#4A3FA0 stroke, #8B7FD6/#6C5FC4 עמודות) — לא לנחש/לגזור מהכהה.
  */
 
 import { cn } from '@/lib/utils';
 
+const ICON_STROKE = '#EFECFF';
+const ICON_BAR_LIGHT = '#B6ABF0';
+const ICON_BAR_LIGHTER = '#D2C9FF';
+const ICON_BAR_BRIGHT = '#EFECFF';
+
+/** האיקון בלבד (משולש+4 עמודות) — מ-logo-icon.svg שסופק, בצבעי הגרסה הכהה. */
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 40 32"
+      viewBox="0 0 160 160"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={className}
+      className={cn('h-8 w-auto', className)}
       aria-hidden="true"
     >
-      <path
-        d="M14 3 L1.5 28.5 L26.5 28.5 Z"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <rect x="21" y="19" width="4" height="9.5" rx="1.6" className="fill-primary" />
-      <rect x="28" y="12" width="4" height="16.5" rx="1.6" className="fill-primary" />
-      <rect x="35" y="6" width="4" height="22.5" rx="1.6" className="fill-primary opacity-80" />
+      <g transform="translate(20,46)">
+        <path
+          d="M45 10 L80 68 L10 68 Z"
+          fill="none"
+          stroke={ICON_STROKE}
+          strokeWidth="5"
+          strokeLinejoin="round"
+        />
+        <rect x="94" y="48" width="10" height="20" rx="3" fill={ICON_BAR_LIGHT} />
+        <rect x="111" y="34" width="10" height="34" rx="3" fill={ICON_BAR_LIGHTER} />
+        <rect x="128" y="18" width="10" height="50" rx="3" fill={ICON_BAR_BRIGHT} />
+        <rect x="145" y="34" width="10" height="34" rx="3" fill={ICON_BAR_LIGHTER} />
+      </g>
     </svg>
   );
 }
 
 export interface LogoProps {
   className?: string;
-  iconClassName?: string;
-  /** רק הסימן הגרפי, בלי ה-wordmark — ל-favicon/מקומות צפופים. */
+  /** רק האיקון, בלי ה-wordmark — למקומות צפופים (למשל header קומפקטי במובייל). */
   markOnly?: boolean;
 }
 
-export function Logo({ className, iconClassName, markOnly = false }: LogoProps) {
+/** ה-lockup המלא — מ-logo-notagline-dark-v3.svg שסופק (בלי מלבן הרקע — ה-header כבר כהה). */
+export function Logo({ className, markOnly = false }: LogoProps) {
+  if (markOnly) {
+    return <LogoMark className={className} />;
+  }
+
   return (
-    <span className={cn('inline-flex items-center gap-2 text-foreground', className)}>
-      <LogoMark className={cn('h-6 w-auto', iconClassName)} />
-      {!markOnly && (
-        <span className="text-lg font-semibold tracking-tight">
-          sound<span className="text-primary">iform</span>
-        </span>
-      )}
-    </span>
+    <svg
+      viewBox="0 0 380 84"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={cn('h-8 w-auto', className)}
+      role="img"
+      aria-label="Soundiform"
+    >
+      <g transform="translate(24,13) scale(0.8)">
+        <path
+          d="M40 8 L70 60 L10 60 Z"
+          fill="none"
+          stroke={ICON_STROKE}
+          strokeWidth="4"
+          strokeLinejoin="round"
+        />
+        <rect x="82" y="42" width="9" height="18" rx="2.5" fill={ICON_BAR_LIGHT} />
+        <rect x="97" y="30" width="9" height="30" rx="2.5" fill={ICON_BAR_LIGHTER} />
+        <rect x="112" y="16" width="9" height="44" rx="2.5" fill={ICON_BAR_BRIGHT} />
+        <rect x="127" y="30" width="9" height="30" rx="2.5" fill={ICON_BAR_LIGHTER} />
+      </g>
+      <text
+        x="148"
+        y="61"
+        fontFamily="var(--font-sans), 'Inter', 'Helvetica Neue', Arial, sans-serif"
+        fontSize="46"
+        fontWeight="500"
+        letterSpacing="-0.5"
+        fill="#F5F4FF"
+      >
+        sound<tspan fill={ICON_BAR_LIGHT}>iform</tspan>
+      </text>
+    </svg>
   );
 }

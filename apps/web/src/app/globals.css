@@ -54,7 +54,8 @@
  * אחד מתוך שניים. ראה docs/DECISIONS.md לפירוט העדכון.
  */
 :root {
-  --background: #1c1640;
+  /* ⭐ #211B4A = הרקע המדויק בקובצי הלוגו שסופקו (logo-notagline-dark-v3.svg) — לא קירוב. */
+  --background: #211b4a;
   --foreground: #f5f3fc;
   --card: #262051;
   --card-foreground: #f5f3fc;
