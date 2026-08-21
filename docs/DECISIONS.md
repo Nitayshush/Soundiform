@@ -357,3 +357,56 @@ Nitay שלח את קבצי ה-SVG המקוריים של הלוגו (`logo-icon.s
 **נבדק חי:** דף login מציג את הלוגו המדויק (איקון+wordmark מיושרים, אין חפיפה/הזזה); Studio
 מציג קנבס לבן עם קו-ציור כהה קריא וברי-סרגל-תווים עם 4 צבעי-role ברורים על הרקע הלבן; אפס
 שגיאות קונסולה. typecheck/lint/format/test מלאים נשארו נקיים.
+
+## 2026-08-21 — חשבון משתמש, רשת תוכן, עוקבים, הורדות מדורגות, תשתית תשלום
+
+Nitay ביקש מנגנון ניהול חשבון מלא: עריכת פרופיל (תמונה/שם/username), "רשת תוכן" של פרופילי
+יוצרים ציבוריים, כפתורי שיתוף+הורדה בגלריה, מערכת עוקבים עם פיד, ותשתית לחיבור PayPal
+עתידי (בלי לחבר PayPal בפועל עדיין). היקף גדול — בוצע כ-7 commits נפרדים, כל אחד עם sweep
+מלא (typecheck/lint/format/test) + בדיקה חיה אמיתית (Playwright/ffprobe, לא רק קוד).
+
+**1. פרופיל:** `username` (ייחודי, nullable) + `planSource`/`paypalSubscriptionId` (לתשתית
+תשלום, ראה 4) נוספו ל-`users`. `PATCH /api/account` (route חדש) מעדכן *רק* את העמודות
+הבטוחות (username/display_name/avatar_url) — ה-RLS על `users` בכוונה בלי UPDATE policy
+ללקוח, בדיוק כפי שתועד מראש ב-`users.ts`. העלאת אווטאר: resize ל-256×256 (sharp) → R2
+(`avatars/{userId}.png`) → `avatarUrl` נשמר כנתיב יציב (`/api/account/avatar/{userId}`) שמנפיק
+URL חתום טרי בכל בקשה (§7: "לעולם לא bucket ציבורי" — גם תמונות לא-רגישות כמו אווטאר).
+
+**2. פרופיל ציבורי (`/u/[username]`):** גריד היצירות הציבוריות של יוצר (אותה צורת join
+כמו הגלריה: shares⋈renders⋈projects, מסונן ל-`projects.userId`). Header's כפתור Account
+מקשר עכשיו ל-`/u/{username}` (במקום `/account`) ברגע שיש username.
+
+**3. עוקבים + פיד:** טבלת `follows` חדשה (composite PK, **SELECT ציבורי** — בניגוד ל-`likes`
+הקיים, כי מי-עוקב-אחרי-מי הוא מידע חברתי-ציבורי סטנדרטי). `POST`/`DELETE /api/follows`
+לוקחים follower_id מה-session בלבד. `/feed` מציג יצירות ציבוריות של נעקבים, ממויין לפי חדש.
+
+**4. תשתית תשלום (בלי קריאות PayPal אמיתיות):** טאב "Users" חדש בפאנל האדמין — חיפוש
+משתמש + שינוי `plan`/`planSource='manual'` ידני (נכתב audit_log כמו כל פעולת אדמין) — זה מה
+שמאפשר לבדוק הורדות מדורגות (5) לפני שתשלום אמיתי קיים, ונותן ידית ל"Founding Member" (§9).
+עמוד התמחור: Pro/Studio מציגים "Coming soon — contact us" מנוטרל במקום קישור-מת ל-Studio.
+
+**5. הורדות מדורגות + Stems אמיתיים (הוחלט: לבנות גם Stems עכשיו, לא לדחות):** ה-worker כבר
+קידד MP3 בנוסף ל-WAV אבל שמר רק את מפתח ה-WAV — `mp3Key` נוסף ונשמר עכשיו. Stems (studio
+בלבד): לולאה על טראקים, כל אחד מרונדר דרך *אותה* `renderToBuffer({...score, tracks:[track]})`
+— אפס לוגיקת רינדור חדשה, דטרמיניזם נשמר (reverb כבר seed-י per-track). `GET
+/api/renders/[id]/download?type=audio|midi|stem` — פורמט האודיו (mp3/wav) נקבע לפי plan
+של *היוצר* (לא המוריד, עקרון זהה ל-watermark הווידאו); midi/stems דורשים גם בעלות וגם
+studio. **נבדק חי מקצה-לקצה:** render אמיתי (BullMQ→worker→R2→Postgres) עם משתמש studio
+אמיתי — stem_keys נוצרו בדיוק לפי טראקי הסגנון (trance: bass/lead/pad/drums), הורדות
+audio/midi/stem הצליחו (307→קובץ אמיתי תקין), stem לא-קיים→404 נקי, לא-בעלים→403/404 נכון.
+
+**6. וידאו — סרגל תווים, לא צורה+נקודה:** `frameRenderer.ts` צייר עדיין את החוויה הישנה
+(מ-לפני ה-redesign) — צורה+נקודה נעה, לא תואם יותר לפריוויו החי (`ScoreStaff.tsx`). נכתב
+מחדש: אותה מתמטיקת X=זמן/Y=pitch בדיוק, פורט מ-Pixi.js ל-`@napi-rs/canvas`. ה-watermark
+(חינמי) הוחלף מטקסט ללוגו אמיתי (גיאומטריית `LogoMark` משוכפלת כ-SVG string בworker,
+מרונדרת פעם אחת ל-PNG דרך sharp, מצוירת עם `drawImage`). `shape` הוסר לגמרי מ-`RenderJobData`
+— הווידאו כבר לא צריך אותו (score מספיק). **נבדק חי:** render MP4 אמיתי + ffprobe (רזולוציה/
+משך/streams) + בדיקה ויזואלית של פריים בודד (בָּרים+קו-סריקה+לוגו נראים נכון).
+
+**7. חיבור UI בגלריה/שיתוף:** `ShareButtons` (קישורי share-intent פשוטים — X/Facebook/
+WhatsApp/Copy-link, בלי OAuth) בדף השיתוף ובכרטיסי הגלריה. `DownloadLinks` בדף השיתוף
+(audio בלבד, לכל מבקר) ובפרופיל הציבורי-שלי (MIDI+stems בנוסף, רק בתצוגה-עצמית וגם studio).
+
+**נבדק אחרי כל commit:** typecheck/lint/format/test מלאים על כל המונוריפו — נקיים כל פעם.
+בנוסף, שלושה סבבי Playwright/ffprobe חיים אמיתיים (לא רק קוד): עריכת פרופיל+אווטאר, עוקבים
++פיד+פרופיל-ציבורי, ורינדור-stems+הורדות מקצה-לקצה — כל השלושה עברו ללא תקלה אמיתית.
