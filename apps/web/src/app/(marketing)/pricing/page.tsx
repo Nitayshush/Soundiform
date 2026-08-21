@@ -29,6 +29,8 @@ interface Plan {
   name: string;
   price: string;
   highlighted?: boolean;
+  /** §11: תשלום עדיין לא מחובר בפועל — רק Free פעיל, Pro/Studio מציגים "Coming soon" כנה. */
+  purchasable?: boolean;
   features: PlanFeature[];
 }
 
@@ -36,6 +38,7 @@ const PLANS: Plan[] = [
   {
     name: 'Free',
     price: '$0',
+    purchasable: true,
     features: [
       { label: 'Length', value: '30 sec' },
       { label: 'Creations / month', value: '10' },
@@ -113,14 +116,20 @@ export default function PricingPage() {
                 </ul>
               </CardContent>
               <CardFooter>
-                <Button
-                  className="w-full"
-                  variant={plan.highlighted ? 'default' : 'outline'}
-                  nativeButton={false}
-                  render={<Link href="/studio" />}
-                >
-                  Start creating
-                </Button>
+                {plan.purchasable ? (
+                  <Button
+                    className="w-full"
+                    variant={plan.highlighted ? 'default' : 'outline'}
+                    nativeButton={false}
+                    render={<Link href="/studio" />}
+                  >
+                    Start creating
+                  </Button>
+                ) : (
+                  <Button className="w-full" variant="outline" disabled title="Coming soon">
+                    Coming soon — contact us
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           ))}

@@ -14,9 +14,11 @@ import { ModerationPanel } from './ModerationPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 import { GenrePacksPanel } from './GenrePacksPanel';
 import { AuditLogPanel } from './AuditLogPanel';
+import { UsersPanel } from './UsersPanel';
 
 const TABS = [
   { id: 'moderation', label: 'Moderation' },
+  { id: 'users', label: 'Users' },
   { id: 'feature-flags', label: 'Feature Flags' },
   { id: 'genre-packs', label: 'GenrePacks' },
   { id: 'audit-log', label: 'Audit Log' },
@@ -50,6 +52,7 @@ export function AdminDashboard() {
         ))}
       </nav>
       {activeTab === 'moderation' && <ModerationPanel />}
+      {activeTab === 'users' && <UsersPanel />}
       {activeTab === 'feature-flags' && <FeatureFlagsPanel />}
       {activeTab === 'genre-packs' && <GenrePacksPanel />}
       {activeTab === 'audit-log' && <AuditLogPanel />}
