@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/branding/Logo';
 import { Button } from '@/components/ui/button';
 import { useSupabaseUser } from '@/hooks/useSupabaseUser';
+import { useUsername } from '@/hooks/useUsername';
 
 const NAV_LINKS = [
   { href: '/studio', label: 'Studio' },
@@ -23,6 +24,7 @@ const NAV_LINKS = [
 
 export function Header() {
   const { user, isLoading } = useSupabaseUser();
+  const username = useUsername();
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
@@ -44,7 +46,11 @@ export function Header() {
         </nav>
         <div className="flex items-center gap-2">
           {!isLoading && user ? (
-            <Button variant="secondary" nativeButton={false} render={<Link href="/account" />}>
+            <Button
+              variant="secondary"
+              nativeButton={false}
+              render={<Link href={username ? `/u/${username}` : '/account'} />}
+            >
               Account
             </Button>
           ) : (

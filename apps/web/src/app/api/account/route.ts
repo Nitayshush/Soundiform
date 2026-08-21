@@ -39,6 +39,28 @@ function isUniqueViolation(error: unknown): error is PostgresUniqueViolation {
   );
 }
 
+export async function GET(): Promise<NextResponse> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
+  }
+
+  const db = getDb();
+  const [userRow] = await db
+    .select({
+      username: users.username,
+      displayName: users.displayName,
+      avatarUrl: users.avatarUrl,
+    })
+    .from(users)
+    .where(eq(users.id, user.id));
+
+  return NextResponse.json({ user: userRow ?? null });
+}
+
 export async function PATCH(request: Request): Promise<NextResponse> {
   const supabase = await createClient();
   const {
