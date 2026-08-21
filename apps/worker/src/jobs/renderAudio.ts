@@ -17,10 +17,17 @@
  * הראשי בקובץ הזה. serverRenderer.ts (שם) מתקין polyfill ל-globalThis.window לפני ש-'tone'
  * נטען — וזה חייב לקרות לפני שכל קובץ אחר בתהליך נוגע ב-'tone' (כולל דרך הנתיב הראשי, למשל
  * בשביל normalizeToTargetLufs). ראה packages/audio/src/index.ts להסבר המלא.
+ *
+ * ⭐ §11 stems (studio בלבד, data.stems כבר מסונן ל-plan==='studio' ב-apps/web, ראה
+ * renderJob.ts): "stem" של track בודד הוא בדיוק אותה renderToBuffer, רק עם
+ * `{ ...score, tracks: [track] }` — אפס לוגיקת רינדור חדשה. דטרמיניזם נשמר: deterministicReverb
+ * כבר seed-י לפי `${score.seed}:${track.role}` (ראה sharedScheduling.ts), אז ה-stem זהה
+ * בדיוק לתרומת אותו track בתוך המיקס המלא.
  */
 
 import { renderToBuffer } from '@soundiform/audio/server';
 import { normalizeToTargetLufs, type RenderJobData, type RenderJobResult } from '@soundiform/audio';
+import type { TrackRole } from '@soundiform/core';
 import { eq } from 'drizzle-orm';
 import { getDb, renders } from '@soundiform/db';
 import type { StorageProvider } from '@soundiform/storage';
@@ -53,11 +60,29 @@ async function uploadBuffer(
 /**
  * מרנדר MusicalScore לקבצי WAV/MP3/MIDI (ואופציונלית וידאו) ומעלה ל-R2, כותב שורת renders.
  */
+async function renderStems(
+  score: RenderJobData['score'],
+  audioConfig: RenderJobData['audioConfig'],
+  storage: StorageProvider,
+  keyPrefix: string,
+): Promise<Partial<Record<TrackRole, string>>> {
+  const stemKeys: Partial<Record<TrackRole, string>> = {};
+  for (const track of score.tracks) {
+    const stemRendered = await renderToBuffer({ ...score, tracks: [track] }, audioConfig);
+    const stemChannels = normalizeToTargetLufs(stemRendered.channels);
+    const stemWav = encodeWav({ sampleRate: stemRendered.sampleRate, channels: stemChannels });
+    const stemKey = `${keyPrefix}/stems/${track.role}.wav`;
+    await uploadBuffer(storage, stemKey, stemWav, 'audio/wav');
+    stemKeys[track.role] = stemKey;
+  }
+  return stemKeys;
+}
+
 export async function runRenderAudioJob(
   data: RenderJobData,
   storage: StorageProvider,
 ): Promise<RenderJobResult> {
-  const { projectId, score, audioConfig, shape, video } = data;
+  const { projectId, score, audioConfig, shape, video, stems } = data;
 
   const rendered = await renderToBuffer(score, audioConfig);
   const normalizedChannels = normalizeToTargetLufs(rendered.channels);
@@ -70,10 +95,11 @@ export async function runRenderAudioJob(
   const mp3Key = `${keyPrefix}/output.mp3`;
   const midiKey = `${keyPrefix}/output.mid`;
 
-  await Promise.all([
+  const [, , , stemKeys] = await Promise.all([
     uploadBuffer(storage, wavKey, wavBuffer, 'audio/wav'),
     uploadBuffer(storage, mp3Key, mp3Buffer, 'audio/mpeg'),
     uploadBuffer(storage, midiKey, midiBuffer, 'audio/midi'),
+    stems ? renderStems(score, audioConfig, storage, keyPrefix) : Promise.resolve(undefined),
   ]);
 
   const db = getDb();
@@ -85,7 +111,9 @@ export async function runRenderAudioJob(
       score,
       engineVersion: ENGINE_VERSION,
       audioKey: wavKey,
+      mp3Key,
       midiKey,
+      ...(stemKeys && { stemKeys }),
       durationSec: rendered.durationSeconds,
       status: 'completed',
       tempoBpm: score.tempo,
@@ -117,5 +145,6 @@ export async function runRenderAudioJob(
     mp3Key,
     midiKey,
     ...(videoKey !== undefined && { videoKey }),
+    ...(stemKeys && { stemKeys }),
   };
 }

@@ -12,6 +12,10 @@
  *
  * ⚠️ tempo_bpm/root_freq_hz/avg_note_density/dominant_mode: שדות ל-V2 (וולנס) — אל תסיר,
  * גם אם לא נצרכים עדיין ב-V1 (ראה MusicalScore.metadata, אותם שדות בדיוק).
+ *
+ * ⭐ §11 הורדות מדורגות: mp3Key — ה-worker כבר מקודד וגם מעלה MP3 (בנוסף ל-WAV), אבל עד
+ * עכשיו רק audioKey (ה-WAV) נשמר כאן; free tier (§9) צריך להוריד MP3, לא WAV. stemKeys —
+ * studio בלבד (nullable), מפתח R2 אחד לכל TrackRole — ראה api/renders/[id]/download/route.ts.
  */
 
 import { sql } from 'drizzle-orm';
@@ -25,7 +29,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { Mode, MusicalScore } from '@soundiform/core';
+import type { Mode, MusicalScore, TrackRole } from '@soundiform/core';
 import { projects } from './projects';
 
 export const RENDER_STATUS_VALUES = ['pending', 'processing', 'completed', 'failed'] as const;
@@ -42,8 +46,10 @@ export const renders = pgTable(
     score: jsonb('score').$type<MusicalScore>().notNull(),
     engineVersion: text('engine_version').notNull(),
     audioKey: text('audio_key'),
+    mp3Key: text('mp3_key'),
     videoKey: text('video_key'),
     midiKey: text('midi_key'),
+    stemKeys: jsonb('stem_keys').$type<Partial<Record<TrackRole, string>>>(),
     durationSec: real('duration_sec'),
     status: text('status', { enum: RENDER_STATUS_VALUES }).notNull().default('pending'),
     tempoBpm: integer('tempo_bpm'),

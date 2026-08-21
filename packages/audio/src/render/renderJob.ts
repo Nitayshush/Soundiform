@@ -10,7 +10,7 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import type { MusicalScore } from '@soundiform/core';
+import type { MusicalScore, TrackRole } from '@soundiform/core';
 import type { ShapeData } from '@soundiform/shared';
 import type { GenreAudioConfig } from './sharedScheduling';
 
@@ -38,6 +38,9 @@ export interface VideoExportOptions {
  * שדף השיתוף/גלריה/רמיקס נשענים עליה. אין רינדור בלי פרויקט שמור (§9: לא ניתן לשתף
  * יצירה אנונימית/לא-שמורה). shape+video אופציונליים: בלי video, זה רינדור אודיו בלבד
  * (כמו Sprint 6) — shape נחוץ רק אם video מבוקש (מצייר את הפריימים).
+ *
+ * ⭐ §11 stems: stems נקבע ב-apps/web מ-plan של המשתמש (studio בלבד) — בדיוק כמו
+ * video.quality/watermark למעלה, לעולם לא נלקח/נסמך על קלט מהקליינט.
  */
 export interface RenderJobData {
   projectId: string;
@@ -45,6 +48,7 @@ export interface RenderJobData {
   audioConfig: GenreAudioConfig;
   shape?: ShapeData;
   video?: VideoExportOptions;
+  stems?: boolean;
 }
 
 export interface RenderJobResult {
@@ -53,4 +57,5 @@ export interface RenderJobResult {
   mp3Key: string;
   midiKey: string;
   videoKey?: string;
+  stemKeys?: Partial<Record<TrackRole, string>>;
 }

@@ -50,6 +50,13 @@
       "when": 1787318598557,
       "tag": "0006_same_screwball",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787321354757,
+      "tag": "0007_strong_deathstrike",
+      "breakpoints": true
     }
   ]
 }
