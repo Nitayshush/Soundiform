@@ -15,8 +15,11 @@ import { eq, sql } from 'drizzle-orm';
 import { getDb, projects, renders, shares } from '@soundiform/db';
 import { RemixButton } from '@/components/share/RemixButton';
 import { SharePlayer } from '@/components/share/SharePlayer';
+import { ShareButtons } from '@/components/share/ShareButtons';
+import { DownloadLinks } from '@/components/share/DownloadLinks';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent } from '@/components/ui/card';
+import { getSiteUrl } from '@/lib/siteUrl';
 
 interface SharePageProps {
   params: Promise<{ shareId: string }>;
@@ -57,7 +60,11 @@ export default async function SharePage({ params }: SharePageProps) {
         <Card className="border-border/60 p-6">
           <CardContent className="flex flex-col gap-6 px-0">
             <SharePlayer score={row.score} genreId={row.genreId} />
-            <RemixButton renderId={row.renderId} paths={row.shapeData.paths} />
+            <div className="flex flex-wrap items-center gap-3">
+              <RemixButton renderId={row.renderId} paths={row.shapeData.paths} />
+              <DownloadLinks renderId={row.renderId} />
+            </div>
+            <ShareButtons url={`${getSiteUrl()}/s/${shareId}`} />
           </CardContent>
         </Card>
       </main>

@@ -13,6 +13,8 @@ import { getDb, renders, shares } from '@soundiform/db';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ShareButtons } from '@/components/share/ShareButtons';
+import { getSiteUrl } from '@/lib/siteUrl';
 
 interface GalleryPageProps {
   searchParams: Promise<{ genre?: string }>;
@@ -50,14 +52,17 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {rows.map((row) => (
               <li key={row.slug}>
-                <Link href={`/s/${row.slug}`}>
-                  <Card className="border-border/60 p-4 transition-colors hover:border-primary/50 hover:bg-card/80">
+                <Card className="border-border/60 p-4 transition-colors hover:border-primary/50 hover:bg-card/80">
+                  <Link href={`/s/${row.slug}`} className="block">
                     <div className="flex items-center justify-between gap-2">
                       <Badge variant="secondary">{row.genreId}</Badge>
                       <span className="text-xs text-muted-foreground">{row.viewCount} views</span>
                     </div>
-                  </Card>
-                </Link>
+                  </Link>
+                  <div className="mt-3">
+                    <ShareButtons url={`${getSiteUrl()}/s/${row.slug}`} />
+                  </div>
+                </Card>
               </li>
             ))}
           </ul>

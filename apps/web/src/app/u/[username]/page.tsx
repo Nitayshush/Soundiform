@@ -20,6 +20,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FollowButton } from '@/components/account/FollowButton';
+import { DownloadLinks } from '@/components/share/DownloadLinks';
 
 interface ProfilePageProps {
   params: Promise<{ username: string }>;
@@ -35,6 +36,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       username: users.username,
       displayName: users.displayName,
       avatarUrl: users.avatarUrl,
+      plan: users.plan,
     })
     .from(users)
     .where(eq(users.username, username));
@@ -56,6 +58,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         viewCount: shares.viewCount,
         genreId: renders.genreId,
         createdAt: shares.createdAt,
+        renderId: renders.id,
+        stemKeys: renders.stemKeys,
       })
       .from(shares)
       .innerJoin(renders, eq(shares.renderId, renders.id))
@@ -109,16 +113,25 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {creations.map((creation) => (
               <li key={creation.slug}>
-                <Link href={`/s/${creation.slug}`}>
-                  <Card className="border-border/60 p-4 transition-colors hover:border-primary/50 hover:bg-card/80">
+                <Card className="border-border/60 p-4 transition-colors hover:border-primary/50 hover:bg-card/80">
+                  <Link href={`/s/${creation.slug}`} className="block">
                     <div className="flex items-center justify-between gap-2">
                       <Badge variant="secondary">{creation.genreId}</Badge>
                       <span className="text-xs text-muted-foreground">
                         {creation.viewCount} views
                       </span>
                     </div>
-                  </Card>
-                </Link>
+                  </Link>
+                  {isOwnProfile && (
+                    <div className="mt-3">
+                      <DownloadLinks
+                        renderId={creation.renderId}
+                        showMidiAndStems={profile.plan === 'studio'}
+                        stemRoles={Object.keys(creation.stemKeys ?? {})}
+                      />
+                    </div>
+                  )}
+                </Card>
               </li>
             ))}
           </ul>
