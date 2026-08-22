@@ -51,7 +51,7 @@ export async function createBrowserRenderer(
   const masterBus = createMasterBus();
   masterBus.toDestination();
 
-  const durationSeconds = computeDurationSeconds(score);
+  const durationSeconds = computeDurationSeconds(score, audioConfig);
   transport.loop = true;
   transport.loopStart = 0;
   transport.loopEnd = durationSeconds;

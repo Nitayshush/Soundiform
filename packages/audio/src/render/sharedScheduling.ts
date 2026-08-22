@@ -58,10 +58,27 @@ export interface TrackRuntime {
   part: Part<ScheduledNoteEvent>;
 }
 
-export function computeDurationSeconds(score: MusicalScore): number {
+/** תקרה סבירה לתוספת-זנב — מונעת padding בלתי-סביר גם אם קונפיג עתידי יגדיר reverb ארוך מאוד. */
+const MAX_RELEASE_TAIL_SECONDS = 8;
+
+/**
+ * ⭐ 2026-08-22 — באג אמיתי שנתפס ע"י בדיקה חיה: המשך היה מחושב *רק* מ-durationBars,
+ * בלי לתת זמן לזנב-ריוורב/release להישמע — outro (Item 4) עם ריוורב ארוך (chill 4s,
+ * cinematic 5s) היה נחתך אמצע-דעיכה, ממש ההיפך מ"outro". audioConfig?.mixCharacter.
+ * reverbDecaySeconds (אם סופק) קובע תוספת-זנב אמיתית, לא ניחוש קבוע — genre-aware.
+ */
+export function computeDurationSeconds(
+  score: MusicalScore,
+  audioConfig?: GenreAudioConfig,
+): number {
   const [beatsPerBar] = score.timeSignature;
   const ticksPerBar = TICKS_PER_BEAT * beatsPerBar;
-  return ticksToSeconds(score.durationBars * ticksPerBar, score.tempo);
+  const nominalSeconds = ticksToSeconds(score.durationBars * ticksPerBar, score.tempo);
+  const releaseTailSeconds = Math.min(
+    MAX_RELEASE_TAIL_SECONDS,
+    audioConfig?.mixCharacter.reverbDecaySeconds ?? 0,
+  );
+  return nominalSeconds + releaseTailSeconds;
 }
 
 export async function createTrackRuntime(

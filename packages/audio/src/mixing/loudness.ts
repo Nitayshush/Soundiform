@@ -11,6 +11,15 @@
  * (חסר K-weighting filter וחסימת שקט/gating). מדידה תקנית מלאה שייכת לרנדור קובץ סופי
  * (Sprint 6), על באפר שלם — לא לפריוויו חי. מה שכן פעיל בפריוויו החי: `createMasterBus`,
  * Limiter שמונע קליפינג בפועל (§4.3 "ללא קליפינג" — התוצאה המעשית שממש חשובה עכשיו).
+ *
+ * ⭐ 2026-08-22 — באג אמיתי שנתפס ע"י בדיקה חיה: normalizeToTargetLufs חישב gain שמכוון
+ * את ה-RMS הכולל ל-TARGET_LUFS, בלי לבדוק מה זה עושה ל-*פיקים* — עם קרסט-פקטור גבוה
+ * (מוזיקה עם transients חדים, בדיוק מה ש-Item 5's פילטרים רזוננטיים ו-unison רחב מייצרים)
+ * ה-gain הזה יכול לדחוף פיקים מעל 1.0, ו-encoders/wav.ts רק clamp-ה אותם ל-[-1,1] —
+ * clamp זה *בעצמו* קליפינג דיגיטלי (עיוות אודיבילי), לא הגנה מפניו כמו שההערה הישנה הניחה.
+ * התיקון: אחרי חישוב ה-gain ל-LUFS, בודקים את הפיק הצפוי; אם הוא יחרוג מ-PEAK_CEILING,
+ * מקטינים את ה-gain כדי שהפיק בדיוק ייגע בתקרה — "ללא קליפינג" (§4.3, כלל קשיח) גובר על
+ * דיוק-LUFS מוחלט, בדיוק כמו שלימיטר אמיתי בהפקה מקצועית עושה.
  */
 
 import { Limiter } from 'tone';
@@ -19,6 +28,8 @@ import { Limiter } from 'tone';
 export const TARGET_LUFS = -14;
 /** תקרת בטיחות ל-Limiter של הפריוויו החי — dB מתחת ל-0 (קליפינג דיגיטלי). */
 const DEFAULT_LIMITER_CEILING_DB = -1;
+/** תקרת פיק בטוחה לרינדור קובץ סופי (0.98 ≈ -0.18dBFS) — ראה הערת התיקון למעלה. */
+const PEAK_CEILING = 0.98;
 
 /** Limiter על אפיק המאסטר — ההגנה המעשית מפני קליפינג בזמן ניגון חי. */
 export function createMasterBus(ceilingDb: number = DEFAULT_LIMITER_CEILING_DB): Limiter {
@@ -72,7 +83,22 @@ export function applyGainDb(channels: readonly Float32Array[], gainDb: number): 
   });
 }
 
-/** מודד LUFS על ה-buffer השלם (כל הערוצים ביחד) ומחזיר את הערוצים אחרי נרמול ל-targetLufs. */
+function findPeakAmplitude(samples: Float32Array): number {
+  let peak = 0;
+  for (const sample of samples) {
+    const absValue = Math.abs(sample);
+    if (absValue > peak) {
+      peak = absValue;
+    }
+  }
+  return peak;
+}
+
+/**
+ * מודד LUFS על ה-buffer השלם (כל הערוצים ביחד) ומחזיר את הערוצים אחרי נרמול ל-targetLufs —
+ * אבל לעולם לא במחיר קליפינג: אם ה-gain הדרוש ל-LUFS היה דוחף פיקים מעל PEAK_CEILING,
+ * ה-gain מוקטן כדי שהפיק בדיוק ייגע בתקרה (ראה הערת התיקון ב-2026-08-22 למעלה בקובץ).
+ */
 export function normalizeToTargetLufs(
   channels: readonly Float32Array[],
   targetLufs: number = TARGET_LUFS,
@@ -84,6 +110,14 @@ export function normalizeToTargetLufs(
     offset += channel.length;
   }
   const measuredLufs = estimateLoudnessLufs(combined);
-  const gainDb = computeNormalizationGainDb(measuredLufs, targetLufs);
+  let gainDb = computeNormalizationGainDb(measuredLufs, targetLufs);
+
+  const peakAmplitude = findPeakAmplitude(combined);
+  const projectedPeak = peakAmplitude * Math.pow(10, gainDb / 20);
+  if (projectedPeak > PEAK_CEILING) {
+    const peakLimitFactor = PEAK_CEILING / projectedPeak;
+    gainDb += 20 * Math.log10(peakLimitFactor);
+  }
+
   return applyGainDb(channels, gainDb);
 }

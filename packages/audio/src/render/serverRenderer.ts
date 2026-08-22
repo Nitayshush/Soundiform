@@ -50,7 +50,7 @@ export async function renderToBuffer(
   score: MusicalScore,
   audioConfig: GenreAudioConfig = DEFAULT_AUDIO_CONFIG,
 ): Promise<RenderedAudio> {
-  const durationSeconds = computeDurationSeconds(score);
+  const durationSeconds = computeDurationSeconds(score, audioConfig);
 
   // עומס-יתר של הקונסטרוקטור: (channels, duration-בשניות, sampleRate) — Tone בונה context
   // אופליין משלו דרך standardized-audio-context, שמוצא את window.OfflineAudioContext
