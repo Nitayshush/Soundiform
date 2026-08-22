@@ -67,5 +67,5 @@
   "mixChain": { "reverbDecaySeconds": 2.5, "delayTime": "8n.", "delayFeedback": 0.45 },
   "arrangement": { "sectionOrder": ["intro", "loop", "outro"] },
   "sidechainEnabled": false,
-  "requiresSamples": true
+  "requiresSamples": false
 }

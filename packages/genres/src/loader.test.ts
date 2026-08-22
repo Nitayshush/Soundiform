@@ -1,10 +1,13 @@
 /**
  * @file        loader.test.ts
- * @description בדיקות יחידה לטעינת GenrePacks — כל 5 ה-packs תקפים, reggae מוסתר ב-V1.
+ * @description בדיקות יחידה לטעינת GenrePacks — כל 5 ה-packs תקפים ופעילים ב-V1.
  * @author      Soundiform
  * @created     2026-08-18
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ 2026-08-22: רגאיי הוחזר לפעיל (requiresSamples: false — קירוב סינתטי, ראה reggae.json
+ * ו-PROJECT.md §5.2) אחרי שהיה מוסתר מאז Sprint 5. loadActiveGenrePacks מחזיר עכשיו 5, לא 4.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -35,10 +38,10 @@ describe('loadAllGenrePacks', () => {
 });
 
 describe('loadActiveGenrePacks', () => {
-  it('מחזיר בדיוק 4 סגנונות פעילים (reggae מוסתר — requiresSamples)', () => {
+  it('מחזיר את כל 5 הסגנונות פעילים (רגאיי כבר לא מוסתר — קירוב סינתטי)', () => {
     const active = loadActiveGenrePacks();
-    expect(active).toHaveLength(4);
-    expect(active.some((pack) => pack.id === 'reggae')).toBe(false);
+    expect(active).toHaveLength(5);
+    expect(active.some((pack) => pack.id === 'reggae')).toBe(true);
   });
 
   it('כל הסגנונות הפעילים שונים זה מזה בטמפו ברירת המחדל או במוד (לא כפילות מקרית)', () => {
@@ -51,9 +54,9 @@ describe('loadActiveGenrePacks', () => {
 });
 
 describe('loadGenrePackById', () => {
-  it('מוצא pack קיים, כולל reggae (לא-פעיל, אבל בר-אחזור לצרכים פנימיים)', () => {
+  it('מוצא pack קיים, כולל reggae (פעיל, requiresSamples: false)', () => {
     expect(loadGenrePackById('trance')?.id).toBe('trance');
-    expect(loadGenrePackById('reggae')?.requiresSamples).toBe(true);
+    expect(loadGenrePackById('reggae')?.requiresSamples).toBe(false);
   });
 
   it('מחזיר null עבור id לא קיים', () => {
