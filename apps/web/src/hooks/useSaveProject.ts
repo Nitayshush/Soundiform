@@ -13,6 +13,11 @@
  *
  * ⭐ Sprint 8: remixOf ב-query params (מגיע מ-RemixButton) עובר אוטומטית לגוף בקשת השמירה —
  * זה מה שמאפשר ל-api/projects/route.ts לרשום שורת remixes.
+ *
+ * ⭐ 2026-08-22 (§11 item 8): requestSave מקבל extraNextParams אופציונלי — מאפשר ל-useDownload.ts
+ * להרכיב על אותו redirect-and-resume (לא לשכפל אותו): "Download" אצל אנונימי צריך גם
+ * autoSave=1 (כמו Save רגיל) וגם autoDownload=1 (כדי שהרינדור+הורדה ימשיכו לבד אחרי החזרה
+ * מהתחברות) — בלי הפרמטר הזה, useDownload היה צריך לשכפל את כל לוגיקת ה-redirect כאן.
  */
 
 'use client';

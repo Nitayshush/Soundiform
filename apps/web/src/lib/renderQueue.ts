@@ -9,13 +9,15 @@
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * ⚠️ נכתב אבל לא נבדק חי בסשן הזה — אין Redis מקומי/Upstash זמין לבדיקה (הוחלט מראש
- * כחלק מהיקף Sprint 6 המאושר). שרת בלבד — לא לייבא מקומפוננטת קליינט ('use client').
+ * ⭐ 2026-08-22 (§11 item 8): getRenderJobStatus נוסף — עד עכשיו jobId הוחזר מ-enqueueRenderJob
+ * אבל שום קוד לא קרא אותו בחזרה (אין polling endpoint), אז לא הייתה דרך אמיתית לדעת מתי
+ * render הסתיים. משתמש ב-BullMQ Job.getState()/returnvalue הקיימים — לא נדרש מנגנון חדש,
+ * רק לחשוף אותו דרך route (ראה api/render/[jobId]/status/route.ts).
  */
 
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
-import { RENDER_QUEUE_NAME, type RenderJobData } from '@soundiform/audio';
+import { RENDER_QUEUE_NAME, type RenderJobData, type RenderJobResult } from '@soundiform/audio';
 
 let queueInstance: Queue<RenderJobData> | null = null;
 
@@ -39,4 +41,33 @@ export async function enqueueRenderJob(data: RenderJobData): Promise<string> {
     throw new Error('BullMQ לא החזיר job.id');
   }
   return job.id;
+}
+
+export interface RenderJobStatus {
+  status: 'unknown' | 'waiting' | 'active' | 'completed' | 'failed';
+  /** מוגדר רק כש-status === 'completed' — מ-job.returnvalue (בדיוק ה-RenderJobResult שהוחזר). */
+  renderId?: string;
+}
+
+/**
+ * בודק סטטוס job קיים. לא רגיש (לא חושף שום דבר מעבר ל"מה השלב") — קבצי הפלט עצמם
+ * מוגנים דרך api/renders/[renderId]/download, לא כאן, אז אין צורך באימות-בעלות על הקריאה הזו.
+ */
+export async function getRenderJobStatus(jobId: string): Promise<RenderJobStatus> {
+  const job = await getRenderQueue().getJob(jobId);
+  if (!job) {
+    return { status: 'unknown' };
+  }
+  const state = await job.getState();
+  if (state === 'completed') {
+    const result = job.returnvalue as RenderJobResult | undefined;
+    return { status: 'completed', ...(result?.renderId && { renderId: result.renderId }) };
+  }
+  if (state === 'failed') {
+    return { status: 'failed' };
+  }
+  if (state === 'active') {
+    return { status: 'active' };
+  }
+  return { status: 'waiting' };
 }

@@ -1,9 +1,11 @@
 /**
  * @file        route.ts
- * @description ⭐ הורדת קבצי render — audio/midi/stem, מדורג לפי plan (§9). הפורמט (mp3/wav)
- *              נקבע לפי plan של *היוצר* (בעל ה-project), לא של המוריד — אותו עיקרון כמו
- *              watermark הווידאו (§11: נקבע פעם אחת ברינדור, לא per-viewer). MIDI/stems
- *              (studio בלבד) זמינים רק לבעלים עצמו — לא לצופה בדף שיתוף ציבורי (§11 item 7).
+ * @description ⭐ הורדת קבצי render — audio/video/midi/stem, מדורג לפי plan (§9). הפורמט
+ *              (mp3/wav, איכות/watermark הווידאו) נקבע לפי plan של *היוצר* (בעל ה-project),
+ *              לא של המוריד — אותו עיקרון כמו watermark הווידאו (§11: נקבע פעם אחת ברינדור,
+ *              לא per-viewer). MIDI/stems (studio בלבד) זמינים רק לבעלים עצמו — לא לצופה
+ *              בדף שיתוף ציבורי (§11 item 7). video, כמו audio, זמין לכל בעל-גישה (owner
+ *              או צופה share ציבורי) — לא studio-gated, בדיוק כמו טבלת האיכויות ב-§9.
  * @author      Soundiform
  * @created     2026-08-21
  *
@@ -20,7 +22,7 @@ import { createClient } from '@/lib/supabase/server';
 const TRACK_ROLES = ['bass', 'lead', 'pad', 'drums', 'skank'] as const;
 
 const querySchema = z.object({
-  type: z.enum(['audio', 'midi', 'stem']),
+  type: z.enum(['audio', 'video', 'midi', 'stem']),
   role: z.enum(TRACK_ROLES).optional(),
 });
 
@@ -48,6 +50,7 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
     .select({
       audioKey: renders.audioKey,
       mp3Key: renders.mp3Key,
+      videoKey: renders.videoKey,
       midiKey: renders.midiKey,
       stemKeys: renders.stemKeys,
       ownerId: projects.userId,
@@ -83,6 +86,8 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
   if (type === 'audio') {
     const wantsWav = row.ownerPlan !== 'free';
     key = wantsWav ? row.audioKey : row.mp3Key;
+  } else if (type === 'video') {
+    key = row.videoKey;
   } else if (type === 'midi') {
     if (!isOwner || row.ownerPlan !== 'studio') {
       return NextResponse.json(

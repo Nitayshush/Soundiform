@@ -24,6 +24,7 @@ import { Logo } from '@/components/branding/Logo';
 import { Button } from '@/components/ui/button';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useSaveProject } from '@/hooks/useSaveProject';
+import { useDownload } from '@/hooks/useDownload';
 import { useShapeStore } from '@/stores/shapeStore';
 
 function StudioContent() {
@@ -31,7 +32,11 @@ function StudioContent() {
   const clear = useShapeStore((state) => state.clear);
   const { isPlaying, isLoading, currentSeconds, durationSeconds, error, canPlay, play, stop } =
     useAudioEngine();
-  const { requestSave, isSaving, saveError, savedProjectId } = useSaveProject();
+  // ⭐ נקרא פעם אחת בלבד — מועבר גם לכפתור Save וגם ל-useDownload (ראה הערת useDownload.ts
+  // ל-why). קריאה כפולה ל-useSaveProject() הייתה יוצרת שני state instances לא-מסונכרנים.
+  const saveProject = useSaveProject();
+  const { requestSave, isSaving, saveError, savedProjectId } = saveProject;
+  const { requestDownload, isDownloading, downloadError, statusMessage } = useDownload(saveProject);
 
   const progress = durationSeconds > 0 ? currentSeconds / durationSeconds : 0;
 
@@ -47,6 +52,8 @@ function StudioContent() {
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           {error && <span className="text-destructive">{error}</span>}
           {saveError && <span className="text-destructive">{saveError}</span>}
+          {downloadError && <span className="text-destructive">{downloadError}</span>}
+          {statusMessage && <span>{statusMessage}</span>}
           <Button
             type="button"
             variant={isPlaying ? 'secondary' : 'default'}
@@ -62,6 +69,11 @@ function StudioContent() {
             disabled={!canPlay || isSaving}
           >
             {isSaving ? 'Saving…' : savedProjectId ? 'Saved ✓' : 'Save'}
+          </Button>
+          {/* ⭐ §11 item 8: וידאו-כברירת-מחדל להורדה (נגיש ל-YouTube) — הכפתור הראשון-אי-פעם
+              שבפועל מפעיל את שרשרת render→share→download; ראה useDownload.ts. */}
+          <Button type="button" onClick={requestDownload} disabled={!canPlay || isDownloading}>
+            {isDownloading ? 'Working…' : 'Download'}
           </Button>
           {durationSeconds > 0 && (
             <span className="font-mono" data-testid="playback-time">
