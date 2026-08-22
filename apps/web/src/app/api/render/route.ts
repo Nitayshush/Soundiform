@@ -33,7 +33,7 @@ import {
   getDb,
   projects,
   recordLedgerEntry,
-  users,
+  resolveEffectivePlan,
   type Plan,
 } from '@soundiform/db';
 import { toCompositionConfig, toGenreAudioConfig } from '@/lib/genreAdapter';
@@ -92,8 +92,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
 
-  const [userRow] = await db.select({ plan: users.plan }).from(users).where(eq(users.id, user.id));
-  const plan = userRow?.plan ?? 'free';
+  const { plan } = await resolveEffectivePlan(user.id);
 
   const quota = await checkCreationQuota(user.id, plan);
   if (!quota.allowed) {

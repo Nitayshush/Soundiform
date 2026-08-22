@@ -22,6 +22,13 @@
  * ⭐ תשתית תשלום (§11, סיבוב עתידי לחיבור PayPal אמיתי): planSource מבחין בין "אדמין
  * שינה ידנית" ("manual"), "Founding Member" (§9, 500 הראשונים), ו-"paypal" (עתידי) —
  * כדי שכשPayPal יחובר בפועל לא נאבד את ההבחנה למה למשתמש יש את התוכנית שיש לו.
+ *
+ * ⭐ 2026-08-22: גישה חופשית זמנית (מפאנל האדמין) — planOverrideExpiresAt+restorePlan/
+ * restorePlanSource מייצגים "עד תאריך X, plan הוא מענק זמני; אחרי זה, לחזור ל-plan/
+ * planSource שהיו שמורים כאן". אין job/cron ייעודי לתפוגה — packages/db/src/planOverride.ts's
+ * resolveEffectivePlan נקרא בכל נקודת-שער-הרשאות (quota/render/download) ומבצע את ההחזרה
+ * בעצמו (lazy, on-access) אם התאריך כבר עבר — פשוט יותר מתשתית cron חדשה, ותמיד נכון
+ * ברגע שמישהו בפועל בודק את ה-plan (לא רק "מתישהו ברקע").
  */
 
 import { sql } from 'drizzle-orm';
@@ -44,6 +51,10 @@ export const users = pgTable(
     plan: text('plan', { enum: PLAN_VALUES }).notNull().default('free'),
     planSource: text('plan_source', { enum: PLAN_SOURCE_VALUES }).notNull().default('free'),
     paypalSubscriptionId: text('paypal_subscription_id'),
+    /** ⭐ 2026-08-22: מוגדר רק כשיש מענק-גישה זמני פעיל — ראה תיעוד למעלה. */
+    planOverrideExpiresAt: timestamp('plan_override_expires_at', { withTimezone: true }),
+    restorePlan: text('restore_plan', { enum: PLAN_VALUES }),
+    restorePlanSource: text('restore_plan_source', { enum: PLAN_SOURCE_VALUES }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },

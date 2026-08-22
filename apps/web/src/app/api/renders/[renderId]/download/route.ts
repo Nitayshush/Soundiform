@@ -15,7 +15,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { getDb, projects, renders, shares, users } from '@soundiform/db';
+import { getDb, projects, renders, shares, resolveEffectivePlan } from '@soundiform/db';
 import { createR2ProviderFromEnv } from '@soundiform/storage';
 import { createClient } from '@/lib/supabase/server';
 
@@ -54,14 +54,12 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
       midiKey: renders.midiKey,
       stemKeys: renders.stemKeys,
       ownerId: projects.userId,
-      ownerPlan: users.plan,
     })
     .from(renders)
     .innerJoin(projects, eq(renders.projectId, projects.id))
-    .innerJoin(users, eq(projects.userId, users.id))
     .where(eq(renders.id, renderId));
 
-  if (!row) {
+  if (!row || !row.ownerId) {
     return NextResponse.json({ error: 'Render not found' }, { status: 404 });
   }
 
@@ -70,6 +68,7 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
     data: { user },
   } = await supabase.auth.getUser();
   const isOwner = user?.id === row.ownerId;
+  const { plan: ownerPlan } = await resolveEffectivePlan(row.ownerId);
 
   if (!isOwner) {
     const [shareRow] = await db
@@ -85,14 +84,14 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
   let filename: string;
 
   if (type === 'audio') {
-    const wantsWav = row.ownerPlan !== 'free';
+    const wantsWav = ownerPlan !== 'free';
     key = wantsWav ? row.audioKey : row.mp3Key;
     filename = wantsWav ? 'soundiform.wav' : 'soundiform.mp3';
   } else if (type === 'video') {
     key = row.videoKey;
     filename = 'soundiform.mp4';
   } else if (type === 'midi') {
-    if (!isOwner || row.ownerPlan !== 'studio') {
+    if (!isOwner || ownerPlan !== 'studio') {
       return NextResponse.json(
         { error: 'MIDI download requires the Studio plan' },
         { status: 403 },
@@ -101,7 +100,7 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
     key = row.midiKey;
     filename = 'soundiform.mid';
   } else {
-    if (!isOwner || row.ownerPlan !== 'studio') {
+    if (!isOwner || ownerPlan !== 'studio') {
       return NextResponse.json(
         { error: 'Stem download requires the Studio plan' },
         { status: 403 },

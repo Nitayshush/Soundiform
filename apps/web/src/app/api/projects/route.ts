@@ -33,7 +33,7 @@ import {
   recordLedgerEntry,
   remixes,
   renders,
-  users,
+  resolveEffectivePlan,
 } from '@soundiform/db';
 import { eq, isNull, and, desc } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
@@ -66,8 +66,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const db = getDb();
-  const [userRow] = await db.select({ plan: users.plan }).from(users).where(eq(users.id, user.id));
-  const plan = userRow?.plan ?? 'free';
+  const { plan } = await resolveEffectivePlan(user.id);
 
   const quota = await checkSaveQuota(user.id, plan);
   if (!quota.allowed) {
