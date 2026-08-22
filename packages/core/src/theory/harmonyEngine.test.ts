@@ -30,14 +30,48 @@ const DEFAULT_TEST_CONFIG: CompositionConfig = {
   mode: 'aeolian',
   gridSubdivision: 16,
   swingAmount: 0,
+  chordProgression: [0, 5, 3, 4],
+  extendedChords: false,
 };
 
-/** מדמה 4 GenrePacks שונים בכוונה (טמפו/מוד/סווינג/גריד) — כמו §5.2, בלי תלות ב-@soundiform/genres. */
+/** מדמה 4 GenrePacks שונים בכוונה (טמפו/מוד/סווינג/גריד/הרמוניה) — כמו §5.2, בלי תלות ב-@soundiform/genres. */
 const FOUR_STYLE_CONFIGS: CompositionConfig[] = [
-  { genreId: 'trance-like', tempoBpm: 138, mode: 'aeolian', gridSubdivision: 16, swingAmount: 0 },
-  { genreId: 'house-like', tempoBpm: 124, mode: 'dorian', gridSubdivision: 16, swingAmount: 0.08 },
-  { genreId: 'chill-like', tempoBpm: 82, mode: 'lydian', gridSubdivision: 16, swingAmount: 0.12 },
-  { genreId: 'cinematic-like', tempoBpm: 90, mode: 'aeolian', gridSubdivision: 8, swingAmount: 0 },
+  {
+    genreId: 'trance-like',
+    tempoBpm: 138,
+    mode: 'aeolian',
+    gridSubdivision: 16,
+    swingAmount: 0,
+    chordProgression: [0, 6, 5, 6],
+    extendedChords: false,
+  },
+  {
+    genreId: 'house-like',
+    tempoBpm: 124,
+    mode: 'dorian',
+    gridSubdivision: 16,
+    swingAmount: 0.08,
+    chordProgression: [0, 3, 5, 4],
+    extendedChords: false,
+  },
+  {
+    genreId: 'chill-like',
+    tempoBpm: 82,
+    mode: 'lydian',
+    gridSubdivision: 16,
+    swingAmount: 0.12,
+    chordProgression: [1, 4, 0, 5],
+    extendedChords: true,
+  },
+  {
+    genreId: 'cinematic-like',
+    tempoBpm: 90,
+    mode: 'aeolian',
+    gridSubdivision: 8,
+    swingAmount: 0,
+    chordProgression: [0, 5, 2, 6],
+    extendedChords: true,
+  },
 ];
 
 function makeRandomShape(random: () => number): ShapeData {

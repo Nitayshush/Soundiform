@@ -6,6 +6,7 @@
   "allowedModes": ["lydian", "ionian"],
   "defaultMode": "lydian",
   "harmonicTendency": "extended",
+  "chordProgression": [1, 4, 0, 5],
   "roles": ["bass", "lead", "pad", "drums"],
   "rhythmPatterns": {
     "bass": [

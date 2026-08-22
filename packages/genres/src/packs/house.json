@@ -6,6 +6,7 @@
   "allowedModes": ["dorian", "mixolydian"],
   "defaultMode": "dorian",
   "harmonicTendency": "modal",
+  "chordProgression": [0, 3, 5, 4],
   "roles": ["bass", "lead", "pad", "drums"],
   "rhythmPatterns": {
     "bass": [

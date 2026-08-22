@@ -32,6 +32,24 @@ export function buildTriad(root: number, mode: Mode, scaleDegreeIndex: number): 
   );
 }
 
+/**
+ * ⭐ 2026-08-22: כמו buildTriad, עם 7th דיאטוני אופציונלי (§11: harmonicTendency==='extended'
+ * ב-chill/cinematic) — עדיין כל תו בסולם (§4.3), רק דרגה רביעית (thirdOffset=6) נוספת לערימה.
+ * buildTriad עצמה נשארת בלי שינוי (trance/house/reggae ממשיכים דרכה, טריאדות נקיות).
+ */
+export function buildChord(
+  root: number,
+  mode: Mode,
+  scaleDegreeIndex: number,
+  extended: boolean,
+): number[] {
+  const triad = buildTriad(root, mode, scaleDegreeIndex);
+  if (!extended) {
+    return triad;
+  }
+  return [...triad, scaleDegreeToMidiPitch(root, mode, scaleDegreeIndex + 6)];
+}
+
 /** קובע את איכות הטריאדה הדיאטונית על דרגת סולם, מהמרווחים בפועל של המוד. */
 export function getChordQuality(mode: Mode, scaleDegreeIndex: number): ChordQuality {
   const rootInterval = getScaleDegreeInterval(mode, scaleDegreeIndex);

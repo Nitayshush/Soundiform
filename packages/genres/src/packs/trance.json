@@ -6,6 +6,7 @@
   "allowedModes": ["aeolian", "dorian"],
   "defaultMode": "aeolian",
   "harmonicTendency": "modal",
+  "chordProgression": [0, 6, 5, 6],
   "roles": ["bass", "lead", "pad", "drums"],
   "rhythmPatterns": {
     "bass": [

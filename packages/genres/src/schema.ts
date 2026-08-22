@@ -69,6 +69,13 @@ export const genrePackSchema = z.object({
   allowedModes: z.array(modeSchema).min(1),
   defaultMode: modeSchema,
   harmonicTendency: z.enum(['diatonic', 'modal', 'extended']),
+  /**
+   * ⭐ 2026-08-22: התקדמות הרמונית ספציפית-לסגנון (דרגות-סולם 0-based, לולאה על פני הבארים) —
+   * מחליף את ה-I–vi–IV–V האוניברסלי שהיה hardcoded ב-harmonyEngine.ts. כל דרגה חוקית תמיד
+   * (§4.3), ללא תלות במוד בפועל — ה"אופי" נובע מהמוד עצמו, לא מהדרגות. harmonicTendency
+   * (למעלה) קובע רק אם buildChord מוסיף גם 7th ('extended') — לא כמות/סוג הדרגות.
+   */
+  chordProgression: z.array(z.number().int()).min(1),
   roles: z.array(trackRoleSchema).min(1),
   // partialRecord ולא record: pack מגדיר רק את ה-roles שהוא בפועל משתמש בהם (roles למעלה),
   // לא נדרש filler-data מלאכותי לתפקידים שלא רלוונטיים לסגנון (למשל skank בז'אנרים לא-רגאיי).

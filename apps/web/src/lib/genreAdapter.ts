@@ -21,6 +21,8 @@ export function toCompositionConfig(pack: GenrePack): CompositionConfig {
     mode: pack.defaultMode,
     gridSubdivision: pack.grid.subdivision,
     swingAmount: pack.grid.swingAmount,
+    chordProgression: pack.chordProgression,
+    extendedChords: pack.harmonicTendency === 'extended',
     ...(drumsPattern && {
       drumsPattern: { stepsPerBar: drumsPattern.stepsPerBar, hits: drumsPattern.hits },
     }),

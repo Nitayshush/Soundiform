@@ -17,7 +17,7 @@ import type { Mode, MusicalScore, Note, Section, Track } from '../score/MusicalS
 import { musicalScoreSchema } from '../score/scoreSchema';
 import type { RawMusicalIntent, SymmetryTransform } from '../mapping/geometryToMusic';
 import { scaleDegreeToMidiPitch, snapToScale } from './scales';
-import { buildTriad } from './chords';
+import { buildChord } from './chords';
 import { chooseSmoothVoicing, smoothMelodicLine } from './voiceLeading';
 import {
   applySwing,
@@ -42,8 +42,6 @@ const MELODY_DEGREE_RANGE = 8;
 const MELODY_DEGREE_OFFSET = 7;
 /** הבס יושב אוקטבה מתחת לשורש. */
 const BASS_DEGREE_OFFSET = -7;
-/** התקדמות הרמונית סטנדרטית ונעימה (I–vi–IV–V כדרגות-סולם 0-based) — safety net הרמונית. */
-const HARMONIC_PROGRESSION_DEGREES: readonly number[] = [0, 5, 3, 4];
 
 const TICKS_PER_BAR = TICKS_PER_BEAT * DEFAULT_TIME_SIGNATURE[0];
 
@@ -64,6 +62,13 @@ export interface CompositionConfig {
   gridSubdivision: GridSubdivision;
   /** 0–1, ראה GenrePack.grid.swingAmount ב-§5.1. */
   swingAmount: number;
+  /**
+   * ⭐ 2026-08-22: התקדמות הרמונית ספציפית-לסגנון (דרגות-סולם 0-based, לולאה על-פני הבארים) —
+   * ראה GenrePack.chordProgression ב-§5.1. מחליף את ה-I–vi–IV–V האוניברסלי שהיה hardcoded כאן.
+   */
+  chordProgression: readonly number[];
+  /** ⭐ 2026-08-22: harmonicTendency==='extended' (chill/cinematic) — מוסיף 7th לאקורדי ה-pad. */
+  extendedChords: boolean;
   /**
    * ⭐ תבנית התופים של הסגנון (rhythmPatterns.drums[0]) — undefined אם לסגנון אין role 'drums'.
    * כשמוגדר, מתווסף טראק 'drums' רביעי (בנוסף ל-lead/bass/pad) — ראה buildDrumsTrack.
@@ -117,19 +122,27 @@ function applySymmetryTransform(
   return shouldReverse ? [...inverted].reverse() : inverted;
 }
 
-function getHarmonicProgressionDegrees(barCount: number): number[] {
+function getHarmonicProgressionDegrees(
+  barCount: number,
+  chordProgression: readonly number[],
+): number[] {
   return Array.from({ length: barCount }, (_, index) =>
-    at(HARMONIC_PROGRESSION_DEGREES, index % HARMONIC_PROGRESSION_DEGREES.length),
+    at(chordProgression, index % chordProgression.length),
   );
 }
 
-function buildPadTrack(root: number, mode: Mode, progressionDegrees: readonly number[]): Track {
+function buildPadTrack(
+  root: number,
+  mode: Mode,
+  progressionDegrees: readonly number[],
+  extendedChords: boolean,
+): Track {
   const notes: Note[] = [];
   let previousChord: number[] | null = null;
 
   progressionDegrees.forEach((degree, barIndex) => {
-    const triad = buildTriad(root, mode, degree);
-    const voiced = chooseSmoothVoicing(previousChord, triad);
+    const chord = buildChord(root, mode, degree, extendedChords);
+    const voiced = chooseSmoothVoicing(previousChord, chord);
     previousChord = voiced;
     const startTick = barIndex * TICKS_PER_BAR;
     for (const pitch of voiced) {
@@ -294,12 +307,12 @@ export function composeMusicalScore(
   const hasSecondPhrase = intent.symmetryTransform !== 'none';
   const durationBars = hasSecondPhrase ? baseBars * 2 : baseBars;
 
-  const progressionDegrees = getHarmonicProgressionDegrees(durationBars);
+  const progressionDegrees = getHarmonicProgressionDegrees(durationBars, config.chordProgression);
 
   const tracks: Track[] = [
     buildLeadTrack(intent, root, mode, durationBars, hasSecondPhrase, config, random),
     buildBassTrack(root, mode, progressionDegrees),
-    buildPadTrack(root, mode, progressionDegrees),
+    buildPadTrack(root, mode, progressionDegrees, config.extendedChords),
   ];
   if (config.drumsPattern) {
     tracks.push(buildDrumsTrack(config.drumsPattern, root, mode, durationBars, config, random));

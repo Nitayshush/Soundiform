@@ -6,6 +6,7 @@
   "allowedModes": ["aeolian", "phrygian"],
   "defaultMode": "aeolian",
   "harmonicTendency": "extended",
+  "chordProgression": [0, 5, 2, 6],
   "roles": ["bass", "lead", "pad", "drums"],
   "rhythmPatterns": {
     "bass": [{ "name": "long-tones", "stepsPerBar": 8, "hits": [1, 0, 0, 0, 0, 0, 0, 0] }],

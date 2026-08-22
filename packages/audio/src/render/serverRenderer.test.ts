@@ -18,6 +18,8 @@ const TEST_CONFIG: CompositionConfig = {
   mode: 'aeolian',
   gridSubdivision: 16,
   swingAmount: 0,
+  chordProgression: [0, 5, 3, 4],
+  extendedChords: false,
 };
 
 function makeTestScore() {

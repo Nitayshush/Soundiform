@@ -6,6 +6,7 @@
   "allowedModes": ["mixolydian"],
   "defaultMode": "mixolydian",
   "harmonicTendency": "diatonic",
+  "chordProgression": [0, 4, 5, 3],
   "roles": ["bass", "skank", "lead", "drums"],
   "rhythmPatterns": {
     "bass": [
