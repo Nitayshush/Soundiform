@@ -53,5 +53,6 @@ export function toGenreAudioConfig(pack: GenrePack): GenreAudioConfig {
   return {
     synthPresets: pack.synthMap,
     mixCharacter: pack.mixChain,
+    sidechainEnabled: pack.sidechainEnabled,
   };
 }

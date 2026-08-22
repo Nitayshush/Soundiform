@@ -42,17 +42,23 @@
     "bass": {
       "oscillatorType": "sawtooth",
       "envelope": { "attack": 0.01, "decay": 0.1, "sustain": 0.8, "release": 0.1 },
-      "polyphonic": false
+      "polyphonic": false,
+      "filter": { "type": "lowpass", "frequencyHz": 800, "resonance": 1 },
+      "unison": { "count": 1, "spreadCents": 0 }
     },
     "lead": {
       "oscillatorType": "sawtooth",
       "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.7, "release": 0.15 },
-      "polyphonic": false
+      "polyphonic": false,
+      "filter": { "type": "lowpass", "frequencyHz": 4500, "resonance": 1.8 },
+      "unison": { "count": 7, "spreadCents": 25 }
     },
     "pad": {
       "oscillatorType": "sawtooth",
       "envelope": { "attack": 0.3, "decay": 0.2, "sustain": 0.8, "release": 0.8 },
-      "polyphonic": true
+      "polyphonic": true,
+      "filter": { "type": "lowpass", "frequencyHz": 2500, "resonance": 1 },
+      "unison": { "count": 5, "spreadCents": 20 }
     },
     "drums": {
       "oscillatorType": "triangle",
@@ -62,5 +68,6 @@
   },
   "mixChain": { "reverbDecaySeconds": 3.5, "delayTime": "8n", "delayFeedback": 0.3 },
   "arrangement": { "sectionOrder": ["intro", "loop", "build", "outro"] },
+  "sidechainEnabled": true,
   "requiresSamples": false
 }

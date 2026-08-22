@@ -18,10 +18,8 @@ import { createMasterBus } from '../mixing/loudness';
 import {
   computeDurationSeconds,
   createAllTrackRuntimes,
-  disposeTrackRuntimes,
   DEFAULT_AUDIO_CONFIG,
   type GenreAudioConfig,
-  type TrackRuntime,
 } from './sharedScheduling';
 
 export { DEFAULT_AUDIO_CONFIG } from './sharedScheduling';
@@ -58,7 +56,7 @@ export async function createBrowserRenderer(
   transport.loopStart = 0;
   transport.loopEnd = durationSeconds;
 
-  const trackRuntimes: TrackRuntime[] = await createAllTrackRuntimes(score, masterBus, audioConfig);
+  const { disposeAll } = await createAllTrackRuntimes(score, masterBus, audioConfig);
 
   return {
     async play() {
@@ -79,7 +77,7 @@ export async function createBrowserRenderer(
     dispose() {
       transport.stop();
       transport.cancel(0);
-      disposeTrackRuntimes(trackRuntimes);
+      disposeAll();
       masterBus.dispose();
     },
   };

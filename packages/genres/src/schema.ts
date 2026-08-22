@@ -27,11 +27,26 @@ export const envelopeSchema = z.object({
   release: z.number().min(0),
 });
 
+/** ⭐ 2026-08-22: פילטר אופציונלי לפי-קול — ראה SynthProvider.ts ל-implementation. */
+export const synthFilterSchema = z.object({
+  type: z.enum(['lowpass', 'highpass']),
+  frequencyHz: z.number().positive(),
+  resonance: z.number().positive().optional(),
+});
+
+/** ⭐ 2026-08-22: רוחב unison "fat" אופציונלי לפי-קול — undefined נופל לברירת מחדל גלובלית. */
+export const synthUnisonSchema = z.object({
+  count: z.number().int().min(1).max(8),
+  spreadCents: z.number().min(0).max(100),
+});
+
 export const synthPresetSchema = z.object({
   oscillatorType: oscillatorTypeSchema,
   envelope: envelopeSchema,
   /** האם הקול הזה מתנגן פוליפונית (טריאדה בו-זמנית) — בדרך כלל true ל-pad/skank. */
   polyphonic: z.boolean(),
+  filter: synthFilterSchema.optional(),
+  unison: synthUnisonSchema.optional(),
 });
 
 export const mixChainConfigSchema = z.object({
@@ -83,6 +98,8 @@ export const genrePackSchema = z.object({
   synthMap: z.partialRecord(trackRoleSchema, synthPresetSchema),
   mixChain: mixChainConfigSchema,
   arrangement: arrangementTemplateSchema,
+  /** ⭐ 2026-08-22: סיידצ'יין קומפרשן (ראה packages/audio/src/mixing/sidechain.ts) — trance/house. */
+  sidechainEnabled: z.boolean(),
   requiresSamples: z.boolean(), // ⚠️ true → מושבת ב-V1
 });
 

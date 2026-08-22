@@ -42,17 +42,21 @@
     "bass": {
       "oscillatorType": "sine",
       "envelope": { "attack": 0.02, "decay": 0.2, "sustain": 0.8, "release": 0.3 },
-      "polyphonic": false
+      "polyphonic": false,
+      "filter": { "type": "lowpass", "frequencyHz": 500, "resonance": 0.7 },
+      "unison": { "count": 1, "spreadCents": 0 }
     },
     "skank": {
       "oscillatorType": "square",
       "envelope": { "attack": 0.001, "decay": 0.08, "sustain": 0.05, "release": 0.05 },
-      "polyphonic": true
+      "polyphonic": true,
+      "filter": { "type": "highpass", "frequencyHz": 800, "resonance": 1.5 }
     },
     "lead": {
       "oscillatorType": "triangle",
       "envelope": { "attack": 0.02, "decay": 0.15, "sustain": 0.6, "release": 0.2 },
-      "polyphonic": false
+      "polyphonic": false,
+      "filter": { "type": "lowpass", "frequencyHz": 2000, "resonance": 0.7 }
     },
     "drums": {
       "oscillatorType": "triangle",
@@ -62,5 +66,6 @@
   },
   "mixChain": { "reverbDecaySeconds": 2.5, "delayTime": "8n.", "delayFeedback": 0.45 },
   "arrangement": { "sectionOrder": ["intro", "loop", "outro"] },
+  "sidechainEnabled": false,
   "requiresSamples": true
 }

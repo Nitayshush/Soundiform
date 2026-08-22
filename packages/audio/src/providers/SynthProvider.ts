@@ -12,7 +12,7 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import { Gain, PolySynth, Synth } from 'tone';
+import { Filter, Gain, PolySynth, Synth } from 'tone';
 import type { OutputNode } from 'tone';
 import type { Note, TrackRole } from '@soundiform/core';
 import type { InstrumentProvider } from './InstrumentProvider';
@@ -27,11 +27,29 @@ export interface SynthEnvelopeConfig {
   release: number;
 }
 
+/** ⭐ 2026-08-22: פילטר אופציונלי לפי-קול — genre-configurable (§11 item 5). */
+export interface SynthFilterConfig {
+  type: 'lowpass' | 'highpass';
+  frequencyHz: number;
+  /** Q — תהודה. אופציונלי, ברירת מחדל של Tone.Filter אם לא סופק. */
+  resonance?: number;
+}
+
+/** ⭐ 2026-08-22: רוחב ה-unison "fat" לפי-קול — ראה FAT_UNISON_COUNT/SPREAD למטה להסבר הטכניקה. */
+export interface SynthUnisonConfig {
+  count: number;
+  spreadCents: number;
+}
+
 export interface SynthPresetConfig {
   oscillatorType: OscillatorType;
   envelope: SynthEnvelopeConfig;
   /** האם הקול הזה מתנגן פוליפונית (טריאדה בו-זמנית) — בדרך כלל true ל-pad/skank. */
   polyphonic: boolean;
+  /** ⭐ 2026-08-22: undefined = בלי פילטר (ברירת המחדל ההיסטורית). */
+  filter?: SynthFilterConfig;
+  /** ⭐ 2026-08-22: undefined = נופל ל-FAT_UNISON_COUNT/SPREAD הגלובליים (ברירת מחדל ישנה). */
+  unison?: SynthUnisonConfig;
 }
 
 // ⚠️ polyphonic: true בכוונה — זו ברירת המחדל שחלה על *כל* role שחסר ב-GenrePack.synthMap
@@ -60,11 +78,12 @@ const FAT_UNISON_COUNT = 3;
 const FAT_UNISON_SPREAD_CENTS = 18;
 
 function createVoice(preset: SynthPresetConfig): ToneVoice {
+  const unison = preset.unison ?? { count: FAT_UNISON_COUNT, spreadCents: FAT_UNISON_SPREAD_CENTS };
   const voiceOptions = {
     oscillator: {
       type: FAT_OSCILLATOR_TYPE[preset.oscillatorType],
-      count: FAT_UNISON_COUNT,
-      spread: FAT_UNISON_SPREAD_CENTS,
+      count: unison.count,
+      spread: unison.spreadCents,
     },
     envelope: preset.envelope,
   };
@@ -85,6 +104,7 @@ export class SynthProvider implements InstrumentProvider {
   private readonly preset: SynthPresetConfig;
   private readonly outputGain: Gain;
   private voice: ToneVoice | null = null;
+  private filterNode: Filter | null = null;
 
   constructor(role: TrackRole, tempoBpm: number, preset: SynthPresetConfig = DEFAULT_SYNTH_PRESET) {
     this.role = role;
@@ -98,7 +118,16 @@ export class SynthProvider implements InstrumentProvider {
   // eslint-disable-next-line @typescript-eslint/require-await -- load() חייב Promise לפי InstrumentProvider; אין await אמיתי כרגע (V1 בלי SamplerProvider/רשת).
   async load(_instrumentId: string): Promise<void> {
     this.voice = createVoice(this.preset);
-    this.voice.connect(this.outputGain);
+    if (this.preset.filter) {
+      this.filterNode = new Filter(this.preset.filter.frequencyHz, this.preset.filter.type);
+      if (this.preset.filter.resonance !== undefined) {
+        this.filterNode.Q.value = this.preset.filter.resonance;
+      }
+      this.voice.connect(this.filterNode);
+      this.filterNode.connect(this.outputGain);
+    } else {
+      this.voice.connect(this.outputGain);
+    }
   }
 
   playNote(note: Note, time: number): void {
@@ -112,6 +141,7 @@ export class SynthProvider implements InstrumentProvider {
 
   dispose(): void {
     this.voice?.dispose();
+    this.filterNode?.dispose();
     this.outputGain.dispose();
   }
 }

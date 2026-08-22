@@ -20,6 +20,10 @@
  *
  * ⭐ reverbSeed: קובע את ה-impulse response של הריוורב הדטרמיניסטי (ראה deterministicReverb.ts) —
  * חובה להעביר ערך יציב לכל טראק (למשל `${score.seed}:${track.role}`), אחרת נשבר §1.
+ *
+ * ⭐ 2026-08-22: sidechainDuck אופציונלי (ראה sidechain.ts) — כשמוגדר, מוכנס בין panner
+ * ל-outputGain (המסלול היבש בלבד; reverb/delay wet ממשיכים ישר ל-outputGain, לא נדחקים —
+ * פישוט מכוון, sidechain אמיתי בהפקה מקצועית גם משאיר את ה-tail קצת פחות דחוק).
  */
 
 import { FeedbackDelay, Gain, Panner } from 'tone';
@@ -58,10 +62,16 @@ export async function buildMixChain(
   destination: InputNode,
   reverbSeed: string,
   character: MixCharacterConfig = DEFAULT_MIX_CHARACTER,
+  sidechainDuck?: Gain,
 ): Promise<MixChainHandle> {
   const panner = new Panner(mixSettings.pan);
   const outputGain = new Gain(mixSettings.volume);
-  panner.connect(outputGain);
+  if (sidechainDuck) {
+    panner.connect(sidechainDuck);
+    sidechainDuck.connect(outputGain);
+  } else {
+    panner.connect(outputGain);
+  }
   outputGain.connect(destination);
 
   const disposables: { dispose(): void }[] = [panner, outputGain];

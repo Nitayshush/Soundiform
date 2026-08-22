@@ -29,7 +29,6 @@ import { createMasterBus } from '../mixing/loudness';
 import {
   computeDurationSeconds,
   createAllTrackRuntimes,
-  disposeTrackRuntimes,
   DEFAULT_AUDIO_CONFIG,
   type GenreAudioConfig,
 } from './sharedScheduling';
@@ -61,7 +60,7 @@ export async function renderToBuffer(
 
   const masterBus = createMasterBus();
   masterBus.toDestination();
-  const trackRuntimes = await createAllTrackRuntimes(score, masterBus, audioConfig);
+  const { disposeAll } = await createAllTrackRuntimes(score, masterBus, audioConfig);
 
   try {
     const transport = getTransport();
@@ -77,7 +76,7 @@ export async function renderToBuffer(
 
     return { sampleRate: renderedBuffer.sampleRate, durationSeconds, channels };
   } finally {
-    disposeTrackRuntimes(trackRuntimes);
+    disposeAll();
     masterBus.dispose();
   }
 }
