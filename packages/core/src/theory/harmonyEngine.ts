@@ -83,6 +83,13 @@ export interface CompositionConfig {
    * rhythmPatterns בכלל.
    */
   rhythmPatterns?: Partial<Record<TrackRole, RhythmStepPattern>>;
+  /**
+   * ⭐ 2026-08-22: מבנה היצירה (§5.1 arrangement.sectionOrder) — היה מוגדר תמיד כ-['loop']
+   * ולא נקרא בפועל (הפלט תמיד היה לולאה סטטית אחת). כשמוגדר ריבוי-סקשנים, composeMusicalScore
+   * מוסיף intro/build/outro אמיתיים סביב תוכן ה-loop (עדיין באורך שנגזר מהצורה, §4.5).
+   * ברירת מחדל אם undefined: ['loop'] (התנהגות ישנה, זהה למה שהיה hardcoded).
+   */
+  sectionOrder?: readonly Section['name'][];
 }
 
 function midiToFrequencyHz(midiPitch: number): number {
@@ -220,7 +227,10 @@ function buildBassTrack(
   let notes: Note[];
   if (pattern) {
     const stepTicks = TICKS_PER_BAR / pattern.stepsPerBar;
-    const hitDurationTicks = Math.max(1, Math.round(stepTicks * 0.85));
+    const hitDurationTicks = Math.max(
+      ticksPerGridUnit(config.gridSubdivision),
+      quantizeToGrid(stepTicks * 0.85, config.gridSubdivision),
+    );
     notes = [];
     smoothedPitches.forEach((pitch, barIndex) => {
       pattern.hits.forEach((hitVelocity, stepIndex) => {
@@ -345,7 +355,13 @@ function buildDrumsTrack(
 ): Track {
   const pitch = scaleDegreeToMidiPitch(root, mode, DRUMS_DEGREE_OFFSET);
   const stepTicks = TICKS_PER_BAR / pattern.stepsPerBar;
-  const hitDurationTicks = Math.max(1, Math.round(stepTicks * 0.6));
+  // ⚠️ §4.3 "הכל מקוונטז לגריד" חל גם על durationTicks (לא רק startTick, שעובר הומניזציה/סווינג
+  // בנפרד) — quantizeToGrid+ticksPerGridUnit, לא Math.round(stepTicks*X) גולמי, אחרת התוצאה
+  // עלולה לנחות בין נקודות-גריד (validateConstitution's quantized-to-grid, ראה rules.ts).
+  const hitDurationTicks = Math.max(
+    ticksPerGridUnit(config.gridSubdivision),
+    quantizeToGrid(stepTicks * 0.6, config.gridSubdivision),
+  );
 
   const notes: Note[] = [];
   for (let barIndex = 0; barIndex < durationBars; barIndex += 1) {
@@ -390,7 +406,10 @@ function buildSkankTrack(
   random: () => number,
 ): Track {
   const stepTicks = TICKS_PER_BAR / pattern.stepsPerBar;
-  const hitDurationTicks = Math.max(1, Math.round(stepTicks * 0.5));
+  const hitDurationTicks = Math.max(
+    ticksPerGridUnit(config.gridSubdivision),
+    quantizeToGrid(stepTicks * 0.5, config.gridSubdivision),
+  );
 
   const notes: Note[] = [];
   let previousChord: number[] | null = null;
@@ -427,6 +446,127 @@ function buildSkankTrack(
   };
 }
 
+const DEFAULT_SECTION_ORDER: readonly Section['name'][] = ['loop'];
+
+function shiftNotes(notes: readonly Note[], tickOffset: number): Note[] {
+  if (tickOffset === 0) {
+    return [...notes];
+  }
+  return notes.map((note) => ({ ...note, startTick: note.startTick + tickOffset }));
+}
+
+/**
+ * ⭐ 2026-08-22: הופך sectionOrder (§5.1) לרשימת Section אמיתית עם startBar/lengthBars —
+ * 'loop' תמיד מקבל את loopBars (התוכן מהצורה, §4.5, לא נוגעים בו); כל section אחר
+ * (intro/build/outro) מקבל אורך פרופורציונלי-קצר (חצי מ-loopBars, מינימום בר אחד) —
+ * מבנה אמיתי סביב התוכן, לא הארכה שרירותית.
+ */
+function buildSectionPlan(sectionOrder: readonly Section['name'][], loopBars: number): Section[] {
+  const sideBars = Math.max(1, Math.round(loopBars / 2));
+  let cursor = 0;
+  return sectionOrder.map((name) => {
+    const lengthBars = name === 'loop' ? loopBars : sideBars;
+    const section: Section = { name, startBar: cursor, lengthBars };
+    cursor += lengthBars;
+    return section;
+  });
+}
+
+/**
+ * ⭐ 2026-08-22: אקורד מתמשך-שקט ל-intro/outro — "נשימה" לפני/אחרי הלולאה המלאה, לא שקט
+ * מוחלט. מנוגן על pad אם קיים, אחרת skank (רגאיי) — ראה composeMusicalScore.
+ */
+function buildSwellNotes(
+  root: number,
+  mode: Mode,
+  degree: number,
+  extendedChords: boolean,
+  startBar: number,
+  lengthBars: number,
+  velocity: number,
+): Note[] {
+  const chord = buildChord(root, mode, degree, extendedChords);
+  return chord.map((pitch) => ({
+    startTick: startBar * TICKS_PER_BAR,
+    durationTicks: lengthBars * TICKS_PER_BAR,
+    pitch,
+    velocity,
+    articulation: 'legato',
+  }));
+}
+
+/**
+ * ⭐ 2026-08-22: סקשן "build" — אנרגיה עולה לקראת חזרת ה-loop: אותה התקדמות הרמונית
+ * (voice-led כרגיל) בעוצמה עולה, ותופים בצפיפות כפולה (כל hit + נקודת-האמצע שלו) שגם
+ * עולים בעוצמה — טכניקת "בנייה" קלאסית, בלי צורך במודולציית פילטר (זה מגיע ב-Item 5).
+ */
+function buildBuildSectionNotes(
+  root: number,
+  mode: Mode,
+  progressionDegrees: readonly number[],
+  extendedChords: boolean,
+  drumsPattern: RhythmStepPattern | undefined,
+  startBar: number,
+  lengthBars: number,
+  config: CompositionConfig,
+  random: () => number,
+): { swellNotes: Note[]; drumsNotes: Note[] } {
+  const swellNotes: Note[] = [];
+  let previousChord: number[] | null = null;
+  for (let barOffset = 0; barOffset < lengthBars; barOffset += 1) {
+    const degree = at(progressionDegrees, barOffset % progressionDegrees.length);
+    const chord = buildChord(root, mode, degree, extendedChords);
+    const voiced = chooseSmoothVoicing(previousChord, chord);
+    previousChord = voiced;
+    const energyRamp = 0.5 + 0.5 * ((barOffset + 1) / lengthBars);
+    const startTick = (startBar + barOffset) * TICKS_PER_BAR;
+    for (const pitch of voiced) {
+      swellNotes.push({
+        startTick,
+        durationTicks: TICKS_PER_BAR,
+        pitch,
+        velocity: energyRamp * 0.6,
+        articulation: 'legato',
+      });
+    }
+  }
+
+  // ⚠️ "מילוי" ל-build נשאר *בדיוק* על גריד ה-drumsPattern.stepsPerBar הקיים (לא מוסיף
+  // חצאי-צעד/32nd) — §4.3 "הכל מקוונטז לגריד" הוא כלל קשיח שנבדק מול config.gridSubdivision;
+  // ניסיון קודם להכפיל צפיפות דרך חצאי-צעד הפר את זה (16 הפרות quantized-to-grid, נתפס
+  // ע"י בדיקה אמיתית). "מילוי" אמיתי כאן = פגיעה בכל steps (גם מה שהיה rest בלולאה), לא צעד עדין יותר.
+  const drumsNotes: Note[] = [];
+  if (drumsPattern) {
+    const pitch = scaleDegreeToMidiPitch(root, mode, DRUMS_DEGREE_OFFSET);
+    const stepTicks = TICKS_PER_BAR / drumsPattern.stepsPerBar;
+    const hitDurationTicks = Math.max(
+      ticksPerGridUnit(config.gridSubdivision),
+      quantizeToGrid(stepTicks * 0.6, config.gridSubdivision),
+    );
+    for (let barOffset = 0; barOffset < lengthBars; barOffset += 1) {
+      const energyRamp = 0.5 + 0.5 * ((barOffset + 1) / lengthBars);
+      const barStartTick = (startBar + barOffset) * TICKS_PER_BAR;
+      for (let stepIndex = 0; stepIndex < drumsPattern.stepsPerBar; stepIndex += 1) {
+        const originalVelocity = at(drumsPattern.hits, stepIndex % drumsPattern.hits.length);
+        const fillVelocity = Math.max(originalVelocity, 0.45);
+        const rawStartTick = barStartTick + stepIndex * stepTicks;
+        const swungStartTick = applySwing(rawStartTick, config.gridSubdivision, config.swingAmount);
+        const startTick = humanizeTiming(swungStartTick, config.tempoBpm, random);
+        const velocity = humanizeVelocity(fillVelocity * energyRamp, random);
+        drumsNotes.push({
+          startTick,
+          durationTicks: hitDurationTicks,
+          pitch,
+          velocity,
+          articulation: 'staccato',
+        });
+      }
+    }
+  }
+
+  return { swellNotes, drumsNotes };
+}
+
 /**
  * ⭐⭐ ממיר RawMusicalIntent ל-MusicalScore תקף — אוכף את §4.3 (סולם, קוונטיזציה,
  * voice leading) ומיישם את §4.4 (סימטריה → רטרוגרד/אינוורסיה) על מבנה היצירה בפועל.
@@ -443,36 +583,115 @@ export function composeMusicalScore(
 
   const baseBars = Math.max(1, Math.ceil(intent.motifSize / NOTES_PER_BAR));
   const hasSecondPhrase = intent.symmetryTransform !== 'none';
-  const durationBars = hasSecondPhrase ? baseBars * 2 : baseBars;
+  // ⭐ loopBars = "התוכן" מהצורה (§4.5) — לא נוגעים בו. sectionOrder (למטה) קובע אם מסביבו
+  // יש גם intro/build/outro, אבל אורך ה-loop עצמו תמיד נגזר מה-motif בלבד.
+  const loopBars = hasSecondPhrase ? baseBars * 2 : baseBars;
 
-  const progressionDegrees = getHarmonicProgressionDegrees(durationBars, config.chordProgression);
+  const progressionDegrees = getHarmonicProgressionDegrees(loopBars, config.chordProgression);
 
-  const tracks: Track[] = [
-    buildLeadTrack(intent, root, mode, durationBars, hasSecondPhrase, config, random),
-    buildBassTrack(root, mode, progressionDegrees, config.rhythmPatterns?.bass, config, random),
-  ];
+  const sections = buildSectionPlan(config.sectionOrder ?? DEFAULT_SECTION_ORDER, loopBars);
+  const loopSection = sections.find((section) => section.name === 'loop');
+  const loopStartTicks = (loopSection?.startBar ?? 0) * TICKS_PER_BAR;
+  const totalDurationBars = sections.reduce((sum, section) => sum + section.lengthBars, 0);
+
+  const leadTrack = buildLeadTrack(intent, root, mode, loopBars, hasSecondPhrase, config, random);
+  leadTrack.notes = shiftNotes(leadTrack.notes, loopStartTicks);
+
+  const bassTrack = buildBassTrack(
+    root,
+    mode,
+    progressionDegrees,
+    config.rhythmPatterns?.bass,
+    config,
+    random,
+  );
+  bassTrack.notes = shiftNotes(bassTrack.notes, loopStartTicks);
+
+  const tracks: Track[] = [leadTrack, bassTrack];
+
   // ⭐ 2026-08-22: pad נבנה כברירת מחדל (תואם-לאחור עבור configs/בדיקות שלא מגדירים
   // rhythmPatterns בכלל) — אלא אם הסגנון מגדיר rhythmPatterns בלי מפתח pad (בדיוק המקרה של
   // רגאיי, שיש לו skank במקום). זה מדיר pad מרגאיי בלי לשבור אף config אחר.
   const shouldBuildPad = !config.rhythmPatterns || config.rhythmPatterns.pad !== undefined;
+  let swellTrack: Track | null = null;
   if (shouldBuildPad) {
-    tracks.push(buildPadTrack(root, mode, progressionDegrees, config.extendedChords));
-  }
-  if (config.rhythmPatterns?.drums) {
-    tracks.push(
-      buildDrumsTrack(config.rhythmPatterns.drums, root, mode, durationBars, config, random),
-    );
-  }
-  if (config.rhythmPatterns?.skank) {
-    tracks.push(
-      buildSkankTrack(config.rhythmPatterns.skank, root, mode, progressionDegrees, config, random),
-    );
+    swellTrack = buildPadTrack(root, mode, progressionDegrees, config.extendedChords);
+    swellTrack.notes = shiftNotes(swellTrack.notes, loopStartTicks);
+    tracks.push(swellTrack);
   }
 
-  const sections: Section[] = [{ name: 'loop', startBar: 0, lengthBars: durationBars }];
+  let drumsTrack: Track | null = null;
+  if (config.rhythmPatterns?.drums) {
+    drumsTrack = buildDrumsTrack(config.rhythmPatterns.drums, root, mode, loopBars, config, random);
+    drumsTrack.notes = shiftNotes(drumsTrack.notes, loopStartTicks);
+    tracks.push(drumsTrack);
+  }
+
+  if (config.rhythmPatterns?.skank) {
+    const skankTrack = buildSkankTrack(
+      config.rhythmPatterns.skank,
+      root,
+      mode,
+      progressionDegrees,
+      config,
+      random,
+    );
+    skankTrack.notes = shiftNotes(skankTrack.notes, loopStartTicks);
+    tracks.push(skankTrack);
+    swellTrack ??= skankTrack; // ⭐ בלי pad (רגאיי) — intro/outro/build "נושמים" על skank במקום.
+  }
+
+  // ⭐ 2026-08-22: intro/build/outro אמיתיים — לא רק שם, אלא תוכן שונה בפועל (§11 item 4).
+  // מנוגנים רק על הטראק ה"נושם" (pad/skank) + תופים; lead/bass שקטים מחוץ ל-loop בכוונה,
+  // כדי שהכניסה/היציאה תישמע כ"פחות מלא", לא רק כ"אותו דבר עם offset".
+  for (const section of sections) {
+    if (section.name === 'intro' && swellTrack) {
+      const firstDegree = at(progressionDegrees, 0);
+      swellTrack.notes.push(
+        ...buildSwellNotes(
+          root,
+          mode,
+          firstDegree,
+          config.extendedChords,
+          section.startBar,
+          section.lengthBars,
+          0.3,
+        ),
+      );
+    } else if (section.name === 'outro' && swellTrack) {
+      const lastDegree = at(progressionDegrees, progressionDegrees.length - 1);
+      swellTrack.notes.push(
+        ...buildSwellNotes(
+          root,
+          mode,
+          lastDegree,
+          config.extendedChords,
+          section.startBar,
+          section.lengthBars,
+          0.25,
+        ),
+      );
+    } else if (section.name === 'build') {
+      const { swellNotes, drumsNotes } = buildBuildSectionNotes(
+        root,
+        mode,
+        progressionDegrees,
+        config.extendedChords,
+        config.rhythmPatterns?.drums,
+        section.startBar,
+        section.lengthBars,
+        config,
+        random,
+      );
+      swellTrack?.notes.push(...swellNotes);
+      drumsTrack?.notes.push(...drumsNotes);
+    }
+  }
+  swellTrack?.notes.sort((a, b) => a.startTick - b.startTick);
+  drumsTrack?.notes.sort((a, b) => a.startTick - b.startTick);
 
   const totalNotes = tracks.reduce((sum, track) => sum + track.notes.length, 0);
-  const avgNoteDensity = totalNotes / durationBars;
+  const avgNoteDensity = totalNotes / totalDurationBars;
 
   const score: MusicalScore = {
     version: SCORE_FORMAT_VERSION,
@@ -483,7 +702,7 @@ export function composeMusicalScore(
     // (root, כולל אוקטבה). rootFrequencyHz למטה כן מבוסס על ה-MIDI המוחלט, כי היא תדירות אמיתית.
     key: { root: rootPitchClass, mode },
     genreId: config.genreId,
-    durationBars,
+    durationBars: totalDurationBars,
     tracks,
     sections,
     metadata: {

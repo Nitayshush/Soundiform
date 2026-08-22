@@ -44,6 +44,7 @@ export function toCompositionConfig(pack: GenrePack): CompositionConfig {
     swingAmount: pack.grid.swingAmount,
     chordProgression: pack.chordProgression,
     extendedChords: pack.harmonicTendency === 'extended',
+    sectionOrder: pack.arrangement.sectionOrder,
     ...(rhythmPatterns && { rhythmPatterns }),
   };
 }

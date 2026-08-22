@@ -61,6 +61,6 @@
     }
   },
   "mixChain": { "reverbDecaySeconds": 4, "delayTime": "4n", "delayFeedback": 0.4 },
-  "arrangement": { "sectionOrder": ["loop"] },
+  "arrangement": { "sectionOrder": ["intro", "loop", "outro"] },
   "requiresSamples": false
 }

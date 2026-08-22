@@ -179,3 +179,65 @@ describe('composeMusicalScore — תקינות כללית', () => {
     expect(symmetricScore.sections[0]?.lengthBars).toBe(symmetricScore.durationBars);
   });
 });
+
+describe('composeMusicalScore — §11 item 4: arrangement אמיתי (intro/build/outro)', () => {
+  const ARRANGED_CONFIG: CompositionConfig = {
+    ...DEFAULT_TEST_CONFIG,
+    sectionOrder: ['intro', 'loop', 'build', 'outro'],
+    rhythmPatterns: {
+      drums: { stepsPerBar: 16, hits: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] },
+    },
+  };
+
+  it('4 סקשנים ברצף הנכון, ללא חפיפה, ואורך הכולל = סכום האורכים', () => {
+    const intent = geometryToMusic(makeTriangleShapeData(), 'seed-arrangement');
+    const score = composeMusicalScore(intent, ARRANGED_CONFIG);
+
+    expect(score.sections.map((section) => section.name)).toEqual([
+      'intro',
+      'loop',
+      'build',
+      'outro',
+    ]);
+    let expectedStartBar = 0;
+    for (const section of score.sections) {
+      expect(section.startBar).toBe(expectedStartBar);
+      expect(section.lengthBars).toBeGreaterThan(0);
+      expectedStartBar += section.lengthBars;
+    }
+    const totalLengthBars = score.sections.reduce((sum, section) => sum + section.lengthBars, 0);
+    expect(score.durationBars).toBe(totalLengthBars);
+  });
+
+  it('ה-loop עצמו עדיין נגזר מהצורה (לא מהמערך) — אותו lengthBars כמו ב-sectionOrder=[loop] בלבד', () => {
+    const intent = geometryToMusic(makeTriangleShapeData(), 'seed-arrangement-content');
+    const loopOnlyScore = composeMusicalScore(intent, DEFAULT_TEST_CONFIG);
+    const arrangedScore = composeMusicalScore(intent, ARRANGED_CONFIG);
+
+    const loopSection = arrangedScore.sections.find((section) => section.name === 'loop');
+    expect(loopSection?.lengthBars).toBe(loopOnlyScore.durationBars);
+  });
+
+  it('תופים מנגנים גם בסקשן ה-build (לא רק ב-loop)', () => {
+    const intent = geometryToMusic(makeTriangleShapeData(), 'seed-arrangement-build-drums');
+    const score = composeMusicalScore(intent, ARRANGED_CONFIG);
+    const buildSection = score.sections.find((section) => section.name === 'build');
+    const drumsTrack = score.tracks.find((track) => track.role === 'drums');
+    expect(buildSection).toBeDefined();
+    expect(drumsTrack).toBeDefined();
+
+    const buildStartTick = (buildSection?.startBar ?? 0) * 4 * 480; // TICKS_PER_BEAT=480, 4/4
+    const buildEndTick = buildStartTick + (buildSection?.lengthBars ?? 0) * 4 * 480;
+    const notesInBuild = drumsTrack?.notes.filter(
+      (note) => note.startTick >= buildStartTick && note.startTick < buildEndTick,
+    );
+    expect(notesInBuild?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('הפלט עדיין תקף מול musicalScoreSchema ומול rules.ts גם עם arrangement', () => {
+    const intent = geometryToMusic(makeSquareShapeData(), 'seed-arrangement-valid');
+    const score = composeMusicalScore(intent, ARRANGED_CONFIG);
+    expect(musicalScoreSchema.safeParse(score).success).toBe(true);
+    expect(validateConstitution(score)).toHaveLength(0);
+  });
+});
