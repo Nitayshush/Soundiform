@@ -10,6 +10,10 @@
  * המקורית, לא "דורסים" אותה במענק-על-גבי-מענק) נשמרים ב-restorePlan/restorePlanSource,
  * וה-revert בפועל קורה lazy דרך resolveEffectivePlan (packages/db/src/planOverride.ts) —
  * לא cron. revertNow מבטל מענק פעיל מיד, ידנית.
+ *
+ * ⭐ 2026-08-22: query ריק → 30 המשתמשים האחרונים כברירת מחדל (לא רק תוצאות חיפוש) — נמצא
+ * ע"י בדיקה חיה: החיפוש עצמו עבד תמיד נכון, אבל בלי query הפאנל הציג רשימה ריקה, מה שנראה
+ * כאילו משתמש חדש "לא קיים" עד שמחפשים אותו בשמו/במייל שלו במפורש.
  * @author      Soundiform
  * @created     2026-08-21
  *
@@ -18,13 +22,14 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { eq, or, ilike } from 'drizzle-orm';
+import { eq, or, ilike, desc } from 'drizzle-orm';
 import { getDb, PLAN_VALUES, recordAuditLog, resolveEffectivePlan, users } from '@soundiform/db';
 import { getAdminUser } from '@/lib/adminAuth';
 
 const ADMIN_PLAN_SOURCE_VALUES = ['manual', 'founding_member'] as const;
+const DEFAULT_LIST_LIMIT = 30;
 
-const searchSchema = z.object({ query: z.string().min(1) });
+const searchSchema = z.object({ query: z.string() });
 const patchSchema = z.object({
   userId: z.uuid(),
   plan: z.enum(PLAN_VALUES).optional(),
@@ -55,16 +60,23 @@ export async function GET(request: Request): Promise<NextResponse> {
   const url = new URL(request.url);
   const parsed = searchSchema.safeParse({ query: url.searchParams.get('query') ?? '' });
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Missing query' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid query' }, { status: 400 });
   }
 
-  const term = `%${parsed.data.query}%`;
+  const query = parsed.data.query.trim();
   const db = getDb();
-  const rows = await db
-    .select(USER_LIST_COLUMNS)
-    .from(users)
-    .where(or(ilike(users.email, term), ilike(users.username, term)))
-    .limit(20);
+  const rows = query
+    ? await db
+        .select(USER_LIST_COLUMNS)
+        .from(users)
+        .where(or(ilike(users.email, `%${query}%`), ilike(users.username, `%${query}%`)))
+        .orderBy(desc(users.createdAt))
+        .limit(DEFAULT_LIST_LIMIT)
+    : await db
+        .select(USER_LIST_COLUMNS)
+        .from(users)
+        .orderBy(desc(users.createdAt))
+        .limit(DEFAULT_LIST_LIMIT);
 
   // ⭐ מנקה בהזדמנות מענקים שכבר פגו (self-heal, ראה planOverride.ts) — כדי שהחיפוש עצמו
   // תמיד יציג plan עדכני, לא ערך-override שנשאר בטבלה אחרי שהתאריך עבר.

@@ -13,7 +13,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const PLAN_OPTIONS = ['free', 'pro', 'studio'] as const;
 type PlanOption = (typeof PLAN_OPTIONS)[number];
@@ -36,30 +36,47 @@ function errorMessage(error: unknown): string {
 export function UsersPanel() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<AdminUserRow[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  // ⭐ true כברירת מחדל — הטעינה הראשונית (useEffect למטה) לא יכולה לקרוא setIsSearching(true)
+  // בעצמה (react-hooks/set-state-in-effect, ראה תיעוד ב-fetchUsers).
+  const [isSearching, setIsSearching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [freeAccessDates, setFreeAccessDates] = useState<Record<string, string>>({});
 
-  const search = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  // Promise-chain בלי setState סינכרוני לפני ה-.then הראשון בכוונה: הפונקציה הזו נקראת גם
+  // מתוך useEffect (טעינה ראשונית), ו-react-hooks/set-state-in-effect אוסר setState סינכרוני
+  // בכל פונקציה שנקראת ישירות מ-effect (ראה ModerationPanel.tsx לתבנית זהה) — קוראים ל-Search/
+  // Clear מגדירים isSearching/error בעצמם *לפני* קריאה ל-fetchUsers, כי הם לא בתוך effect.
+  const fetchUsers = useCallback((searchQuery: string): void => {
+    fetch(`/api/admin/users?query=${encodeURIComponent(searchQuery.trim())}`)
+      .then((response) =>
+        response.json().then((body: { users?: AdminUserRow[]; error?: string }) => {
+          if (!response.ok) {
+            throw new Error(body.error ?? 'Search failed');
+          }
+          setResults(body.users ?? []);
+          setError(null);
+        }),
+      )
+      .catch((caughtError: unknown) => {
+        setError(errorMessage(caughtError));
+      })
+      .finally(() => {
+        setIsSearching(false);
+      });
+  }, []);
+
+  // ⭐ 2026-08-22: query ריק בטעינה ראשונה טוען את 30 המשתמשים האחרונים (ראה route.ts) —
+  // בלי זה הפאנל מתחיל ריק וייראה כאילו משתמש חדש "לא קיים" עד שמחפשים אותו במפורש.
+  useEffect(() => {
+    fetchUsers('');
+  }, [fetchUsers]);
+
+  const search = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    if (!query.trim()) {
-      return;
-    }
     setIsSearching(true);
     setError(null);
-    try {
-      const response = await fetch(`/api/admin/users?query=${encodeURIComponent(query.trim())}`);
-      const body = (await response.json()) as { users?: AdminUserRow[]; error?: string };
-      if (!response.ok) {
-        throw new Error(body.error ?? 'Search failed');
-      }
-      setResults(body.users ?? []);
-    } catch (caughtError) {
-      setError(errorMessage(caughtError));
-    } finally {
-      setIsSearching(false);
-    }
+    fetchUsers(query);
   };
 
   const setPlan = async (userId: string, plan: PlanOption): Promise<void> => {
@@ -149,7 +166,7 @@ export function UsersPanel() {
 
   return (
     <div>
-      <form onSubmit={(event) => void search(event)} className="mb-4 flex gap-2">
+      <form onSubmit={search} className="mb-4 flex gap-2">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -159,10 +176,25 @@ export function UsersPanel() {
         <button type="submit" disabled={isSearching} className="rounded border px-3 py-1 text-sm">
           {isSearching ? 'Searching…' : 'Search'}
         </button>
+        {query && (
+          <button
+            type="button"
+            disabled={isSearching}
+            onClick={() => {
+              setQuery('');
+              setIsSearching(true);
+              setError(null);
+              fetchUsers('');
+            }}
+            className="rounded border px-3 py-1 text-sm"
+          >
+            Clear
+          </button>
+        )}
       </form>
       {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
       {results.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No results.</p>
+        <p className="text-sm text-muted-foreground">{isSearching ? 'Loading…' : 'No results.'}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {results.map((row) => (
