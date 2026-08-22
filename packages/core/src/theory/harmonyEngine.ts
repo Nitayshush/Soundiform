@@ -13,7 +13,7 @@
  * דטרמיניסטית מ-seed בכל הסגנונות — זה ה"תוכן" של הצורה (§4.5), לא ה"לבוש" של הסגנון.
  */
 
-import type { Mode, MusicalScore, Note, Section, Track } from '../score/MusicalScore';
+import type { Mode, MusicalScore, Note, Section, Track, TrackRole } from '../score/MusicalScore';
 import { musicalScoreSchema } from '../score/scoreSchema';
 import type { RawMusicalIntent, SymmetryTransform } from '../mapping/geometryToMusic';
 import { scaleDegreeToMidiPitch, snapToScale } from './scales';
@@ -45,8 +45,12 @@ const BASS_DEGREE_OFFSET = -7;
 
 const TICKS_PER_BAR = TICKS_PER_BEAT * DEFAULT_TIME_SIGNATURE[0];
 
-/** תבנית תופים דטרמיניסטית — hits[step] הוא velocity (0=שקט), ראה GenrePack.rhythmPatterns.drums. */
-export interface DrumsPattern {
+/**
+ * תבנית ריתמית דטרמיניסטית — hits[step] הוא velocity (0=שקט). ⭐ 2026-08-22: נקרא בעבר
+ * DrumsPattern; שונה שם כי עכשיו כל role (bass/lead/skank/drums) משתמש באותה צורה — ראה
+ * GenrePack.rhythmPatterns ב-§5.1.
+ */
+export interface RhythmStepPattern {
   stepsPerBar: GridSubdivision;
   hits: readonly number[];
 }
@@ -70,10 +74,15 @@ export interface CompositionConfig {
   /** ⭐ 2026-08-22: harmonicTendency==='extended' (chill/cinematic) — מוסיף 7th לאקורדי ה-pad. */
   extendedChords: boolean;
   /**
-   * ⭐ תבנית התופים של הסגנון (rhythmPatterns.drums[0]) — undefined אם לסגנון אין role 'drums'.
-   * כשמוגדר, מתווסף טראק 'drums' רביעי (בנוסף ל-lead/bass/pad) — ראה buildDrumsTrack.
+   * ⭐ 2026-08-22: תבניות הריתמיקה של הסגנון (rhythmPatterns[role][0]) — מחליף את
+   * drumsPattern הישן (שכיסה רק תופים). כל role שמוגדר כאן משפיע על התזמון/מבנה בפועל:
+   * bass/lead מקבלים placement קצבי-לפי-סגנון (עדיין תוכן/כמות-תווים מהצורה, §4.5 — ראה
+   * buildLeadTrack), drums/skank מקבלים טראק ריתמי נפרד לגמרי (buildDrumsTrack/buildSkankTrack).
+   * pad נבנה כברירת מחדל *אלא אם* rhythmPatterns מוגדר בלי מפתח pad (ראה composeMusicalScore) —
+   * זה מה שמדיר pad מרגאיי (שיש לו skank במקום), בלי לשבור configs ישנים/בדיקות שלא מגדירים
+   * rhythmPatterns בכלל.
    */
-  drumsPattern?: DrumsPattern;
+  rhythmPatterns?: Partial<Record<TrackRole, RhythmStepPattern>>;
 }
 
 function midiToFrequencyHz(midiPitch: number): number {
@@ -91,6 +100,28 @@ function sampleEvenly<T>(array: readonly T[], count: number): T[] {
     const position = Math.round((index / (count - 1)) * (array.length - 1));
     return at(array, position);
   });
+}
+
+/**
+ * ⭐ 2026-08-22: כל מיקומי ה"פגיעה" (hits>0) של תבנית ריתמית, פרושים על פני durationBars
+ * בארים (חוזר על התבנית כל בר) — ticks יחסית לתחילת היצירה. משמש הן ל-bass (כל הפגיעות
+ * מנוגנות) והן ל-lead (נדגם מהן מספר-קבוע התואם את motifSize, ראה buildLeadTrack).
+ */
+function patternHitTicks(pattern: RhythmStepPattern, durationBars: number): number[] {
+  const stepTicks = TICKS_PER_BAR / pattern.stepsPerBar;
+  const hitStepIndices = pattern.hits
+    .map((velocity, stepIndex) => (velocity > 0 ? stepIndex : null))
+    .filter((stepIndex): stepIndex is number => stepIndex !== null);
+  if (hitStepIndices.length === 0) {
+    return [];
+  }
+  const ticks: number[] = [];
+  for (let barIndex = 0; barIndex < durationBars; barIndex += 1) {
+    for (const stepIndex of hitStepIndices) {
+      ticks.push(barIndex * TICKS_PER_BAR + stepIndex * stepTicks);
+    }
+  }
+  return ticks;
 }
 
 function yToMelodyDegree(y: number): number {
@@ -164,7 +195,20 @@ function buildPadTrack(
   };
 }
 
-function buildBassTrack(root: number, mode: Mode, progressionDegrees: readonly number[]): Track {
+/**
+ * ⭐ 2026-08-22: כשהסגנון מגדיר rhythmPatterns.bass, כל בר מנגן את פגיעות התבנית (במקום
+ * "תו אחד לכל בר" קבוע) — זה מה שהופך "פועם 16th" (טראנס) ל-groove אמיתי שונה מ-"one-drop"
+ * (רגאיי), בלי לגעת בהרמוניה (כל הפגיעות בתוך בר נתון עדיין ב-pitch של אקורד אותו בר).
+ * בלי pattern (config.rhythmPatterns?.bass undefined) — נופל חזרה לתו-אחד-לכל-בר הישן.
+ */
+function buildBassTrack(
+  root: number,
+  mode: Mode,
+  progressionDegrees: readonly number[],
+  pattern: RhythmStepPattern | undefined,
+  config: CompositionConfig,
+  random: () => number,
+): Track {
   // ⚠️ BASS_DEGREE_OFFSET מוסף ל-degreeIndex (לא ל-root!) — הוא נמדד ב"דרגות סולם" (7=אוקטבה),
   // בדיוק כמו MELODY_DEGREE_OFFSET. הוספה ישירה ל-root ב-semitones הייתה משנה את ה-pitch class
   // בפועל (offset שאינו כפולה של 12) ומייצרת תווים "בסולם" ביחס לשורש שגוי — לא ביחס ל-score.key.root.
@@ -173,13 +217,38 @@ function buildBassTrack(root: number, mode: Mode, progressionDegrees: readonly n
   );
   const smoothedPitches = smoothMelodicLine(rawPitches);
 
-  const notes: Note[] = smoothedPitches.map((pitch, barIndex) => ({
-    startTick: barIndex * TICKS_PER_BAR,
-    durationTicks: TICKS_PER_BAR,
-    pitch,
-    velocity: 0.7,
-    articulation: 'staccato',
-  }));
+  let notes: Note[];
+  if (pattern) {
+    const stepTicks = TICKS_PER_BAR / pattern.stepsPerBar;
+    const hitDurationTicks = Math.max(1, Math.round(stepTicks * 0.85));
+    notes = [];
+    smoothedPitches.forEach((pitch, barIndex) => {
+      pattern.hits.forEach((hitVelocity, stepIndex) => {
+        if (hitVelocity <= 0) {
+          return;
+        }
+        const rawStartTick = barIndex * TICKS_PER_BAR + stepIndex * stepTicks;
+        const swungStartTick = applySwing(rawStartTick, config.gridSubdivision, config.swingAmount);
+        const startTick = humanizeTiming(swungStartTick, config.tempoBpm, random);
+        const velocity = humanizeVelocity(0.6 + hitVelocity * 0.3, random);
+        notes.push({
+          startTick,
+          durationTicks: hitDurationTicks,
+          pitch,
+          velocity,
+          articulation: 'staccato',
+        });
+      });
+    });
+  } else {
+    notes = smoothedPitches.map((pitch, barIndex) => ({
+      startTick: barIndex * TICKS_PER_BAR,
+      durationTicks: TICKS_PER_BAR,
+      pitch,
+      velocity: 0.7,
+      articulation: 'staccato',
+    }));
+  }
 
   return {
     role: 'bass',
@@ -207,12 +276,29 @@ function buildLeadTrack(
 
   const totalTicks = durationBars * TICKS_PER_BAR;
   const noteCount = fullMelody.length;
-  const slotTicks = noteCount > 0 ? totalTicks / noteCount : totalTicks;
+  const evenSlotTicks = noteCount > 0 ? totalTicks / noteCount : totalTicks;
   const isStaccato = intent.articulation === 'staccato';
   const gapRatio = isStaccato ? 0.4 : 0.98;
 
+  // ⭐ 2026-08-22: מספר-התווים תמיד מהצורה (§4.5, fullMelody.length לא משתנה) — הסגנון
+  // משפיע רק על *מיקומם* בזמן: כשיש rhythmPatterns.lead, אותם תווים "נדגמים" (sampleEvenly)
+  // אל תוך מיקומי-הפגיעה הסינקופטיים של הסגנון, במקום חלוקה שווה גנרית. בלי pattern —
+  // נופל לחלוקה השווה הישנה.
+  const patternTicks = config.rhythmPatterns?.lead
+    ? patternHitTicks(config.rhythmPatterns.lead, durationBars)
+    : [];
+  const startTicksRaw =
+    patternTicks.length >= noteCount && noteCount > 0
+      ? sampleEvenly(patternTicks, noteCount)
+      : Array.from({ length: noteCount }, (_, index) => index * evenSlotTicks);
+
   const notes: Note[] = fullMelody.map((pitch, index) => {
-    const rawStartTick = index * slotTicks;
+    const rawStartTick = at(startTicksRaw, index);
+    const nextRawStartTick =
+      index + 1 < startTicksRaw.length
+        ? at(startTicksRaw, index + 1)
+        : rawStartTick + evenSlotTicks;
+    const gapTicks = Math.max(1, nextRawStartTick - rawStartTick);
     const quantizedStartTick = quantizeToGrid(rawStartTick, config.gridSubdivision);
     const swungStartTick = applySwing(
       quantizedStartTick,
@@ -222,7 +308,7 @@ function buildLeadTrack(
     const startTick = humanizeTiming(swungStartTick, config.tempoBpm, random);
     const durationTicks = Math.max(
       ticksPerGridUnit(config.gridSubdivision),
-      quantizeToGrid(slotTicks * gapRatio, config.gridSubdivision),
+      quantizeToGrid(gapTicks * gapRatio, config.gridSubdivision),
     );
     const velocity = humanizeVelocity(0.4 + intent.velocityHint * 0.5, random);
 
@@ -245,12 +331,12 @@ function buildLeadTrack(
 const DRUMS_DEGREE_OFFSET = -5;
 
 /**
- * ⭐ טראק תופים אמיתי מ-DrumsPattern (§5.1 rhythmPatterns) — היה מוגדר ב-GenrePack מ-Sprint 5
- * אך מעולם לא נצרך (ראה packages/genres/src/schema.ts תיעוד "לא נצרך ב-V1"). זה מה שסוגר
- * את הפער: הופך תבנית ה-hits הספציפית-לסגנון לטראק רביעי אמיתי שמתנגן בפועל.
+ * ⭐ טראק תופים אמיתי מ-RhythmStepPattern (§5.1 rhythmPatterns) — היה מוגדר ב-GenrePack מ-
+ * Sprint 5 אך מעולם לא נצרך (ראה packages/genres/src/schema.ts תיעוד "לא נצרך ב-V1"). זה מה
+ * שסוגר את הפער: הופך תבנית ה-hits הספציפית-לסגנון לטראק רביעי אמיתי שמתנגן בפועל.
  */
 function buildDrumsTrack(
-  pattern: DrumsPattern,
+  pattern: RhythmStepPattern,
   root: number,
   mode: Mode,
   durationBars: number,
@@ -290,6 +376,58 @@ function buildDrumsTrack(
 }
 
 /**
+ * ⭐ 2026-08-22: הזהות המוזיקלית של רגאיי — צ'ופים קצרים על אקורד הבר הנוכחי, בדרך כלל
+ * בדיוק על 2+4 (ראה reggae.json's skank-2-and-4). בניגוד ל-buildDrumsTrack (pitch יחיד),
+ * skank מנגן את האקורד המלא (כמו pad) אבל בקצב-פגיעות של תבנית, לא sustained — זה מה
+ * שהופך אותו לכלי הרמוני-ריתמי נפרד, לא רק "תופים בפיץ' אחר".
+ */
+function buildSkankTrack(
+  pattern: RhythmStepPattern,
+  root: number,
+  mode: Mode,
+  progressionDegrees: readonly number[],
+  config: CompositionConfig,
+  random: () => number,
+): Track {
+  const stepTicks = TICKS_PER_BAR / pattern.stepsPerBar;
+  const hitDurationTicks = Math.max(1, Math.round(stepTicks * 0.5));
+
+  const notes: Note[] = [];
+  let previousChord: number[] | null = null;
+  progressionDegrees.forEach((degree, barIndex) => {
+    const chord = buildChord(root, mode, degree, false);
+    const voiced = chooseSmoothVoicing(previousChord, chord);
+    previousChord = voiced;
+
+    pattern.hits.forEach((hitVelocity, stepIndex) => {
+      if (hitVelocity <= 0) {
+        return;
+      }
+      const rawStartTick = barIndex * TICKS_PER_BAR + stepIndex * stepTicks;
+      const swungStartTick = applySwing(rawStartTick, config.gridSubdivision, config.swingAmount);
+      const startTick = humanizeTiming(swungStartTick, config.tempoBpm, random);
+      const velocity = humanizeVelocity(hitVelocity, random);
+      for (const pitch of voiced) {
+        notes.push({
+          startTick,
+          durationTicks: hitDurationTicks,
+          pitch,
+          velocity,
+          articulation: 'staccato',
+        });
+      }
+    });
+  });
+
+  return {
+    role: 'skank',
+    instrumentId: 'default-skank',
+    notes,
+    mixSettings: { volume: 0.7, pan: 0, reverbSend: 0.15, delaySend: 0.1 },
+  };
+}
+
+/**
  * ⭐⭐ ממיר RawMusicalIntent ל-MusicalScore תקף — אוכף את §4.3 (סולם, קוונטיזציה,
  * voice leading) ומיישם את §4.4 (סימטריה → רטרוגרד/אינוורסיה) על מבנה היצירה בפועל.
  * @param config  טמפו/מוד/גריד/סווינג מה-GenrePack שנבחר (הקורא ממיר GenrePack → CompositionConfig).
@@ -311,11 +449,24 @@ export function composeMusicalScore(
 
   const tracks: Track[] = [
     buildLeadTrack(intent, root, mode, durationBars, hasSecondPhrase, config, random),
-    buildBassTrack(root, mode, progressionDegrees),
-    buildPadTrack(root, mode, progressionDegrees, config.extendedChords),
+    buildBassTrack(root, mode, progressionDegrees, config.rhythmPatterns?.bass, config, random),
   ];
-  if (config.drumsPattern) {
-    tracks.push(buildDrumsTrack(config.drumsPattern, root, mode, durationBars, config, random));
+  // ⭐ 2026-08-22: pad נבנה כברירת מחדל (תואם-לאחור עבור configs/בדיקות שלא מגדירים
+  // rhythmPatterns בכלל) — אלא אם הסגנון מגדיר rhythmPatterns בלי מפתח pad (בדיוק המקרה של
+  // רגאיי, שיש לו skank במקום). זה מדיר pad מרגאיי בלי לשבור אף config אחר.
+  const shouldBuildPad = !config.rhythmPatterns || config.rhythmPatterns.pad !== undefined;
+  if (shouldBuildPad) {
+    tracks.push(buildPadTrack(root, mode, progressionDegrees, config.extendedChords));
+  }
+  if (config.rhythmPatterns?.drums) {
+    tracks.push(
+      buildDrumsTrack(config.rhythmPatterns.drums, root, mode, durationBars, config, random),
+    );
+  }
+  if (config.rhythmPatterns?.skank) {
+    tracks.push(
+      buildSkankTrack(config.rhythmPatterns.skank, root, mode, progressionDegrees, config, random),
+    );
   }
 
   const sections: Section[] = [{ name: 'loop', startBar: 0, lengthBars: durationBars }];

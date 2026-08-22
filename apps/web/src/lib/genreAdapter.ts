@@ -9,12 +9,33 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import type { CompositionConfig } from '@soundiform/core';
+import type { CompositionConfig, RhythmStepPattern, TrackRole } from '@soundiform/core';
 import type { GenreAudioConfig } from '@soundiform/audio';
 import type { GenrePack } from '@soundiform/genres';
 
+/**
+ * ⭐ 2026-08-22: כל role שהסגנון מגדיר rhythmPatterns עבורו (לא רק drums כמו קודם) — זה מה
+ * שמאפשר ל-buildBassTrack/buildLeadTrack/buildSkankTrack (core) לצרוך groove ספציפי-לסגנון.
+ */
+function extractRhythmPatterns(
+  pack: GenrePack,
+): Partial<Record<TrackRole, RhythmStepPattern>> | undefined {
+  const entries = Object.entries(pack.rhythmPatterns) as [
+    TrackRole,
+    GenrePack['rhythmPatterns'][TrackRole],
+  ][];
+  const patterns: Partial<Record<TrackRole, RhythmStepPattern>> = {};
+  for (const [role, rolePatterns] of entries) {
+    const firstPattern = rolePatterns?.[0];
+    if (firstPattern) {
+      patterns[role] = { stepsPerBar: firstPattern.stepsPerBar, hits: firstPattern.hits };
+    }
+  }
+  return Object.keys(patterns).length > 0 ? patterns : undefined;
+}
+
 export function toCompositionConfig(pack: GenrePack): CompositionConfig {
-  const drumsPattern = pack.rhythmPatterns.drums?.[0];
+  const rhythmPatterns = extractRhythmPatterns(pack);
   return {
     genreId: pack.id,
     tempoBpm: pack.tempo.default,
@@ -23,9 +44,7 @@ export function toCompositionConfig(pack: GenrePack): CompositionConfig {
     swingAmount: pack.grid.swingAmount,
     chordProgression: pack.chordProgression,
     extendedChords: pack.harmonicTendency === 'extended',
-    ...(drumsPattern && {
-      drumsPattern: { stepsPerBar: drumsPattern.stepsPerBar, hits: drumsPattern.hits },
-    }),
+    ...(rhythmPatterns && { rhythmPatterns }),
   };
 }
 
