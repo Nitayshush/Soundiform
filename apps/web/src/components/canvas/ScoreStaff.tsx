@@ -12,17 +12,24 @@
  * הסרגל אמור להיראות גם *לפני* לחיצה על play (כמו RevealOverlay) — "ככה זה יישמע" לפני
  * שבאמת שומעים. geometryToMusic כבר ממפה Y-של-הצורה→pitch ו-X/אורך-קשת→זמן (§4.2) —
  * הסרגל הזה *הוא* אותה מיפוי בדיוק, רק מוצג כ-X/Y ליניארי במקום לאורך קו הצורה המקורי.
+ *
+ * ⭐ 2026-08-22 (§11 item 7 — "ויראלי"): זוהר/glow + פרצי-אור לכל תו. glow בנוי דרך
+ * BlurFilter המובנה ב-pixi.js core (לא pixi-filters — לא הוספנו תלות חדשה): שכבה שנייה
+ * מציירת את אותם המלבנים, מטושטשת ובאיחוד-בהירות (blend 'add'), מתחת לשכבה החדה. פרצי-האור
+ * וה"פעימת רקע" (לפי אנרגיה/velocity ברגע הנוכחי) רצים על app.ticker — אנימציה מתמשכת,
+ * לא רק re-render לפי progress prop.
  */
 
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import type { Application, Graphics as PixiGraphics } from 'pixi.js';
+import type { Application, Graphics as PixiGraphics, BlurFilter } from 'pixi.js';
 import {
   composeMusicalScore,
   geometryToMusic,
   TICKS_PER_BEAT,
   type MusicalScore,
+  type Note,
   type TrackRole,
 } from '@soundiform/core';
 import type { ShapePath } from '@soundiform/shared';
@@ -37,6 +44,11 @@ const SCAN_LINE_COLOR = 0x211b4a;
 const SCAN_LINE_WIDTH = 2;
 const NOTE_BAR_MIN_HEIGHT = 4;
 const NOTE_BAR_ALPHA = 0.85;
+const GLOW_BLUR_STRENGTH = 10;
+const GLOW_ALPHA = 0.55;
+const BACKGROUND_PULSE_COLOR = 0x8b7cf6;
+const BURST_LIFETIME_SECONDS = 0.45;
+const BURST_MAX_RADIUS = 22;
 
 const ROLE_COLORS: Record<TrackRole, number> = {
   lead: 0x8b7cf6,
@@ -49,6 +61,22 @@ const ROLE_COLORS: Record<TrackRole, number> = {
 export interface ScoreStaffProps {
   /** מיקום נוכחי בלופ, 0–1. */
   progress: number;
+}
+
+interface StaffLayout {
+  totalTicks: number;
+  minPitch: number;
+  pitchRange: number;
+  barHeight: number;
+  width: number;
+  height: number;
+}
+
+interface Burst {
+  x: number;
+  y: number;
+  color: number;
+  bornAtSeconds: number;
 }
 
 function computeScore(
@@ -69,6 +97,43 @@ function computeScore(
   return composeMusicalScore(intent, toCompositionConfig(genrePack));
 }
 
+function computeLayout(score: MusicalScore, width: number, height: number): StaffLayout | null {
+  const totalTicks = score.durationBars * score.timeSignature[0] * TICKS_PER_BEAT;
+  const allPitches = score.tracks.flatMap((track) => track.notes.map((note) => note.pitch));
+  if (allPitches.length === 0) {
+    return null;
+  }
+  const minPitch = Math.min(...allPitches);
+  const maxPitch = Math.max(...allPitches);
+  const pitchRange = Math.max(1, maxPitch - minPitch);
+  const barHeight = Math.max(NOTE_BAR_MIN_HEIGHT, height / (pitchRange + 4));
+  return { totalTicks, minPitch, pitchRange, barHeight, width, height };
+}
+
+function noteRect(
+  note: Note,
+  layout: StaffLayout,
+): { x: number; y: number; width: number; height: number } {
+  const x = (note.startTick / layout.totalTicks) * layout.width;
+  const noteWidth = Math.max(2, (note.durationTicks / layout.totalTicks) * layout.width);
+  const pitchNormalized = (note.pitch - layout.minPitch) / layout.pitchRange;
+  const y = (1 - pitchNormalized) * (layout.height - layout.barHeight);
+  return { x, y, width: noteWidth, height: layout.barHeight };
+}
+
+/** אנרגיה כוללת (סכום velocity) של כל התווים שמתנגנים ברגע tick נתון — משמש לפעימת הרקע. */
+function energyAtTick(score: MusicalScore, tick: number): number {
+  let energy = 0;
+  for (const track of score.tracks) {
+    for (const note of track.notes) {
+      if (tick >= note.startTick && tick < note.startTick + note.durationTicks) {
+        energy += note.velocity;
+      }
+    }
+  }
+  return energy;
+}
+
 export function ScoreStaff({ progress }: ScoreStaffProps) {
   const paths = useShapeStore((state) => state.paths);
   const shapeHash = useShapeStore((state) => state.shapeHash);
@@ -77,13 +142,24 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<Application | null>(null);
+  const backgroundPulseRef = useRef<PixiGraphics | null>(null);
+  const glowLayerRef = useRef<PixiGraphics | null>(null);
   const notesLayerRef = useRef<PixiGraphics | null>(null);
+  const burstsLayerRef = useRef<PixiGraphics | null>(null);
   const scanLineRef = useRef<PixiGraphics | null>(null);
+  const scoreRef = useRef<MusicalScore | null>(null);
+  const previousProgressRef = useRef(0);
+  const burstsRef = useRef<Burst[]>([]);
 
   const score = useMemo(
     () => computeScore(paths, shapeHash, genreId, packs),
     [paths, shapeHash, genreId, packs],
   );
+  useEffect(() => {
+    scoreRef.current = score;
+    previousProgressRef.current = 0;
+    burstsRef.current = [];
+  }, [score]);
 
   // אתחול/פירוק אפליקציית Pixi — פעם אחת, לא תלוי בהתקדמות/score.
   useEffect(() => {
@@ -94,7 +170,7 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
     let disposed = false;
 
     void (async () => {
-      const { Application, Graphics } = await import('pixi.js');
+      const { Application, Graphics, BlurFilter: BlurFilterCtor } = await import('pixi.js');
       const app = new Application();
       await app.init({ backgroundAlpha: 0, resizeTo: container, antialias: true });
       if (disposed) {
@@ -102,61 +178,111 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
         return;
       }
       container.appendChild(app.canvas);
+
+      const backgroundPulse = new Graphics();
+      const glowLayer = new Graphics();
       const notesLayer = new Graphics();
+      const burstsLayer = new Graphics();
       const scanLine = new Graphics();
-      app.stage.addChild(notesLayer);
-      app.stage.addChild(scanLine);
+
+      const glowFilter: BlurFilter = new BlurFilterCtor({ strength: GLOW_BLUR_STRENGTH });
+      glowLayer.filters = [glowFilter];
+      glowLayer.blendMode = 'add';
+      backgroundPulse.filters = [glowFilter];
+      backgroundPulse.blendMode = 'add';
+      burstsLayer.blendMode = 'add';
+
+      app.stage.addChild(backgroundPulse, glowLayer, notesLayer, burstsLayer, scanLine);
       appRef.current = app;
+      backgroundPulseRef.current = backgroundPulse;
+      glowLayerRef.current = glowLayer;
       notesLayerRef.current = notesLayer;
+      burstsLayerRef.current = burstsLayer;
       scanLineRef.current = scanLine;
+
+      // ⭐ לולאת אנימציה מתמשכת (לא רק re-render לפי progress prop) — פרצי-אור דועכים
+      // ופעימת-רקע צריכים להתעדכן בין frame ל-frame גם אם progress עצמו לא זז (למשל בהשהיה).
+      app.ticker.add(() => {
+        const currentScore = scoreRef.current;
+        const nowSeconds = performance.now() / 1000;
+
+        burstsRef.current = burstsRef.current.filter(
+          (burst) => nowSeconds - burst.bornAtSeconds < BURST_LIFETIME_SECONDS,
+        );
+        burstsLayer.clear();
+        for (const burst of burstsRef.current) {
+          const age = (nowSeconds - burst.bornAtSeconds) / BURST_LIFETIME_SECONDS;
+          const radius = BURST_MAX_RADIUS * age;
+          const alpha = Math.max(0, 1 - age);
+          burstsLayer
+            .circle(burst.x, burst.y, radius)
+            .fill({ color: burst.color, alpha: alpha * 0.7 });
+        }
+
+        backgroundPulse.clear();
+        if (currentScore) {
+          const layout = computeLayout(currentScore, app.renderer.width, app.renderer.height);
+          if (layout) {
+            const currentTick = previousProgressRef.current * layout.totalTicks;
+            const energy = energyAtTick(currentScore, currentTick);
+            const normalizedEnergy = Math.min(1, energy / 3);
+            if (normalizedEnergy > 0.02) {
+              const centerX = previousProgressRef.current * layout.width;
+              const radius = layout.height * (0.12 + normalizedEnergy * 0.18);
+              backgroundPulse
+                .circle(centerX, layout.height / 2, radius)
+                .fill({ color: BACKGROUND_PULSE_COLOR, alpha: normalizedEnergy * 0.14 });
+            }
+          }
+        }
+      });
     })();
 
     return () => {
       disposed = true;
+      backgroundPulseRef.current = null;
+      glowLayerRef.current = null;
       notesLayerRef.current = null;
+      burstsLayerRef.current = null;
       scanLineRef.current = null;
       appRef.current?.destroy(true);
       appRef.current = null;
     };
   }, []);
 
-  // ציור מחדש של כל התווים — רק כש-score משתנה (לא בכל פריים).
+  // ציור מחדש של כל התווים (+הזוהר שלהם) — רק כש-score משתנה (לא בכל פריים).
   useEffect(() => {
     const app = appRef.current;
     const notesLayer = notesLayerRef.current;
-    if (!app || !notesLayer) {
+    const glowLayer = glowLayerRef.current;
+    if (!app || !notesLayer || !glowLayer) {
       return;
     }
     notesLayer.clear();
+    glowLayer.clear();
     if (!score) {
       return;
     }
 
-    const totalTicks = score.durationBars * score.timeSignature[0] * TICKS_PER_BEAT;
-    const allPitches = score.tracks.flatMap((track) => track.notes.map((note) => note.pitch));
-    const minPitch = Math.min(...allPitches);
-    const maxPitch = Math.max(...allPitches);
-    const pitchRange = Math.max(1, maxPitch - minPitch);
-
-    const width = app.renderer.width;
-    const height = app.renderer.height;
-    const barHeight = Math.max(NOTE_BAR_MIN_HEIGHT, height / (pitchRange + 4));
+    const layout = computeLayout(score, app.renderer.width, app.renderer.height);
+    if (!layout) {
+      return;
+    }
 
     for (const track of score.tracks) {
       const color = ROLE_COLORS[track.role];
       for (const note of track.notes) {
-        const x = (note.startTick / totalTicks) * width;
-        const noteWidth = Math.max(2, (note.durationTicks / totalTicks) * width);
-        const pitchNormalized = (note.pitch - minPitch) / pitchRange;
-        const y = (1 - pitchNormalized) * (height - barHeight);
-        notesLayer
-          .rect(x, y, noteWidth, barHeight)
-          .fill({ color, alpha: NOTE_BAR_ALPHA * (0.5 + note.velocity * 0.5) });
+        const rect = noteRect(note, layout);
+        const alpha = NOTE_BAR_ALPHA * (0.5 + note.velocity * 0.5);
+        notesLayer.rect(rect.x, rect.y, rect.width, rect.height).fill({ color, alpha });
+        glowLayer
+          .rect(rect.x, rect.y, rect.width, rect.height)
+          .fill({ color, alpha: alpha * GLOW_ALPHA });
       }
     }
   }, [score]);
 
-  // עדכון קו הסריקה — קורה על כל שינוי ב-progress, בלי לצייר מחדש את התווים.
+  // עדכון קו הסריקה + זיהוי "חציית תו" (יורה burst) — קורה על כל שינוי ב-progress.
   useEffect(() => {
     const app = appRef.current;
     const scanLine = scanLineRef.current;
@@ -165,13 +291,41 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
     }
     scanLine.clear();
     if (!score) {
+      previousProgressRef.current = progress;
       return;
     }
-    const x = progress * app.renderer.width;
+    const width = app.renderer.width;
+    const x = progress * width;
     scanLine
       .moveTo(x, 0)
       .lineTo(x, app.renderer.height)
       .stroke({ width: SCAN_LINE_WIDTH, color: SCAN_LINE_COLOR, alpha: 0.9 });
+
+    // ⭐ פרץ-אור לכל תו שהסורק "חצה" מאז ה-progress הקודם — רק תזוזה קדימה (לא loop-wrap).
+    const previousProgress = previousProgressRef.current;
+    if (progress > previousProgress) {
+      const layout = computeLayout(score, width, app.renderer.height);
+      if (layout) {
+        const fromTick = previousProgress * layout.totalTicks;
+        const toTick = progress * layout.totalTicks;
+        const nowSeconds = performance.now() / 1000;
+        for (const track of score.tracks) {
+          const color = ROLE_COLORS[track.role];
+          for (const note of track.notes) {
+            if (note.startTick >= fromTick && note.startTick < toTick) {
+              const rect = noteRect(note, layout);
+              burstsRef.current.push({
+                x: rect.x,
+                y: rect.y + rect.height / 2,
+                color,
+                bornAtSeconds: nowSeconds,
+              });
+            }
+          }
+        }
+      }
+    }
+    previousProgressRef.current = progress;
   }, [progress, score]);
 
   return <div ref={containerRef} className="pointer-events-none absolute inset-0" />;

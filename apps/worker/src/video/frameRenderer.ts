@@ -7,10 +7,18 @@
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * ⚠️ קריטי — "פריוויו ≈ פלט סופי" גם לוידאו (§11 עדכון 2026-08-21): הצבעים/מתמטיקת
- * X=זמן/Y=פובך כאן זהים בכוונה ל-apps/web/src/components/canvas/ScoreStaff.tsx (הפריוויו
- * החי בדפדפן, שהחליף את Playhead.tsx הישן) — פורט מכני מ-Pixi.js Graphics ל-@napi-rs/canvas
- * 2D context, אותה מתמטיקה בדיוק. אם ScoreStaff.tsx משתנה, יש לעדכן גם כאן.
+ * ⚠️ קריטי — "פריוויו ≈ פלט סופי" גם לוידאו (§11 עדכון 2026-08-22): הצבעים/מתמטיקת
+ * X=זמן/Y=פובך + הזוהר/פרצי-האור כאן זהים בכוונה ל-apps/web/src/components/canvas/
+ * ScoreStaff.tsx (הפריוויו החי בדפדפן) — פורט מכני מ-Pixi.js Graphics+BlurFilter ל-
+ * @napi-rs/canvas 2D context: shadowBlur/shadowColor הוא מקביל ה-canvas-2D הסטנדרטי
+ * ל-glow (במקום blur+blend-'add' שני-שכבות של Pixi — אותה תחושה חזותית, מנגנון שונה
+ * כי אין filter graph ב-canvas 2D). אם ScoreStaff.tsx משתנה, יש לעדכן גם כאן.
+ *
+ * ⚠️ בניגוד ל-ScoreStaff.tsx (שרץ על app.ticker, עם state בין frames) — כאן כל פריים
+ * מחושב *ללא מצב חיצוני*, סטטלס לגמרי: גיל כל "פרץ-אור" נגזר ישירות מ-frameTimeSeconds
+ * (הנגזר מ-progress+durationSeconds של ה-score) מול startTick של כל תו, לא ממעקב
+ * frame-to-frame — כי כל קריאה ל-renderVideoFrame עצמאית (videoEncoder.ts קורא לזה
+ * unrelated-פעמים, לא ברצף שיתוף-state).
  */
 
 import { createCanvas, loadImage, type Image } from '@napi-rs/canvas';
@@ -23,6 +31,10 @@ const SCAN_LINE_COLOR = '#211b4a'; // = ScoreStaff.tsx SCAN_LINE_COLOR (0x211b4a
 const SCAN_LINE_WIDTH = 2;
 const NOTE_BAR_MIN_HEIGHT = 4;
 const NOTE_BAR_ALPHA = 0.85;
+const GLOW_BLUR_PX = 14; // = ScoreStaff.tsx GLOW_BLUR_STRENGTH (מקביל אינטואיטיבי, לא זהה 1:1 — יחידות שונות)
+const BACKGROUND_PULSE_COLOR = '#8b7cf6'; // = ScoreStaff.tsx BACKGROUND_PULSE_COLOR (0x8b7cf6)
+const BURST_LIFETIME_SECONDS = 0.45; // = ScoreStaff.tsx BURST_LIFETIME_SECONDS
+const BURST_MAX_RADIUS = 22; // = ScoreStaff.tsx BURST_MAX_RADIUS
 
 // = ScoreStaff.tsx ROLE_COLORS — חייב להישאר בסנכרון.
 const ROLE_COLORS: Record<TrackRole, string> = {
@@ -72,6 +84,7 @@ interface ScoreLayout {
   minPitch: number;
   pitchRange: number;
   barHeight: number;
+  secondsPerTick: number;
 }
 
 function computeScoreLayout(score: MusicalScore, dimensions: FrameDimensions): ScoreLayout | null {
@@ -84,37 +97,123 @@ function computeScoreLayout(score: MusicalScore, dimensions: FrameDimensions): S
   const maxPitch = Math.max(...allPitches);
   const pitchRange = Math.max(1, maxPitch - minPitch);
   const barHeight = Math.max(NOTE_BAR_MIN_HEIGHT, dimensions.height / (pitchRange + 4));
-  return { totalTicks, minPitch, pitchRange, barHeight };
+  const secondsPerTick = 60 / (score.tempo * TICKS_PER_BEAT);
+  return { totalTicks, minPitch, pitchRange, barHeight, secondsPerTick };
 }
 
+interface NoteRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function noteRect(
+  note: MusicalScore['tracks'][number]['notes'][number],
+  layout: ScoreLayout,
+  dimensions: FrameDimensions,
+): NoteRect {
+  const { width, height } = dimensions;
+  const x = (note.startTick / layout.totalTicks) * width;
+  const noteWidth = Math.max(2, (note.durationTicks / layout.totalTicks) * width);
+  const pitchNormalized = (note.pitch - layout.minPitch) / layout.pitchRange;
+  const y = (1 - pitchNormalized) * (height - layout.barHeight);
+  return { x, y, width: noteWidth, height: layout.barHeight };
+}
+
+type Canvas2DContext = ReturnType<ReturnType<typeof createCanvas>['getContext']>;
+
 function drawNotes(
-  ctx: ReturnType<ReturnType<typeof createCanvas>['getContext']>,
+  ctx: Canvas2DContext,
   score: MusicalScore,
   layout: ScoreLayout,
   dimensions: FrameDimensions,
 ): void {
-  const { width, height } = dimensions;
-  const { totalTicks, minPitch, pitchRange, barHeight } = layout;
-
   for (const track of score.tracks) {
-    ctx.fillStyle = ROLE_COLORS[track.role];
+    const color = ROLE_COLORS[track.role];
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = GLOW_BLUR_PX;
     for (const note of track.notes) {
-      const x = (note.startTick / totalTicks) * width;
-      const noteWidth = Math.max(2, (note.durationTicks / totalTicks) * width);
-      const pitchNormalized = (note.pitch - minPitch) / pitchRange;
-      const y = (1 - pitchNormalized) * (height - barHeight);
+      const rect = noteRect(note, layout, dimensions);
       ctx.globalAlpha = NOTE_BAR_ALPHA * (0.5 + note.velocity * 0.5);
-      ctx.fillRect(x, y, noteWidth, barHeight);
+      ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    }
+  }
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
+/** אנרגיה כוללת (סכום velocity) של כל התווים שמתנגנים ברגע נתון — = ScoreStaff.tsx energyAtTick. */
+function energyAtSeconds(score: MusicalScore, layout: ScoreLayout, timeSeconds: number): number {
+  let energy = 0;
+  for (const track of score.tracks) {
+    for (const note of track.notes) {
+      const startSeconds = note.startTick * layout.secondsPerTick;
+      const endSeconds = (note.startTick + note.durationTicks) * layout.secondsPerTick;
+      if (timeSeconds >= startSeconds && timeSeconds < endSeconds) {
+        energy += note.velocity;
+      }
+    }
+  }
+  return energy;
+}
+
+function drawBackgroundPulse(
+  ctx: Canvas2DContext,
+  score: MusicalScore,
+  layout: ScoreLayout,
+  dimensions: FrameDimensions,
+  progress: number,
+  frameTimeSeconds: number,
+): void {
+  const energy = energyAtSeconds(score, layout, frameTimeSeconds);
+  const normalizedEnergy = Math.min(1, energy / 3);
+  if (normalizedEnergy <= 0.02) {
+    return;
+  }
+  const centerX = progress * dimensions.width;
+  const radius = dimensions.height * (0.12 + normalizedEnergy * 0.18);
+  ctx.globalAlpha = normalizedEnergy * 0.14;
+  ctx.fillStyle = BACKGROUND_PULSE_COLOR;
+  ctx.shadowColor = BACKGROUND_PULSE_COLOR;
+  ctx.shadowBlur = GLOW_BLUR_PX * 2;
+  ctx.beginPath();
+  ctx.arc(centerX, dimensions.height / 2, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
+/** פרצי-אור לתווים שהתחילו ב-±BURST_LIFETIME_SECONDS מהפריים הנוכחי — = ScoreStaff.tsx bursts. */
+function drawBursts(
+  ctx: Canvas2DContext,
+  score: MusicalScore,
+  layout: ScoreLayout,
+  dimensions: FrameDimensions,
+  frameTimeSeconds: number,
+): void {
+  for (const track of score.tracks) {
+    const color = ROLE_COLORS[track.role];
+    for (const note of track.notes) {
+      const startSeconds = note.startTick * layout.secondsPerTick;
+      const age = (frameTimeSeconds - startSeconds) / BURST_LIFETIME_SECONDS;
+      if (age < 0 || age >= 1) {
+        continue;
+      }
+      const rect = noteRect(note, layout, dimensions);
+      const radius = BURST_MAX_RADIUS * age;
+      ctx.globalAlpha = Math.max(0, 1 - age) * 0.7;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(rect.x, rect.y + rect.height / 2, radius, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
   ctx.globalAlpha = 1;
 }
 
-async function drawWatermark(
-  ctx: ReturnType<ReturnType<typeof createCanvas>['getContext']>,
-  width: number,
-  height: number,
-): Promise<void> {
+async function drawWatermark(ctx: Canvas2DContext, width: number, height: number): Promise<void> {
   const logo = await getWatermarkImage();
   const size = Math.max(24, Math.round(width * 0.08));
   const margin = size * 0.4;
@@ -142,7 +241,10 @@ export async function renderVideoFrame(
 
   const layout = computeScoreLayout(score, dimensions);
   if (layout) {
+    const frameTimeSeconds = progress * layout.totalTicks * layout.secondsPerTick;
+    drawBackgroundPulse(ctx, score, layout, dimensions, progress, frameTimeSeconds);
     drawNotes(ctx, score, layout, dimensions);
+    drawBursts(ctx, score, layout, dimensions, frameTimeSeconds);
   }
 
   const scanX = progress * width;
