@@ -82,12 +82,15 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
   }
 
   let key: string | null | undefined;
+  let filename: string;
 
   if (type === 'audio') {
     const wantsWav = row.ownerPlan !== 'free';
     key = wantsWav ? row.audioKey : row.mp3Key;
+    filename = wantsWav ? 'soundiform.wav' : 'soundiform.mp3';
   } else if (type === 'video') {
     key = row.videoKey;
+    filename = 'soundiform.mp4';
   } else if (type === 'midi') {
     if (!isOwner || row.ownerPlan !== 'studio') {
       return NextResponse.json(
@@ -96,6 +99,7 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
       );
     }
     key = row.midiKey;
+    filename = 'soundiform.mid';
   } else {
     if (!isOwner || row.ownerPlan !== 'studio') {
       return NextResponse.json(
@@ -104,13 +108,18 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
       );
     }
     key = row.stemKeys?.[role!];
+    filename = `soundiform-${role}.wav`;
   }
 
   if (!key) {
     return NextResponse.json({ error: 'File not available' }, { status: 404 });
   }
 
+  // ⭐ 2026-08-22: בלי Content-Disposition: attachment, הדפדפן פשוט מנווט ל-URL החתום
+  // (מציג/מנגן inline) — לא מוריד קובץ בפועל, בדיוק הבאג שבדיקה חיה תפסה בכפתור Download.
   const storage = createR2ProviderFromEnv();
-  const signedUrl = await storage.getDownloadUrl(key);
+  const signedUrl = await storage.getDownloadUrl(key, {
+    responseContentDisposition: `attachment; filename="${filename}"`,
+  });
   return NextResponse.redirect(signedUrl);
 }

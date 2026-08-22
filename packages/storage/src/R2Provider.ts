@@ -69,7 +69,13 @@ export class R2Provider implements StorageProvider {
   }
 
   async getDownloadUrl(key: string, options?: DownloadUrlOptions): Promise<string> {
-    const command = new GetObjectCommand({ Bucket: this.bucketName, Key: key });
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ...(options?.responseContentDisposition && {
+        ResponseContentDisposition: options.responseContentDisposition,
+      }),
+    });
     return getSignedUrl(this.client, command, {
       expiresIn: options?.expiresInSeconds ?? DEFAULT_URL_TTL_SECONDS,
     });

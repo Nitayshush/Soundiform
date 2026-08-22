@@ -65,7 +65,7 @@ function StudioContent() {
           <Button
             type="button"
             variant="outline"
-            onClick={requestSave}
+            onClick={() => requestSave()}
             disabled={!canPlay || isSaving}
           >
             {isSaving ? 'Saving…' : savedProjectId ? 'Saved ✓' : 'Save'}

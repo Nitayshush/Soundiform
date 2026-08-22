@@ -16,6 +16,13 @@ export interface UploadUrlOptions {
 
 export interface DownloadUrlOptions {
   expiresInSeconds?: number;
+  /**
+   * ⭐ 2026-08-22: ערך Content-Disposition (למשל 'attachment; filename="soundiform.mp4"') —
+   * בלעדיו הדפדפן פשוט מנווט ל-URL החתום (מנגן/מציג את הקובץ inline) במקום להוריד אותו
+   * בפועל לדיסק. נתפס ע"י בדיקה חיה: כפתור ה-Download החדש היה "עוזב" את האתר לגמרי,
+   * לא שומר קובץ. ראה api/renders/[renderId]/download/route.ts.
+   */
+  responseContentDisposition?: string;
 }
 
 export interface ObjectMetadata {

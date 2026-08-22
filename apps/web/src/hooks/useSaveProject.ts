@@ -32,7 +32,11 @@ function errorMessage(error: unknown): string {
 }
 
 export interface UseSaveProjectResult {
-  requestSave: () => void;
+  /**
+   * @param extraNextParams מחרוזת query-params נוספת (בלי `&` מוביל) שתצורף ל-`next` אצל
+   * אנונימי — ראה useDownload.ts. לדוגמה: `'autoDownload=1'`.
+   */
+  requestSave: (extraNextParams?: string) => void;
   isSaving: boolean;
   saveError: string | null;
   savedProjectId: string | null;
@@ -84,15 +88,18 @@ export function useSaveProject(): UseSaveProjectResult {
     }
   }, [paths, shapeHash, sourceType, uploadKey, searchParams]);
 
-  const requestSave = useCallback(() => {
-    if (!user) {
-      const remixOf = searchParams.get('remixOf');
-      const next = `/studio?autoSave=1${remixOf ? `&remixOf=${remixOf}` : ''}`;
-      router.push(`/login?next=${encodeURIComponent(next)}`);
-      return;
-    }
-    void save();
-  }, [user, router, save, searchParams]);
+  const requestSave = useCallback(
+    (extraNextParams?: string) => {
+      if (!user) {
+        const remixOf = searchParams.get('remixOf');
+        const next = `/studio?autoSave=1${remixOf ? `&remixOf=${remixOf}` : ''}${extraNextParams ? `&${extraNextParams}` : ''}`;
+        router.push(`/login?next=${encodeURIComponent(next)}`);
+        return;
+      }
+      void save();
+    },
+    [user, router, save, searchParams],
+  );
 
   useEffect(() => {
     if (isUserLoading || autoSaveAttempted.current) {

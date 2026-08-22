@@ -28,7 +28,10 @@ import { useGenreStore } from '@/stores/genreStore';
 import type { UseSaveProjectResult } from './useSaveProject';
 
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLL_ATTEMPTS = 60; // ~2 דקות — רינדור וידאו אמיתי יכול לקחת זמן.
+// ⭐ 2026-08-22: 60 (2 דקות) היה קרוב-מדי-לגבול — בדיקה חיה מדדה רינדור וידאו אמיתי
+// (720p, ~18 שניות מוזיקה) ב-~170-176 שניות. 150 (5 דקות) נותן שוליים אמיתיים, כולל
+// לאיכויות/משכים גדולים יותר (pro/studio).
+const MAX_POLL_ATTEMPTS = 150;
 const DEFAULT_VIDEO_ASPECT_RATIO = '16:9'; // ⭐ ברירת מחדל ל-YouTube (הבקשה המפורשת של Nitay).
 
 function errorMessage(error: unknown): string {
@@ -135,10 +138,10 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
       void renderAndDownload(savedProjectId);
       return;
     }
-    // requestSave() עצמו מטפל בהפניית אנונימי ל-/login?next=/studio?autoSave=1 — כאן רק
-    // מוסיפים autoDownload=1 (ראה למטה) ומחכים ל-savedProjectId להופיע כדי להמשיך.
+    // requestSave('autoDownload=1') מטפל בהפניית אנונימי ל-/login?next=/studio?autoSave=1
+    // &autoDownload=1 — כאן רק מחכים ל-savedProjectId להופיע כדי להמשיך (ראה למטה).
     pendingDownloadRef.current = true;
-    requestSave();
+    requestSave('autoDownload=1');
   }, [savedProjectId, requestSave, renderAndDownload]);
 
   // ⭐ ממשיך לרינדור+הורדה ברגע ש-savedProjectId מופיע, בין אם מ-requestDownload (משתמש מחובר,
