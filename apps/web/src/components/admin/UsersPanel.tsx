@@ -102,7 +102,10 @@ export function UsersPanel() {
           userId,
           plan,
           planSource: 'manual',
-          freeAccessUntil: new Date(dateValue).toISOString(),
+          // ⭐ 2026-08-22: input type="date" נותן "YYYY-MM-DD" — new Date() על זה מתפרש כחצות
+          // UTC, כלומר "היום" תמיד ייפסל כ"עבר" ו"מחר" עלול ליפול מוקדם מהצפוי במזרח ל-UTC.
+          // הוספת שעה הופכת את הפירוש ל-local time — סוף היום שנבחר, לפי הלוח של האדמין עצמו.
+          freeAccessUntil: new Date(`${dateValue}T23:59:59`).toISOString(),
         }),
       });
       const body = (await response.json()) as { user?: AdminUserRow; error?: string };
