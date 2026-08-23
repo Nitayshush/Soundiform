@@ -17,14 +17,16 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { and, eq, sql } from 'drizzle-orm';
-import { follows, getDb, projects, renders, shares, users } from '@soundiform/db';
+import { and, count, eq, sql } from 'drizzle-orm';
+import { follows, getDb, likes, projects, renders, shares, users } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
 import { RemixButton } from '@/components/share/RemixButton';
 import { SharePlayer } from '@/components/share/SharePlayer';
 import { ShareButtons } from '@/components/share/ShareButtons';
 import { DownloadLinks } from '@/components/share/DownloadLinks';
 import { FollowButton } from '@/components/account/FollowButton';
+import { LikeButton } from '@/components/gallery/LikeButton';
+import { CommentSection } from '@/components/gallery/CommentSection';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent } from '@/components/ui/card';
 import { getSiteUrl } from '@/lib/siteUrl';
@@ -70,16 +72,26 @@ export default async function SharePage({ params }: SharePageProps) {
     data: { user: sessionUser },
   } = await supabase.auth.getUser();
   const isOwnCreation = sessionUser?.id === row.creatorId;
-  const isFollowingCreator = sessionUser
-    ? (
-        await db
+  const [isFollowingCreator, [likeCountRow], isLikedRows] = await Promise.all([
+    sessionUser
+      ? db
           .select({ followerId: follows.followerId })
           .from(follows)
           .where(
             and(eq(follows.followerId, sessionUser.id), eq(follows.followingId, row.creatorId)),
           )
-      ).length > 0
-    : false;
+          .then((rows) => rows.length > 0)
+      : Promise.resolve(false),
+    db.select({ total: count() }).from(likes).where(eq(likes.renderId, row.renderId)),
+    sessionUser
+      ? db
+          .select({ userId: likes.userId })
+          .from(likes)
+          .where(and(eq(likes.userId, sessionUser.id), eq(likes.renderId, row.renderId)))
+      : Promise.resolve([]),
+  ]);
+  const likeCount = likeCountRow?.total ?? 0;
+  const isLiked = isLikedRows.length > 0;
 
   const hasVideo = Boolean(row.videoKey);
   const videoUrl = hasVideo ? `/api/renders/${row.renderId}/download?type=video&inline=1` : null;
@@ -103,9 +115,16 @@ export default async function SharePage({ params }: SharePageProps) {
               (row.creatorDisplayName ?? 'a Soundiform creator')
             )}
           </p>
-          {!isOwnCreation && (
-            <FollowButton profileUserId={row.creatorId} initialIsFollowing={isFollowingCreator} />
-          )}
+          <div className="flex items-center gap-2">
+            <LikeButton
+              renderId={row.renderId}
+              initialIsLiked={isLiked}
+              initialLikeCount={likeCount}
+            />
+            {!isOwnCreation && (
+              <FollowButton profileUserId={row.creatorId} initialIsFollowing={isFollowingCreator} />
+            )}
+          </div>
         </div>
         <Card className="border-border/60 p-6">
           <CardContent className="flex flex-col gap-6 px-0">
@@ -121,6 +140,9 @@ export default async function SharePage({ params }: SharePageProps) {
             <ShareButtons url={`${getSiteUrl()}/s/${shareId}`} />
           </CardContent>
         </Card>
+        <div className="mt-6">
+          <CommentSection renderId={row.renderId} />
+        </div>
       </main>
     </>
   );

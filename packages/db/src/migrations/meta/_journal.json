@@ -71,6 +71,13 @@
       "when": 1787462849355,
       "tag": "0009_mushy_nehzno",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787479216884,
+      "tag": "0010_strange_wrecking_crew",
+      "breakpoints": true
     }
   ]
 }

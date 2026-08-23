@@ -16,6 +16,7 @@ export * from './shares';
 export * from './remixes';
 export * from './likes';
 export * from './follows';
+export * from './comments';
 export * from './genrePacks';
 export * from './moderationQueue';
 export * from './auditLog';

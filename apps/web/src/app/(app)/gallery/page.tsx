@@ -11,8 +11,8 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import { and, desc, eq, inArray } from 'drizzle-orm';
-import { follows, getDb, renders, shares, users, projects } from '@soundiform/db';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { follows, getDb, likes, renders, shares, users, projects } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
 import { Header } from '@/components/layout/Header';
 import { GalleryCard } from '@/components/gallery/GalleryCard';
@@ -57,18 +57,26 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
   } = await supabase.auth.getUser();
 
   const creatorIds = Array.from(new Set(rows.map((row) => row.creatorId)));
-  const followingIds = sessionUser
-    ? new Set(
-        (
-          await db
-            .select({ followingId: follows.followingId })
-            .from(follows)
-            .where(
-              and(eq(follows.followerId, sessionUser.id), inArray(follows.followingId, creatorIds)),
-            )
-        ).map((row) => row.followingId),
-      )
-    : new Set<string>();
+  const renderIds = rows.map((row) => row.renderId);
+  const [followingIds, likeCountRows] = await Promise.all([
+    sessionUser
+      ? db
+          .select({ followingId: follows.followingId })
+          .from(follows)
+          .where(
+            and(eq(follows.followerId, sessionUser.id), inArray(follows.followingId, creatorIds)),
+          )
+          .then((followingRows) => new Set(followingRows.map((row) => row.followingId)))
+      : Promise.resolve(new Set<string>()),
+    renderIds.length > 0
+      ? db
+          .select({ renderId: likes.renderId, total: count() })
+          .from(likes)
+          .where(inArray(likes.renderId, renderIds))
+          .groupBy(likes.renderId)
+      : Promise.resolve([]),
+  ]);
+  const likeCountByRenderId = new Map(likeCountRows.map((row) => [row.renderId, row.total]));
 
   return (
     <>
@@ -90,6 +98,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
                   }
                   genreId={row.genreId}
                   viewCount={row.viewCount}
+                  likeCount={likeCountByRenderId.get(row.renderId) ?? 0}
                   creator={{
                     id: row.creatorId,
                     username: row.creatorUsername,
