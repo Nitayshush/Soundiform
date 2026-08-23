@@ -88,14 +88,19 @@ function StudioContent() {
           </Button>
         </div>
       </header>
-      {/* ⭐ הרקע הזה לבן במכוון (לא bg-background) — סרגל התווים/קנבס הציור, בניגוד
-          ל-header שנשאר על הפלטה הכהה. text-[#211B4A] נותן ל-MusicalGrid (currentColor)
-          קו כהה-על-לבן במקום הבהיר-על-כהה שהיה מתאים לרקע הקודם. */}
-      <div className="relative flex-1 bg-white text-[#211B4A]">
-        <DrawingCanvas hidden={isPlaying} />
-        <MusicalGrid />
-        <ScoreStaff progress={progress} />
-        <RevealOverlay />
+      {/* ⭐ 2026-08-23: מסגרת קבועה (16:9 — אותו יחס כמו הוידאו המיוצא, כך שהקנבס בפועל
+          מציג תצוגה מקדימה נאמנה של הפריים הסופי) בתוך מיכל-מיישר עם רקע ניטרלי, במקום
+          flex-1 מלא-מסך — כדי שכל הציור תמיד נראה במלואו, בלי גלילה, בכל גודל מסך. */}
+      <div className="flex flex-1 items-center justify-center bg-muted/30 p-4">
+        {/* ⭐ הרקע הזה לבן במכוון (לא bg-background) — סרגל התווים/קנבס הציור, בניגוד
+            ל-header שנשאר על הפלטה הכהה. text-[#211B4A] נותן ל-MusicalGrid (currentColor)
+            קו כהה-על-לבן במקום הבהיר-על-כהה שהיה מתאים לרקע הקודם. */}
+        <div className="relative aspect-video max-h-full w-full max-w-5xl bg-white text-[#211B4A] shadow-lg">
+          <DrawingCanvas hidden={isPlaying} />
+          <MusicalGrid />
+          <ScoreStaff progress={progress} />
+          <RevealOverlay />
+        </div>
       </div>
     </main>
   );

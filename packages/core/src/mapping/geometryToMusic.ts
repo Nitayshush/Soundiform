@@ -15,9 +15,16 @@
  * כלומר בפועל "סדר-ציור → זמן") ל-resampleByX (xAxisResample.ts, "מיקום-X → זמן" האמיתי —
  * זה מה ש-§4.2 תמיד תיאר, רק לא היה ממומש כך). contour עצמו (arc-length) נשאר ללא שינוי
  * ומשמש כאן רק את analyzeShape/detectSymmetry, שצריכים נאמנות גאומטרית, לא פרשנות-זמן.
+ *
+ * ⭐ 2026-08-23: כל משיכת-עט תורמת ליצירה, לא רק ה-path הדומיננטי — pitchContour נבנה מכל
+ * ה-paths יחד (resampleByX מקבל את כולם), ו-motifSize (→ אורך היצירה בבארים + מספר תווי
+ * המלודיה בפועל) מצטבר תוספתית: ה-path הדומיננטי משתמש ב-computeMotifSize הקיים (בלי שינוי
+ * להתנהגות המוכרת), וכל path *נוסף* תורם max(vertexCount, 3) משלו — כך שציור עם יותר
+ * משיכות באמת יוצר יצירה ארוכה/עשירה יותר, לא רק ויזואל נוסף. loop/symmetryTransform
+ * נשארים נגזרים מה-path הדומיננטי בלבד (האופי הכללי של הצורה, לא "כמה צויר").
  */
 
-import type { ShapeData } from '@soundiform/shared';
+import type { ShapeData, ShapePath } from '@soundiform/shared';
 import { z } from 'zod';
 import { extractContour, pickPrimaryPath, isNearlyClosed } from '../analysis/contourExtractor';
 import { analyzeShape } from '../analysis/shapeAnalyzer';
@@ -30,6 +37,10 @@ const RESAMPLE_COUNT = 64;
 const SHARPNESS_THRESHOLD = 0.15;
 /** מנרמל היקף (לא שטח — לצורה פתוחה אין שטח מוגדר) לטווח 0–1 כקירוב ל"מילוי". */
 const OPEN_SHAPE_PERIMETER_NORMALIZER = 4;
+/** תרומה מינימלית ל-motifSize מ-path נוסף (לא-דומיננטי) — גם משיכה חלקה תורם משהו. */
+const MIN_MOTIF_CONTRIBUTION_PER_STROKE = 3;
+/** תקרת motifSize כוללת — תואם RESAMPLE_COUNT: ל-pitchContour יש רק 64 ערכים נבדלים ממילא. */
+const MAX_MOTIF_SIZE = RESAMPLE_COUNT;
 
 export const symmetryTransformSchema = z.enum([
   'none',
@@ -85,6 +96,29 @@ function computeMotifSize(features: ShapeFeatures, symmetry: SymmetryResult): nu
   return Math.max(symmetry.rotationalOrder, 3);
 }
 
+/** תרומת path בודד (לא-דומיננטי) ל-motifSize הכולל — משתמש ב-extractContour/analyzeShape
+ * הקיימים על צורה סינתטית עם ה-path הזה בלבד, בלי שום קוד גיאומטריה חדש. */
+function computeStrokeContribution(path: ShapePath): number {
+  const contour = extractContour({ version: '1.0.0', paths: [path] }, RESAMPLE_COUNT);
+  const features = analyzeShape(contour);
+  return Math.max(features.vertexCount, MIN_MOTIF_CONTRIBUTION_PER_STROKE);
+}
+
+/** motifSize הכולל: ה-path הדומיננטי כרגיל, ועוד תרומה מכל path נוסף — יותר משיכות = יצירה ארוכה יותר. */
+function computeTotalMotifSize(
+  shape: ShapeData,
+  primaryPath: ShapePath,
+  primaryFeatures: ShapeFeatures,
+  primarySymmetry: SymmetryResult,
+): number {
+  const primaryContribution = computeMotifSize(primaryFeatures, primarySymmetry);
+  const otherContributions = shape.paths
+    .filter((path) => path !== primaryPath)
+    .map(computeStrokeContribution);
+  const total = primaryContribution + otherContributions.reduce((sum, value) => sum + value, 0);
+  return Math.min(MAX_MOTIF_SIZE, total);
+}
+
 function computeArticulation(features: ShapeFeatures): ArticulationHint {
   const sharpness = features.vertexCount / RESAMPLE_COUNT;
   return sharpness > SHARPNESS_THRESHOLD ? 'staccato' : 'legato';
@@ -114,13 +148,16 @@ export function geometryToMusic(shape: ShapeData, shapeHash: string): RawMusical
 
   const fillHint = computeFillHint(features);
   const primaryPath = pickPrimaryPath(shape.paths);
-  const primaryClosed = primaryPath.closed || isNearlyClosed(primaryPath.points);
+  const resamplePaths = shape.paths.map((path) => ({
+    points: path.points,
+    closed: path.closed || isNearlyClosed(path.points),
+  }));
 
   const intent: RawMusicalIntent = {
     seed: shapeHash,
     loop: contour.closed,
-    motifSize: computeMotifSize(features, symmetry),
-    pitchContour: resampleByX(primaryPath.points, primaryClosed, RESAMPLE_COUNT),
+    motifSize: computeTotalMotifSize(shape, primaryPath, features, symmetry),
+    pitchContour: resampleByX(resamplePaths, RESAMPLE_COUNT),
     symmetryTransform: toSymmetryTransform(symmetry),
     rotationalOrder: symmetry.rotationalOrder,
     articulation: computeArticulation(features),

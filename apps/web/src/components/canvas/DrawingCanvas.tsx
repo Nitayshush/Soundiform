@@ -21,7 +21,7 @@ import { useShapeCapture } from '@/hooks/useShapeCapture';
 /** ⚠️ הקנבס עצמו לבן (studio/page.tsx) — קו כהה (לא בהיר-על-כהה כמו קודם). */
 const STROKE_COLOR = '#211b4a';
 const ACTIVE_STROKE_COLOR = '#6c5fc4';
-const LINE_WIDTH = 4;
+const LINE_WIDTH = 6;
 
 export interface DrawingCanvasProps {
   /** true בזמן ניגון — הציור הגולמי דועך (ScoreStaff.tsx מרכיב אותו מחדש על הסורק). */

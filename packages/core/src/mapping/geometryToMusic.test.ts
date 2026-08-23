@@ -80,4 +80,61 @@ describe('geometryToMusic', () => {
     const intent = geometryToMusic(makeSquareShapeData(), 'abc123');
     expect(intent.seed).toBe('abc123');
   });
+
+  describe('כמה משיכות-עט (§11 2026-08-23: כל משיכה תורמת ליצירה)', () => {
+    it('משיכה שנייה מגדילה את motifSize מעבר למה שהמשיכה הדומיננטית לבדה הייתה נותנת', () => {
+      const triangleOnly = geometryToMusic(makeTriangleShapeData(), 'seed-multi');
+      expect(triangleOnly.motifSize).toBe(3); // בסיס — כמו הבדיקה הראשונה בקובץ הזה.
+
+      const triangleWithSecondStroke: ShapeData = {
+        ...makeTriangleShapeData(),
+        paths: [
+          ...makeTriangleShapeData().paths,
+          {
+            closed: false,
+            points: [
+              { x: 0, y: 0.1 },
+              { x: 0.1, y: 0.9 },
+              { x: 0.2, y: 0.1 },
+              { x: 0.3, y: 0.9 },
+            ],
+          },
+        ],
+      };
+      const withSecondStroke = geometryToMusic(triangleWithSecondStroke, 'seed-multi');
+      expect(withSecondStroke.motifSize).toBeGreaterThan(triangleOnly.motifSize);
+    });
+
+    it('pitchContour משקף את שתי המשיכות (לפי מיקום-X של כל אחת), לא רק את הדומיננטית', () => {
+      // משיכה ראשונה (הדומיננטית — יותר נקודות): x ∈ [0, 0.4], y=0.1 קבוע.
+      // משיכה שנייה: x ∈ [0.6, 1], y=0.9 קבוע.
+      const twoStrokes: ShapeData = {
+        version: '1.0.0',
+        paths: [
+          {
+            closed: false,
+            points: [
+              { x: 0, y: 0.1 },
+              { x: 0.1, y: 0.1 },
+              { x: 0.2, y: 0.1 },
+              { x: 0.4, y: 0.1 },
+            ],
+          },
+          {
+            closed: false,
+            points: [
+              { x: 0.6, y: 0.9 },
+              { x: 1, y: 0.9 },
+            ],
+          },
+        ],
+      };
+      const intent = geometryToMusic(twoStrokes, 'seed-two-strokes');
+      const [first] = intent.pitchContour;
+      const last = intent.pitchContour.at(-1);
+      // התחלת ה-contour (X נמוך) שייכת למשיכה הראשונה (y≈0.1); הסוף (X גבוה) למשיכה השנייה (y≈0.9).
+      expect(first).toBeCloseTo(0.1, 1);
+      expect(last).toBeCloseTo(0.9, 1);
+    });
+  });
 });

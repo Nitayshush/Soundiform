@@ -15,6 +15,12 @@
  * וממוצעים (סוכם עם Nitay: ממוצע, לא רק "הענף הראשון שצויר"). קטע X שאף מקטע-קו לא חוצה
  * (ריצה כמעט-אנכית) מקבל אינטרפולציה ליניארית מהעוגנים המוגדרים הקרובים ביותר — פלט תמיד
  * מערך מלא ללא "חורים".
+ *
+ * ⭐ 2026-08-23: תומך בכמה paths בו-זמנית (לא רק ה-path הדומיננטי) — כל משיכת-עט נוספת
+ * שהמשתמש מצייר צריכה להשפיע על המלודיה, לא רק על התצוגה החזותית (ראה geometryToMusic.ts).
+ * ה-paths *לא* מחוברים לפוליליין אחד (זה היה יוצר קטע-חיבור מזויף בין שתי משיכות נפרדות) —
+ * כל path נשאר עצמאי (כולל סגירה משלו אם closed), ורק החיתוכים-על-אותו-X שלהם מאוחדים יחד
+ * לפני ממוצע, בדיוק כמו האיחוד בין שני ענפים של אותה צורה סגורה.
  */
 
 import type { ShapePoint } from '@soundiform/shared';
@@ -23,12 +29,17 @@ import { at } from '../internal/arrayUtils';
 const MIN_X_RANGE = 1e-6;
 const MIN_SEGMENT_WIDTH = 1e-9;
 
+export interface ResamplePath {
+  points: ShapePoint[];
+  closed: boolean;
+}
+
 interface Anchor {
   value: number;
   index: number;
 }
 
-function interpolatedYValuesAtX(workingPoints: ShapePoint[], targetX: number): number[] {
+function interpolatedYValuesAtXAlongPath(workingPoints: ShapePoint[], targetX: number): number[] {
   const values: number[] = [];
   for (let index = 1; index < workingPoints.length; index += 1) {
     const a = at(workingPoints, index - 1);
@@ -45,6 +56,19 @@ function interpolatedYValuesAtX(workingPoints: ShapePoint[], targetX: number): n
     values.push(a.y + (b.y - a.y) * t);
   }
   return values;
+}
+
+function workingPointsFor(path: ResamplePath): ShapePoint[] {
+  const firstPoint = path.points[0];
+  if (!firstPoint) {
+    return path.points;
+  }
+  return path.closed ? [...path.points, firstPoint] : path.points;
+}
+
+/** מאחד את חיתוכי-ה-X של כל ה-paths בנקודה נתונה — כל path נבדק בנפרד, לא מחובר לשכנו. */
+function interpolatedYValuesAtX(paths: readonly ResamplePath[], targetX: number): number[] {
+  return paths.flatMap((path) => interpolatedYValuesAtXAlongPath(workingPointsFor(path), targetX));
 }
 
 function interpolateFromAnchors(anchors: readonly Anchor[], index: number): number {
@@ -76,30 +100,30 @@ function fillGaps(samples: readonly (number | null)[]): number[] {
 
 /**
  * מדגם מחדש `bucketCount` ערכי Y, שווי-מרווח לפי X (לא לפי אורך-קשת/סדר-ציור), לאורך כל
- * טווח ה-X של הצורה. משמש לבניית pitchContour — "מה הצליל בכל רגע-זמן, סרוק משמאל לימין."
+ * טווח ה-X המשולב של *כל* ה-paths שמועברים. משמש לבניית pitchContour — "מה הצליל בכל
+ * רגע-זמן, סרוק משמאל לימין" — כל משיכת-עט תורמת את החלק שלה, לפי מיקומה על ה-X.
  */
-export function resampleByX(points: ShapePoint[], closed: boolean, bucketCount: number): number[] {
-  if (points.length === 0) {
+export function resampleByX(paths: readonly ResamplePath[], bucketCount: number): number[] {
+  const allPoints = paths.flatMap((path) => path.points);
+  if (allPoints.length === 0) {
     throw new Error('resampleByX: לצורה אין אף נקודה — קלט לא תקף');
   }
 
-  const xs = points.map((point) => point.x);
+  const xs = allPoints.map((point) => point.x);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const xRange = maxX - minX;
 
   if (xRange < MIN_X_RANGE) {
-    const averageY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+    const averageY = allPoints.reduce((sum, point) => sum + point.y, 0) / allPoints.length;
     return Array.from({ length: bucketCount }, () => averageY);
   }
 
-  const firstPoint = at(points, 0);
-  const workingPoints = closed ? [...points, firstPoint] : points;
   const denominator = Math.max(1, bucketCount - 1);
 
   const rawSamples: (number | null)[] = Array.from({ length: bucketCount }, (_, index) => {
     const targetX = minX + (index / denominator) * xRange;
-    const values = interpolatedYValuesAtX(workingPoints, targetX);
+    const values = interpolatedYValuesAtX(paths, targetX);
     if (values.length === 0) {
       return null;
     }
