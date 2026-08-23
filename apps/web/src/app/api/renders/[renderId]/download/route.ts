@@ -1,11 +1,16 @@
 /**
  * @file        route.ts
- * @description ⭐ הורדת קבצי render — audio/video/midi/stem, מדורג לפי plan (§9). הפורמט
+ * @description ⭐ הורדת קבצי render — audio/video/midi/stem/poster, מדורג לפי plan (§9). הפורמט
  *              (mp3/wav, איכות/watermark הווידאו) נקבע לפי plan של *היוצר* (בעל ה-project),
  *              לא של המוריד — אותו עיקרון כמו watermark הווידאו (§11: נקבע פעם אחת ברינדור,
  *              לא per-viewer). MIDI/stems (studio בלבד) זמינים רק לבעלים עצמו — לא לצופה
- *              בדף שיתוף ציבורי (§11 item 7). video, כמו audio, זמין לכל בעל-גישה (owner
- *              או צופה share ציבורי) — לא studio-gated, בדיוק כמו טבלת האיכויות ב-§9.
+ *              בדף שיתוף ציבורי (§11 item 7). video/poster, כמו audio, זמינים לכל בעל-גישה
+ *              (owner או צופה share ציבורי) — לא studio-gated, בדיוק כמו טבלת האיכויות ב-§9.
+ *
+ *              ⭐ 2026-08-22 (§11 גלריה): inline=1 מדלג על Content-Disposition: attachment —
+ *              כדי שאותו signed URL ישמש גם ל-<video src>/<img src> בעמודי שיתוף/גלריה
+ *              (השמעה/הצגה), לא רק להורדה בפועל (כפתור Download נשאר attachment, ברירת
+ *              המחדל). poster תמיד inline (זו תמונת thumbnail, לעולם לא "הורדה").
  * @author      Soundiform
  * @created     2026-08-21
  *
@@ -22,8 +27,9 @@ import { createClient } from '@/lib/supabase/server';
 const TRACK_ROLES = ['bass', 'lead', 'pad', 'drums', 'skank'] as const;
 
 const querySchema = z.object({
-  type: z.enum(['audio', 'video', 'midi', 'stem']),
+  type: z.enum(['audio', 'video', 'midi', 'stem', 'poster']),
   role: z.enum(TRACK_ROLES).optional(),
+  inline: z.literal('1').optional(),
 });
 
 interface RouteParams {
@@ -36,11 +42,12 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
   const parsedQuery = querySchema.safeParse({
     type: url.searchParams.get('type'),
     role: url.searchParams.get('role') ?? undefined,
+    inline: url.searchParams.get('inline') ?? undefined,
   });
   if (!parsedQuery.success) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
-  const { type, role } = parsedQuery.data;
+  const { type, role, inline } = parsedQuery.data;
   if (type === 'stem' && !role) {
     return NextResponse.json({ error: 'role is required for type=stem' }, { status: 400 });
   }
@@ -51,6 +58,7 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
       audioKey: renders.audioKey,
       mp3Key: renders.mp3Key,
       videoKey: renders.videoKey,
+      posterKey: renders.posterKey,
       midiKey: renders.midiKey,
       stemKeys: renders.stemKeys,
       ownerId: projects.userId,
@@ -90,6 +98,9 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
   } else if (type === 'video') {
     key = row.videoKey;
     filename = 'soundiform.mp4';
+  } else if (type === 'poster') {
+    key = row.posterKey;
+    filename = 'poster.jpg';
   } else if (type === 'midi') {
     if (!isOwner || ownerPlan !== 'studio') {
       return NextResponse.json(
@@ -116,9 +127,12 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Ne
 
   // ⭐ 2026-08-22: בלי Content-Disposition: attachment, הדפדפן פשוט מנווט ל-URL החתום
   // (מציג/מנגן inline) — לא מוריד קובץ בפועל, בדיוק הבאג שבדיקה חיה תפסה בכפתור Download.
+  // wantsInline: poster הוא תמיד thumbnail (אף פעם לא "הורדה"); video/audio יכולים לבקש
+  // inline=1 כדי לשמש כ-<video src>/<audio src> בעמוד שיתוף/גלריה, לא רק כהורדה.
+  const wantsInline = type === 'poster' || inline === '1';
   const storage = createR2ProviderFromEnv();
   const signedUrl = await storage.getDownloadUrl(key, {
-    responseContentDisposition: `attachment; filename="${filename}"`,
+    ...(!wantsInline && { responseContentDisposition: `attachment; filename="${filename}"` }),
   });
   return NextResponse.redirect(signedUrl);
 }

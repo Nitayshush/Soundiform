@@ -16,11 +16,10 @@ import { and, count, desc, eq } from 'drizzle-orm';
 import { follows, getDb, projects, renders, shares, users } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
 import { Header } from '@/components/layout/Header';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FollowButton } from '@/components/account/FollowButton';
 import { DownloadLinks } from '@/components/share/DownloadLinks';
+import { GalleryCard } from '@/components/gallery/GalleryCard';
 
 interface ProfilePageProps {
   params: Promise<{ username: string }>;
@@ -59,6 +58,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         genreId: renders.genreId,
         createdAt: shares.createdAt,
         renderId: renders.id,
+        posterKey: renders.posterKey,
+        videoKey: renders.videoKey,
         stemKeys: renders.stemKeys,
       })
       .from(shares)
@@ -113,25 +114,25 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {creations.map((creation) => (
               <li key={creation.slug}>
-                <Card className="border-border/60 p-4 transition-colors hover:border-primary/50 hover:bg-card/80">
-                  <Link href={`/s/${creation.slug}`} className="block">
-                    <div className="flex items-center justify-between gap-2">
-                      <Badge variant="secondary">{creation.genreId}</Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {creation.viewCount} views
-                      </span>
-                    </div>
-                  </Link>
+                <GalleryCard
+                  slug={creation.slug}
+                  posterUrl={
+                    creation.posterKey
+                      ? `/api/renders/${creation.renderId}/download?type=poster&inline=1`
+                      : null
+                  }
+                  genreId={creation.genreId}
+                  viewCount={creation.viewCount}
+                >
                   {isOwnProfile && (
-                    <div className="mt-3">
-                      <DownloadLinks
-                        renderId={creation.renderId}
-                        showMidiAndStems={profile.plan === 'studio'}
-                        stemRoles={Object.keys(creation.stemKeys ?? {})}
-                      />
-                    </div>
+                    <DownloadLinks
+                      renderId={creation.renderId}
+                      hasVideo={Boolean(creation.videoKey)}
+                      showMidiAndStems={profile.plan === 'studio'}
+                      stemRoles={Object.keys(creation.stemKeys ?? {})}
+                    />
                   )}
-                </Card>
+                </GalleryCard>
               </li>
             ))}
           </ul>
