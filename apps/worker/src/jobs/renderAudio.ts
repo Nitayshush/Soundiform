@@ -23,6 +23,10 @@
  * `{ ...score, tracks: [track] }` — אפס לוגיקת רינדור חדשה. דטרמיניזם נשמר: deterministicReverb
  * כבר seed-י לפי `${score.seed}:${track.role}` (ראה sharedScheduling.ts), אז ה-stem זהה
  * בדיוק לתרומת אותו track בתוך המיקס המלא.
+ *
+ * ⭐ 2026-08-23: ENGINE_VERSION → v2 — geometryToMusic.ts's pitchContour עבר מדגימה לפי
+ * אורך-קשת (סדר-ציור) לדגימה לפי מיקום-X (§4.2 "ציר X → זמן", ראה xAxisResample.ts) — אותה
+ * צורה בדיוק מייצרת מלודיה שונה מעכשיו, דטרמיניסטית אבל לא זהה לגרסה הקודמת.
  */
 
 import { renderToBuffer } from '@soundiform/audio/server';
@@ -37,7 +41,7 @@ import { encodeMp3 } from '../encoders/mp3';
 import { uploadBuffer } from '../storage/uploadBuffer';
 import { runRenderVideoJob } from './renderVideo';
 
-const ENGINE_VERSION = 'v1';
+const ENGINE_VERSION = 'v2';
 
 /**
  * מרנדר MusicalScore לקבצי WAV/MP3/MIDI (ואופציונלית וידאו) ומעלה ל-R2, כותב שורת renders.

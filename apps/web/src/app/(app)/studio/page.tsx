@@ -92,7 +92,7 @@ function StudioContent() {
           ל-header שנשאר על הפלטה הכהה. text-[#211B4A] נותן ל-MusicalGrid (currentColor)
           קו כהה-על-לבן במקום הבהיר-על-כהה שהיה מתאים לרקע הקודם. */}
       <div className="relative flex-1 bg-white text-[#211B4A]">
-        <DrawingCanvas />
+        <DrawingCanvas hidden={isPlaying} />
         <MusicalGrid />
         <ScoreStaff progress={progress} />
         <RevealOverlay />

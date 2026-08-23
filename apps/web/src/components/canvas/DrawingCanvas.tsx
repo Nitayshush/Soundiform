@@ -5,6 +5,10 @@
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ 2026-08-23: prop `hidden` — בזמן ניגון, הציור הגולמי נעלם (opacity, לא unmount, כדי
+ * שלא לאבד את גודל ה-canvas/backing-store) ו-ScoreStaff.tsx בונה אותו מחדש במיקומו הנכון
+ * על סרגל התווים, לפי קו הסורק — לא שני ייצוגים שונים גלויים בו-זמנית.
  */
 
 'use client';
@@ -17,7 +21,12 @@ import { useShapeCapture } from '@/hooks/useShapeCapture';
 /** ⚠️ הקנבס עצמו לבן (studio/page.tsx) — קו כהה (לא בהיר-על-כהה כמו קודם). */
 const STROKE_COLOR = '#211b4a';
 const ACTIVE_STROKE_COLOR = '#6c5fc4';
-const LINE_WIDTH = 2;
+const LINE_WIDTH = 4;
+
+export interface DrawingCanvasProps {
+  /** true בזמן ניגון — הציור הגולמי דועך (ScoreStaff.tsx מרכיב אותו מחדש על הסורק). */
+  hidden?: boolean;
+}
 
 function toNormalizedPoint(event: PointerEvent, canvas: HTMLCanvasElement): ShapePoint {
   const rect = canvas.getBoundingClientRect();
@@ -50,7 +59,7 @@ function drawStroke(
   context.stroke();
 }
 
-export function DrawingCanvas() {
+export function DrawingCanvas({ hidden = false }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { paths, activeStrokePoints, isDrawing, beginStroke, extendStroke, endStroke } =
     useShapeCapture();
@@ -141,7 +150,8 @@ export function DrawingCanvas() {
   return (
     <canvas
       ref={canvasRef}
-      className="h-full w-full touch-none"
+      className="h-full w-full touch-none transition-opacity duration-300"
+      style={{ opacity: hidden ? 0 : 1 }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

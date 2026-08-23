@@ -31,7 +31,8 @@ export interface Contour {
   closed: boolean;
 }
 
-function pickPrimaryPath(paths: ShapePath[]): ShapePath {
+/** ⭐ מיוצא — נצרך גם ע"י xAxisResample.ts (אותה בחירת-מסלול-דומיננטי, לא כפילות). */
+export function pickPrimaryPath(paths: ShapePath[]): ShapePath {
   if (paths.length === 0) {
     throw new Error('extractContour: לצורה אין אף מסלול — קלט לא תקף');
   }
@@ -40,7 +41,8 @@ function pickPrimaryPath(paths: ShapePath[]): ShapePath {
   );
 }
 
-function isNearlyClosed(points: ShapePoint[]): boolean {
+/** ⭐ מיוצא — נצרך גם ע"י xAxisResample.ts (אותה הגדרת "כמעט-סגור"). */
+export function isNearlyClosed(points: ShapePoint[]): boolean {
   if (points.length === 0) {
     return false;
   }

@@ -19,10 +19,12 @@
  * וה"פעימת רקע" (לפי אנרגיה/velocity ברגע הנוכחי) רצים על app.ticker — אנימציה מתמשכת,
  * לא רק re-render לפי progress prop.
  *
- * ⭐ 2026-08-22 (§11 — "שרטוט מסונכרן"): הצורה המקורית מצטיירת בהדרגה, בהתאם ל-progress,
- * מתחת לסרגל התווים — דרך @soundiform/shared's shapeReveal.ts (computeShapeLayout/
- * revealedSegments), אותו מודול גיאומטריה בדיוק כמו apps/worker/src/video/frameRenderer.ts,
- * כדי ש"פריוויו ≈ פלט סופי" יתקיים גם לצורה עצמה, לא רק לסרגל התווים.
+ * ⭐ 2026-08-23 (§4.2 תיקון): הצורה המקורית מוקרנת עכשיו **לתוך אותה מערכת-צירים של סרגל
+ * התווים עצמו** (X=זמן/Y=פובך, לא ריבוע ממורכז עצמאי כמו ב-2026-08-22) דרך @soundiform/
+ * shared's shapeReveal.ts (projectShapeToStaff/revealedSegments) — כך שהצורה מופיעה איפה
+ * שהתווים שהיא ייצרה נראים, לא במקום שרירותי. חשיפה לפי progress = מיקום-X מול קו הסורק
+ * ("הסורק עובר"), לא לפי סדר-ציור — אותו מודול גיאומטריה בדיוק כמו
+ * apps/worker/src/video/frameRenderer.ts ("פריוויו ≈ פלט סופי").
  */
 
 'use client';
@@ -37,7 +39,7 @@ import {
   type Note,
   type TrackRole,
 } from '@soundiform/core';
-import { computeShapeLayout, revealedSegments, type ShapePath } from '@soundiform/shared';
+import { projectShapeToStaff, revealedSegments, type ShapePath } from '@soundiform/shared';
 import type { GenrePack } from '@soundiform/genres';
 import { useShapeStore } from '@/stores/shapeStore';
 import { useGenreStore } from '@/stores/genreStore';
@@ -329,7 +331,7 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
 
     const currentPaths = pathsRef.current;
     if (currentPaths.length > 0) {
-      const shapeLayout = computeShapeLayout(
+      const shapeLayout = projectShapeToStaff(
         { version: '1.0.0', paths: currentPaths },
         { width: app.renderer.width, height: app.renderer.height },
       );

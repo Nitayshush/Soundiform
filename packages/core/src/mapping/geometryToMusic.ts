@@ -10,14 +10,20 @@
  * גאומטריה לפרמטרים מוזיקליים "גולמיים" בלי אכיפת סולם/הרמוניה/voice-leading — זו עבודת
  * שכבה 3 (Theory & Taste, Sprint 3) שעדיין לא קיימת. אין לאלץ את הפלט הזה לתוך MusicalScore
  * בטרם עת — זה בדיוק מה ש"רשת הביטחון" ההרמונית (§4.3) אמורה למנוע.
+ *
+ * ⭐ 2026-08-23 (§4.2 תיקון): pitchContour עבר מ-contour.points (שדוגם מחדש לפי אורך-קשת,
+ * כלומר בפועל "סדר-ציור → זמן") ל-resampleByX (xAxisResample.ts, "מיקום-X → זמן" האמיתי —
+ * זה מה ש-§4.2 תמיד תיאר, רק לא היה ממומש כך). contour עצמו (arc-length) נשאר ללא שינוי
+ * ומשמש כאן רק את analyzeShape/detectSymmetry, שצריכים נאמנות גאומטרית, לא פרשנות-זמן.
  */
 
 import type { ShapeData } from '@soundiform/shared';
 import { z } from 'zod';
-import { extractContour } from '../analysis/contourExtractor';
+import { extractContour, pickPrimaryPath, isNearlyClosed } from '../analysis/contourExtractor';
 import { analyzeShape } from '../analysis/shapeAnalyzer';
 import { detectSymmetry, type SymmetryResult } from '../analysis/symmetryDetector';
 import type { ShapeFeatures } from '../analysis/shapeAnalyzer';
+import { resampleByX } from '../analysis/xAxisResample';
 
 const RESAMPLE_COUNT = 64;
 /** יחס קודקודים/נקודות-דגימה שמעליו הצורה נחשבת "חדה" (סטקטו) ולא "חלקה" (לגאטו). */
@@ -107,12 +113,14 @@ export function geometryToMusic(shape: ShapeData, shapeHash: string): RawMusical
   const symmetry = detectSymmetry(contour);
 
   const fillHint = computeFillHint(features);
+  const primaryPath = pickPrimaryPath(shape.paths);
+  const primaryClosed = primaryPath.closed || isNearlyClosed(primaryPath.points);
 
   const intent: RawMusicalIntent = {
     seed: shapeHash,
     loop: contour.closed,
     motifSize: computeMotifSize(features, symmetry),
-    pitchContour: contour.points.map((point) => point.y),
+    pitchContour: resampleByX(primaryPath.points, primaryClosed, RESAMPLE_COUNT),
     symmetryTransform: toSymmetryTransform(symmetry),
     rotationalOrder: symmetry.rotationalOrder,
     articulation: computeArticulation(features),

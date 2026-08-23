@@ -14,16 +14,18 @@
  * ל-glow (במקום blur+blend-'add' שני-שכבות של Pixi — אותה תחושה חזותית, מנגנון שונה
  * כי אין filter graph ב-canvas 2D). אם ScoreStaff.tsx משתנה, יש לעדכן גם כאן.
  *
- * ⭐ 2026-08-22: הציור המקורי (shapeData) מצטייר עכשיו גם הוא — "שרטוט מסונכרן" עם
- * progress, דרך @soundiform/shared's shapeReveal.ts (computeShapeLayout/revealedSegments,
- * גיאומטריה משותפת עם ScoreStaff.tsx כדי ש"פריוויו ≈ פלט סופי" יתקיים גם ויזואלית לצורה
- * עצמה, לא רק לסרגל התווים). מצטייר ראשון, מתחת לסרגל התווים.
+ * ⭐ 2026-08-23 (§4.2 תיקון): הציור המקורי (shapeData) מוקרן עכשיו **לתוך אותה מערכת-צירים
+ * של סרגל התווים עצמו** (X=זמן/Y=פובך, לא ריבוע ממורכז עצמאי כמו ב-2026-08-22) דרך
+ * @soundiform/shared's shapeReveal.ts (projectShapeToStaff/revealedSegments) — כדי שהצורה
+ * תופיע איפה שהתווים שהיא ייצרה נראים, לא במקום שרירותי. חשיפה לפי progress = מיקום-X מול
+ * קו הסורק, לא לפי סדר-ציור. גיאומטריה משותפת עם ScoreStaff.tsx ("פריוויו ≈ פלט סופי").
+ * מצטייר ראשון, מתחת לסרגל התווים.
  *
  * ⚠️ בניגוד ל-ScoreStaff.tsx (שרץ על app.ticker, עם state בין frames) — כאן כל פריים
  * מחושב *ללא מצב חיצוני*, סטטלס לגמרי: גיל כל "פרץ-אור" נגזר ישירות מ-frameTimeSeconds
  * (הנגזר מ-progress+durationSeconds של ה-score) מול startTick של כל תו, לא ממעקב
  * frame-to-frame — כי כל קריאה ל-renderVideoFrame עצמאית (videoEncoder.ts קורא לזה
- * unrelated-פעמים, לא ברצף שיתוף-state). מאותה סיבה, computeShapeLayout מחושב מחדש בכל
+ * unrelated-פעמים, לא ברצף שיתוף-state). מאותה סיבה, projectShapeToStaff מחושב מחדש בכל
  * פריים (בדיוק כמו computeScoreLayout) — לא state משותף בין קריאות.
  */
 
@@ -32,7 +34,7 @@ import sharp from 'sharp';
 import type { MusicalScore, TrackRole } from '@soundiform/core';
 import { TICKS_PER_BEAT } from '@soundiform/core';
 import type { ShapeData } from '@soundiform/shared';
-import { computeShapeLayout, revealedSegments } from '@soundiform/shared';
+import { projectShapeToStaff, revealedSegments } from '@soundiform/shared';
 
 const BACKGROUND_COLOR = '#ffffff';
 const SCAN_LINE_COLOR = '#211b4a'; // = ScoreStaff.tsx SCAN_LINE_COLOR (0x211b4a)
@@ -231,7 +233,7 @@ function drawShapeTrace(
   dimensions: FrameDimensions,
   progress: number,
 ): void {
-  const layout = computeShapeLayout(shapeData, dimensions);
+  const layout = projectShapeToStaff(shapeData, dimensions);
   const polylines = revealedSegments(layout, progress);
   if (polylines.length === 0) {
     return;
