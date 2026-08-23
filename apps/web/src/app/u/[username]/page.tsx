@@ -12,8 +12,8 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { and, count, desc, eq } from 'drizzle-orm';
-import { follows, getDb, projects, renders, shares, users } from '@soundiform/db';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { follows, getDb, likes, projects, renders, shares, users } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -78,6 +78,17 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const followerCount = followerRow?.total ?? 0;
   const isFollowing = isFollowingRow.length > 0;
 
+  const renderIds = creations.map((creation) => creation.renderId);
+  const likeCountRows =
+    renderIds.length > 0
+      ? await db
+          .select({ renderId: likes.renderId, total: count() })
+          .from(likes)
+          .where(inArray(likes.renderId, renderIds))
+          .groupBy(likes.renderId)
+      : [];
+  const likeCountByRenderId = new Map(likeCountRows.map((row) => [row.renderId, row.total]));
+
   return (
     <>
       <Header />
@@ -123,6 +134,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                   }
                   genreId={creation.genreId}
                   viewCount={creation.viewCount}
+                  likeCount={likeCountByRenderId.get(creation.renderId) ?? 0}
                 >
                   {isOwnProfile && (
                     <DownloadLinks
