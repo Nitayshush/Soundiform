@@ -49,13 +49,22 @@ export function Header() {
         </nav>
         <div className="flex items-center gap-2">
           {!isLoading && user ? (
-            <Button
-              variant="secondary"
-              nativeButton={false}
-              render={<Link href={username ? `/u/${username}` : '/account'} />}
-            >
-              Account
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                nativeButton={false}
+                render={<Link href="/account/gallery" />}
+              >
+                My Gallery
+              </Button>
+              <Button
+                variant="secondary"
+                nativeButton={false}
+                render={<Link href={username ? `/u/${username}` : '/account'} />}
+              >
+                Account
+              </Button>
+            </>
           ) : (
             <Button nativeButton={false} render={<Link href="/login" />}>
               Sign in

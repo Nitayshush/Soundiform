@@ -10,13 +10,16 @@
  * (getDb, עוקף RLS בכוונה — השרת הוא הצד המורשה, ראה api/projects/route.ts).
  */
 
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import {
+  follows,
   getDb,
   getMonthlyCreationCount,
   getSavedProjectCount,
   projects,
+  resolveEffectivePlan,
   users,
 } from '@soundiform/db';
 import { FREE_MONTHLY_CREATIONS, FREE_SAVED_PROJECTS } from '@soundiform/db';
@@ -36,17 +39,24 @@ export default async function AccountPage() {
 
   const db = getDb();
   const [userRow] = await db.select().from(users).where(eq(users.id, user.id));
-  const plan = userRow?.plan ?? 'free';
+  // ⭐ 2026-08-22: resolveEffectivePlan (לא users.plan ישיר) — כדי שהעמוד הזה לא יציג plan
+  // מיושן לרגע אחרי שמענק-גישה זמני מהאדמין פג (ראה planOverride.ts).
+  const { plan } = await resolveEffectivePlan(user.id);
 
-  const [savedCount, monthlyCreations, myProjects] = await Promise.all([
-    getSavedProjectCount(user.id),
-    getMonthlyCreationCount(user.id),
-    db
-      .select()
-      .from(projects)
-      .where(and(eq(projects.userId, user.id), isNull(projects.deletedAt)))
-      .orderBy(desc(projects.createdAt)),
-  ]);
+  const [savedCount, monthlyCreations, myProjects, [followingCountRow], [followerCountRow]] =
+    await Promise.all([
+      getSavedProjectCount(user.id),
+      getMonthlyCreationCount(user.id),
+      db
+        .select()
+        .from(projects)
+        .where(and(eq(projects.userId, user.id), isNull(projects.deletedAt)))
+        .orderBy(desc(projects.createdAt)),
+      db.select({ total: count() }).from(follows).where(eq(follows.followerId, user.id)),
+      db.select({ total: count() }).from(follows).where(eq(follows.followingId, user.id)),
+    ]);
+  const followingCount = followingCountRow?.total ?? 0;
+  const followerCount = followerCountRow?.total ?? 0;
 
   const isFree = plan === 'free';
 
@@ -71,6 +81,14 @@ export default async function AccountPage() {
             <div>
               <p className="text-sm text-muted-foreground">Plan</p>
               <p className="capitalize">{plan}</p>
+            </div>
+            <div className="flex gap-4 text-sm">
+              <Link href="/account/following" className="hover:underline">
+                Following ({followingCount})
+              </Link>
+              <Link href="/account/followers" className="hover:underline">
+                Followers ({followerCount})
+              </Link>
             </div>
           </CardContent>
         </Card>
