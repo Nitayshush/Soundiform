@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import ffmpeg from 'fluent-ffmpeg';
 import type { MusicalScore } from '@soundiform/core';
 import type { VideoAspectRatio, VideoQuality } from '@soundiform/audio';
+import type { ShapeData } from '@soundiform/shared';
 import { renderVideoFrame, type FrameDimensions } from './frameRenderer';
 
 const FRAME_RATE = 30;
@@ -54,6 +55,7 @@ export interface VideoEncodeInput {
   audioBuffer: Buffer;
   dimensions: FrameDimensions;
   watermark: boolean;
+  shapeData: ShapeData;
 }
 
 /** מקודד פריימים+אודיו ל-MP4. מחזיר את ה-buffer המקודד. */
@@ -69,6 +71,7 @@ export async function encodeVideo(input: VideoEncodeInput): Promise<Buffer> {
         progress,
         input.dimensions,
         input.watermark,
+        input.shapeData,
       );
       const frameNumber = String(frameIndex).padStart(5, '0');
       await writeFile(join(tempDir, `frame-${frameNumber}.png`), frameBuffer);

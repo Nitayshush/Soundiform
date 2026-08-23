@@ -16,6 +16,10 @@
  * ⭐ §11 הורדות מדורגות: mp3Key — ה-worker כבר מקודד וגם מעלה MP3 (בנוסף ל-WAV), אבל עד
  * עכשיו רק audioKey (ה-WAV) נשמר כאן; free tier (§9) צריך להוריד MP3, לא WAV. stemKeys —
  * studio בלבד (nullable), מפתח R2 אחד לכל TrackRole — ראה api/renders/[id]/download/route.ts.
+ *
+ * ⭐ 2026-08-22: posterKey — פריים בודד (JPG, מ-progress=0.5) שנשמר לצד הוידאו, לשימוש כתמונת
+ * thumbnail בכרטיסי גלריה (בלי לצטרך לנגן וידאו חי בגריד גלילה). nullable — renders ישנים
+ * מלפני התכונה הזו פשוט נופלים לכרטיס-badge הישן (ראה GalleryCard.tsx).
  */
 
 import { sql } from 'drizzle-orm';
@@ -48,6 +52,7 @@ export const renders = pgTable(
     audioKey: text('audio_key'),
     mp3Key: text('mp3_key'),
     videoKey: text('video_key'),
+    posterKey: text('poster_key'),
     midiKey: text('midi_key'),
     stemKeys: jsonb('stem_keys').$type<Partial<Record<TrackRole, string>>>(),
     durationSec: real('duration_sec'),

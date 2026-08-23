@@ -11,6 +11,7 @@
  */
 
 import type { MusicalScore, TrackRole } from '@soundiform/core';
+import type { ShapeData } from '@soundiform/shared';
 import type { GenreAudioConfig } from './sharedScheduling';
 
 /** שם התור ב-BullMQ — חייב להיות זהה בין ה-Queue (apps/web) וה-Worker (apps/worker). */
@@ -37,8 +38,11 @@ export interface VideoExportOptions {
  * שדף השיתוף/גלריה/רמיקס נשענים עליה. אין רינדור בלי פרויקט שמור (§9: לא ניתן לשתף
  * יצירה אנונימית/לא-שמורה). video אופציונלי: בלי זה, זה רינדור אודיו בלבד (כמו Sprint 6).
  *
- * ⭐ §11 עדכון 2026-08-21: video לא צריך יותר shape — frameRenderer.ts מצייר את סרגל
- * התווים (ScoreStaff.tsx), לא את הצורה המקורית, אז score מספיק (הוא כבר כאן ממילא).
+ * ⭐ §11 עדכון 2026-08-22: התהפך ההחלטה מ-2026-08-21 (שהייתה: "video לא צריך shape, סרגל
+ * התווים מספיק") — מנגנון הצמיחה של המוצר תלוי בזה שהוידאו המיוצא, שהוא מה שבאמת מופץ
+ * (וואטסאפ/אינסטגרם/יוטיוב, לא האתר עצמו), יראה בפועל את הציור שהמשתמש עשה, לא רק תוצאה
+ * מופשטת. shapeData מועבר כאן כדי ש-frameRenderer.ts יצייר אותו (שרטוט מסונכרן עם ההתקדמות,
+ * ראה @soundiform/shared's shapeReveal.ts) — נטען ממילא ב-api/render/route.ts, בלי query נוסף.
  *
  * ⭐ §11 stems: stems נקבע ב-apps/web מ-plan של המשתמש (studio בלבד) — בדיוק כמו
  * video.quality/watermark למעלה, לעולם לא נלקח/נסמך על קלט מהקליינט.
@@ -47,6 +51,7 @@ export interface RenderJobData {
   projectId: string;
   score: MusicalScore;
   audioConfig: GenreAudioConfig;
+  shapeData: ShapeData;
   video?: VideoExportOptions;
   stems?: boolean;
 }
@@ -57,5 +62,6 @@ export interface RenderJobResult {
   mp3Key: string;
   midiKey: string;
   videoKey?: string;
+  posterKey?: string;
   stemKeys?: Partial<Record<TrackRole, string>>;
 }

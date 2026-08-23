@@ -34,28 +34,10 @@ import type { StorageProvider } from '@soundiform/storage';
 import { encodeWav } from '../encoders/wav';
 import { encodeMidi } from '../encoders/midi';
 import { encodeMp3 } from '../encoders/mp3';
+import { uploadBuffer } from '../storage/uploadBuffer';
 import { runRenderVideoJob } from './renderVideo';
 
 const ENGINE_VERSION = 'v1';
-
-async function uploadBuffer(
-  storage: StorageProvider,
-  key: string,
-  body: Buffer,
-  contentType: string,
-): Promise<void> {
-  const uploadUrl = await storage.getUploadUrl(key, { contentType });
-  const response = await fetch(uploadUrl, {
-    method: 'PUT',
-    body: new Uint8Array(body),
-    headers: { 'Content-Type': contentType },
-  });
-  if (!response.ok) {
-    throw new Error(
-      `העלאה ל-R2 נכשלה עבור ${key}: ${String(response.status)} ${response.statusText}`,
-    );
-  }
-}
 
 /**
  * מרנדר MusicalScore לקבצי WAV/MP3/MIDI (ואופציונלית וידאו) ומעלה ל-R2, כותב שורת renders.
@@ -82,7 +64,7 @@ export async function runRenderAudioJob(
   data: RenderJobData,
   storage: StorageProvider,
 ): Promise<RenderJobResult> {
-  const { projectId, score, audioConfig, video, stems } = data;
+  const { projectId, score, audioConfig, shapeData, video, stems } = data;
 
   const rendered = await renderToBuffer(score, audioConfig);
   const normalizedChannels = normalizeToTargetLufs(rendered.channels);
@@ -127,16 +109,20 @@ export async function runRenderAudioJob(
   }
 
   let videoKey: string | undefined;
+  let posterKey: string | undefined;
   if (video) {
-    videoKey = await runRenderVideoJob(
+    const videoResult = await runRenderVideoJob(
       score,
       rendered.durationSeconds,
       wavBuffer,
       video,
       storage,
       keyPrefix,
+      shapeData,
     );
-    await db.update(renders).set({ videoKey }).where(eq(renders.id, renderRow.id));
+    videoKey = videoResult.videoKey;
+    posterKey = videoResult.posterKey;
+    await db.update(renders).set({ videoKey, posterKey }).where(eq(renders.id, renderRow.id));
   }
 
   return {
@@ -145,6 +131,7 @@ export async function runRenderAudioJob(
     mp3Key,
     midiKey,
     ...(videoKey !== undefined && { videoKey }),
+    ...(posterKey !== undefined && { posterKey }),
     ...(stemKeys && { stemKeys }),
   };
 }

@@ -1,7 +1,7 @@
 /**
  * @file        frameRenderer.ts
- * @description ⭐ מצייר פריים בודד של וידאו — סרגל התווים (piano-roll) + קו סורק, לא הצורה
- *              המקורית עם נקודה נעה (זה היה השלב הישן, לפני עדכון הסטודיו ל-ScoreStaff.tsx).
+ * @description ⭐ מצייר פריים בודד של וידאו — הצורה המקורית (שרטוט מסונכרן) + סרגל התווים
+ *              (piano-roll) + קו סורק.
  * @author      Soundiform
  * @created     2026-08-19
  *
@@ -14,17 +14,25 @@
  * ל-glow (במקום blur+blend-'add' שני-שכבות של Pixi — אותה תחושה חזותית, מנגנון שונה
  * כי אין filter graph ב-canvas 2D). אם ScoreStaff.tsx משתנה, יש לעדכן גם כאן.
  *
+ * ⭐ 2026-08-22: הציור המקורי (shapeData) מצטייר עכשיו גם הוא — "שרטוט מסונכרן" עם
+ * progress, דרך @soundiform/shared's shapeReveal.ts (computeShapeLayout/revealedSegments,
+ * גיאומטריה משותפת עם ScoreStaff.tsx כדי ש"פריוויו ≈ פלט סופי" יתקיים גם ויזואלית לצורה
+ * עצמה, לא רק לסרגל התווים). מצטייר ראשון, מתחת לסרגל התווים.
+ *
  * ⚠️ בניגוד ל-ScoreStaff.tsx (שרץ על app.ticker, עם state בין frames) — כאן כל פריים
  * מחושב *ללא מצב חיצוני*, סטטלס לגמרי: גיל כל "פרץ-אור" נגזר ישירות מ-frameTimeSeconds
  * (הנגזר מ-progress+durationSeconds של ה-score) מול startTick של כל תו, לא ממעקב
  * frame-to-frame — כי כל קריאה ל-renderVideoFrame עצמאית (videoEncoder.ts קורא לזה
- * unrelated-פעמים, לא ברצף שיתוף-state).
+ * unrelated-פעמים, לא ברצף שיתוף-state). מאותה סיבה, computeShapeLayout מחושב מחדש בכל
+ * פריים (בדיוק כמו computeScoreLayout) — לא state משותף בין קריאות.
  */
 
 import { createCanvas, loadImage, type Image } from '@napi-rs/canvas';
 import sharp from 'sharp';
 import type { MusicalScore, TrackRole } from '@soundiform/core';
 import { TICKS_PER_BEAT } from '@soundiform/core';
+import type { ShapeData } from '@soundiform/shared';
+import { computeShapeLayout, revealedSegments } from '@soundiform/shared';
 
 const BACKGROUND_COLOR = '#ffffff';
 const SCAN_LINE_COLOR = '#211b4a'; // = ScoreStaff.tsx SCAN_LINE_COLOR (0x211b4a)
@@ -33,6 +41,9 @@ const NOTE_BAR_MIN_HEIGHT = 4;
 const NOTE_BAR_ALPHA = 0.85;
 const GLOW_BLUR_PX = 14; // = ScoreStaff.tsx GLOW_BLUR_STRENGTH (מקביל אינטואיטיבי, לא זהה 1:1 — יחידות שונות)
 const BACKGROUND_PULSE_COLOR = '#8b7cf6'; // = ScoreStaff.tsx BACKGROUND_PULSE_COLOR (0x8b7cf6)
+const SHAPE_TRACE_COLOR = '#6c5fc4'; // = ScoreStaff.tsx SHAPE_TRACE_COLOR — נפרד מ-ROLE_COLORS בכוונה
+const SHAPE_TRACE_LINE_WIDTH = 3;
+const SHAPE_TRACE_GLOW_PX = 10;
 const BURST_LIFETIME_SECONDS = 0.45; // = ScoreStaff.tsx BURST_LIFETIME_SECONDS
 const BURST_MAX_RADIUS = 22; // = ScoreStaff.tsx BURST_MAX_RADIUS
 
@@ -213,6 +224,41 @@ function drawBursts(
   ctx.globalAlpha = 1;
 }
 
+/** מצייר את הצורה המקורית, בהדרגה (רק החלק שכבר "נחשף" לפי progress) — ראה shapeReveal.ts. */
+function drawShapeTrace(
+  ctx: Canvas2DContext,
+  shapeData: ShapeData,
+  dimensions: FrameDimensions,
+  progress: number,
+): void {
+  const layout = computeShapeLayout(shapeData, dimensions);
+  const polylines = revealedSegments(layout, progress);
+  if (polylines.length === 0) {
+    return;
+  }
+  ctx.strokeStyle = SHAPE_TRACE_COLOR;
+  ctx.shadowColor = SHAPE_TRACE_COLOR;
+  ctx.shadowBlur = SHAPE_TRACE_GLOW_PX;
+  ctx.lineWidth = SHAPE_TRACE_LINE_WIDTH;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = 0.8;
+  for (const points of polylines) {
+    const [first, ...rest] = points;
+    if (!first) {
+      continue;
+    }
+    ctx.beginPath();
+    ctx.moveTo(first.x, first.y);
+    for (const point of rest) {
+      ctx.lineTo(point.x, point.y);
+    }
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
 async function drawWatermark(ctx: Canvas2DContext, width: number, height: number): Promise<void> {
   const logo = await getWatermarkImage();
   const size = Math.max(24, Math.round(width * 0.08));
@@ -223,14 +269,16 @@ async function drawWatermark(ctx: Canvas2DContext, width: number, height: number
 }
 
 /**
- * מצייר פריים בודד של סרגל התווים. progress קובע רק את מיקום קו הסורק — התווים עצמם
- * מוצגים כולם, בדיוק כמו ScoreStaff.tsx (כל הצורה מנוגנת יחד משמאל לימין).
+ * מצייר פריים בודד: הצורה המקורית (שרטוט מסונכרן, מתחת) + סרגל התווים. progress קובע גם
+ * את מיקום קו הסורק וגם כמה מהצורה המקורית כבר "נחשפה" — התווים עצמם מוצגים כולם, בדיוק
+ * כמו ScoreStaff.tsx (כל הצורה מנוגנת יחד משמאל לימין).
  */
 export async function renderVideoFrame(
   score: MusicalScore,
   progress: number,
   dimensions: FrameDimensions,
   watermark: boolean,
+  shapeData: ShapeData,
 ): Promise<Buffer> {
   const { width, height } = dimensions;
   const canvas = createCanvas(width, height);
@@ -238,6 +286,8 @@ export async function renderVideoFrame(
 
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, width, height);
+
+  drawShapeTrace(ctx, shapeData, dimensions, progress);
 
   const layout = computeScoreLayout(score, dimensions);
   if (layout) {
@@ -262,4 +312,23 @@ export async function renderVideoFrame(
   }
 
   return canvas.toBuffer('image/png');
+}
+
+const POSTER_PROGRESS = 0.5;
+
+/** פריים בודד (JPG) לשימוש כ-thumbnail בכרטיסי גלריה — ראה renders.posterKey. */
+export async function renderPosterFrame(
+  score: MusicalScore,
+  dimensions: FrameDimensions,
+  watermark: boolean,
+  shapeData: ShapeData,
+): Promise<Buffer> {
+  const pngBuffer = await renderVideoFrame(
+    score,
+    POSTER_PROGRESS,
+    dimensions,
+    watermark,
+    shapeData,
+  );
+  return sharp(pngBuffer).jpeg({ quality: 80 }).toBuffer();
 }

@@ -18,6 +18,11 @@
  * מציירת את אותם המלבנים, מטושטשת ובאיחוד-בהירות (blend 'add'), מתחת לשכבה החדה. פרצי-האור
  * וה"פעימת רקע" (לפי אנרגיה/velocity ברגע הנוכחי) רצים על app.ticker — אנימציה מתמשכת,
  * לא רק re-render לפי progress prop.
+ *
+ * ⭐ 2026-08-22 (§11 — "שרטוט מסונכרן"): הצורה המקורית מצטיירת בהדרגה, בהתאם ל-progress,
+ * מתחת לסרגל התווים — דרך @soundiform/shared's shapeReveal.ts (computeShapeLayout/
+ * revealedSegments), אותו מודול גיאומטריה בדיוק כמו apps/worker/src/video/frameRenderer.ts,
+ * כדי ש"פריוויו ≈ פלט סופי" יתקיים גם לצורה עצמה, לא רק לסרגל התווים.
  */
 
 'use client';
@@ -32,7 +37,7 @@ import {
   type Note,
   type TrackRole,
 } from '@soundiform/core';
-import type { ShapePath } from '@soundiform/shared';
+import { computeShapeLayout, revealedSegments, type ShapePath } from '@soundiform/shared';
 import type { GenrePack } from '@soundiform/genres';
 import { useShapeStore } from '@/stores/shapeStore';
 import { useGenreStore } from '@/stores/genreStore';
@@ -49,6 +54,10 @@ const GLOW_ALPHA = 0.55;
 const BACKGROUND_PULSE_COLOR = 0x8b7cf6;
 const BURST_LIFETIME_SECONDS = 0.45;
 const BURST_MAX_RADIUS = 22;
+const SHAPE_TRACE_COLOR = 0x6c5fc4; // = frameRenderer.ts SHAPE_TRACE_COLOR
+const SHAPE_TRACE_LINE_WIDTH = 3;
+const SHAPE_TRACE_ALPHA = 0.8;
+const SHAPE_TRACE_GLOW_ALPHA = 0.5;
 
 const ROLE_COLORS: Record<TrackRole, number> = {
   lead: 0x8b7cf6,
@@ -142,6 +151,8 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<Application | null>(null);
+  const shapeGlowLayerRef = useRef<PixiGraphics | null>(null);
+  const shapeCrispLayerRef = useRef<PixiGraphics | null>(null);
   const backgroundPulseRef = useRef<PixiGraphics | null>(null);
   const glowLayerRef = useRef<PixiGraphics | null>(null);
   const notesLayerRef = useRef<PixiGraphics | null>(null);
@@ -150,6 +161,10 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
   const scoreRef = useRef<MusicalScore | null>(null);
   const previousProgressRef = useRef(0);
   const burstsRef = useRef<Burst[]>([]);
+  const pathsRef = useRef<ShapePath[]>(paths);
+  useEffect(() => {
+    pathsRef.current = paths;
+  }, [paths]);
 
   const score = useMemo(
     () => computeScore(paths, shapeHash, genreId, packs),
@@ -179,6 +194,8 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
       }
       container.appendChild(app.canvas);
 
+      const shapeGlowLayer = new Graphics();
+      const shapeCrispLayer = new Graphics();
       const backgroundPulse = new Graphics();
       const glowLayer = new Graphics();
       const notesLayer = new Graphics();
@@ -186,14 +203,27 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
       const scanLine = new Graphics();
 
       const glowFilter: BlurFilter = new BlurFilterCtor({ strength: GLOW_BLUR_STRENGTH });
+      shapeGlowLayer.filters = [glowFilter];
+      shapeGlowLayer.blendMode = 'add';
       glowLayer.filters = [glowFilter];
       glowLayer.blendMode = 'add';
       backgroundPulse.filters = [glowFilter];
       backgroundPulse.blendMode = 'add';
       burstsLayer.blendMode = 'add';
 
-      app.stage.addChild(backgroundPulse, glowLayer, notesLayer, burstsLayer, scanLine);
+      // shapeGlowLayer/shapeCrispLayer ראשונים — הצורה המקורית מצטיירת מתחת לסרגל התווים.
+      app.stage.addChild(
+        shapeGlowLayer,
+        shapeCrispLayer,
+        backgroundPulse,
+        glowLayer,
+        notesLayer,
+        burstsLayer,
+        scanLine,
+      );
       appRef.current = app;
+      shapeGlowLayerRef.current = shapeGlowLayer;
+      shapeCrispLayerRef.current = shapeCrispLayer;
       backgroundPulseRef.current = backgroundPulse;
       glowLayerRef.current = glowLayer;
       notesLayerRef.current = notesLayer;
@@ -240,6 +270,8 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
 
     return () => {
       disposed = true;
+      shapeGlowLayerRef.current = null;
+      shapeCrispLayerRef.current = null;
       backgroundPulseRef.current = null;
       glowLayerRef.current = null;
       notesLayerRef.current = null;
@@ -282,14 +314,53 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
     }
   }, [score]);
 
-  // עדכון קו הסריקה + זיהוי "חציית תו" (יורה burst) — קורה על כל שינוי ב-progress.
+  // עדכון קו הסריקה + "שרטוט מסונכרן" של הצורה + זיהוי "חציית תו" (יורה burst) — על כל שינוי ב-progress.
   useEffect(() => {
     const app = appRef.current;
     const scanLine = scanLineRef.current;
-    if (!app || !scanLine) {
+    const shapeGlowLayer = shapeGlowLayerRef.current;
+    const shapeCrispLayer = shapeCrispLayerRef.current;
+    if (!app || !scanLine || !shapeGlowLayer || !shapeCrispLayer) {
       return;
     }
     scanLine.clear();
+    shapeGlowLayer.clear();
+    shapeCrispLayer.clear();
+
+    const currentPaths = pathsRef.current;
+    if (currentPaths.length > 0) {
+      const shapeLayout = computeShapeLayout(
+        { version: '1.0.0', paths: currentPaths },
+        { width: app.renderer.width, height: app.renderer.height },
+      );
+      for (const points of revealedSegments(shapeLayout, progress)) {
+        const [first, ...rest] = points;
+        if (!first) {
+          continue;
+        }
+        shapeCrispLayer.moveTo(first.x, first.y);
+        shapeGlowLayer.moveTo(first.x, first.y);
+        for (const point of rest) {
+          shapeCrispLayer.lineTo(point.x, point.y);
+          shapeGlowLayer.lineTo(point.x, point.y);
+        }
+        shapeCrispLayer.stroke({
+          width: SHAPE_TRACE_LINE_WIDTH,
+          color: SHAPE_TRACE_COLOR,
+          alpha: SHAPE_TRACE_ALPHA,
+          join: 'round',
+          cap: 'round',
+        });
+        shapeGlowLayer.stroke({
+          width: SHAPE_TRACE_LINE_WIDTH,
+          color: SHAPE_TRACE_COLOR,
+          alpha: SHAPE_TRACE_ALPHA * SHAPE_TRACE_GLOW_ALPHA,
+          join: 'round',
+          cap: 'round',
+        });
+      }
+    }
+
     if (!score) {
       previousProgressRef.current = progress;
       return;

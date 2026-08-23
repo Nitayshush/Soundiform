@@ -28,21 +28,22 @@ const TEST_CONFIG: CompositionConfig = {
   extendedChords: false,
 };
 
+const TEST_SHAPE = {
+  version: '1.0.0',
+  paths: [
+    {
+      closed: true,
+      points: [
+        { x: 0.5, y: 0.1 },
+        { x: 0.9, y: 0.9 },
+        { x: 0.1, y: 0.9 },
+      ],
+    },
+  ],
+};
+
 function makeTestScore() {
-  const shape = {
-    version: '1.0.0',
-    paths: [
-      {
-        closed: true,
-        points: [
-          { x: 0.5, y: 0.1 },
-          { x: 0.9, y: 0.9 },
-          { x: 0.1, y: 0.9 },
-        ],
-      },
-    ],
-  };
-  const intent = geometryToMusic(shape, 'video-encoder-test-seed');
+  const intent = geometryToMusic(TEST_SHAPE, 'video-encoder-test-seed');
   return composeMusicalScore(intent, TEST_CONFIG);
 }
 
@@ -113,6 +114,7 @@ describe('encodeVideo', () => {
       audioBuffer: makeToneWav(durationSeconds),
       dimensions,
       watermark: true,
+      shapeData: TEST_SHAPE,
     });
 
     expect(videoBuffer.length).toBeGreaterThan(0);

@@ -1,0 +1,1 @@
+ALTER TABLE "renders" ADD COLUMN "poster_key" text;

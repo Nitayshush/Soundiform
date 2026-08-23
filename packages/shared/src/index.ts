@@ -10,3 +10,4 @@
 export * from './shape/ShapeData';
 export * from './shape/shapeSchema';
 export * from './shape/shapeHash';
+export * from './shape/shapeReveal';

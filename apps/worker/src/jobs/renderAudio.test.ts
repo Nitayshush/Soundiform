@@ -35,21 +35,22 @@ const TEST_CONFIG: CompositionConfig = {
   extendedChords: false,
 };
 
+const TEST_SHAPE = {
+  version: '1.0.0',
+  paths: [
+    {
+      closed: true,
+      points: [
+        { x: 0.5, y: 0.1 },
+        { x: 0.9, y: 0.9 },
+        { x: 0.1, y: 0.9 },
+      ],
+    },
+  ],
+};
+
 function makeTestScore() {
-  const shape = {
-    version: '1.0.0',
-    paths: [
-      {
-        closed: true,
-        points: [
-          { x: 0.5, y: 0.1 },
-          { x: 0.9, y: 0.9 },
-          { x: 0.1, y: 0.9 },
-        ],
-      },
-    ],
-  };
-  const intent = geometryToMusic(shape, 'render-job-test-seed');
+  const intent = geometryToMusic(TEST_SHAPE, 'render-job-test-seed');
   return composeMusicalScore(intent, TEST_CONFIG);
 }
 
@@ -97,7 +98,7 @@ describe('runRenderAudioJob', () => {
 
     try {
       const result = await runRenderAudioJob(
-        { projectId: project.id, score, audioConfig: DEFAULT_AUDIO_CONFIG },
+        { projectId: project.id, score, audioConfig: DEFAULT_AUDIO_CONFIG, shapeData: TEST_SHAPE },
         storage,
       );
 
@@ -129,7 +130,7 @@ describe('runRenderAudioJob', () => {
     }
   }, 30000);
 
-  it('Sprint 8: כשמבקשים video, מרנדר MP4 אמיתי (סרגל תווים, לא הצורה), מעלה אותו, וכותב video_key על שורת ה-render', async () => {
+  it('Sprint 8/§11: כשמבקשים video, מרנדר MP4 אמיתי (הצורה + סרגל תווים) ו-poster.jpg, מעלה את שניהם, וכותב video_key/poster_key על שורת ה-render', async () => {
     const score = makeTestScore();
     const { storage, uploads } = createFakeStorage();
     const db = getDb();
@@ -163,18 +164,25 @@ describe('runRenderAudioJob', () => {
           projectId: project.id,
           score,
           audioConfig: DEFAULT_AUDIO_CONFIG,
+          shapeData: TEST_SHAPE,
           video: { aspectRatio: '9:16', quality: '720p', watermark: true },
         },
         storage,
       );
 
       expect(result.videoKey).toBe(`renders/${score.seed}/${score.genreId}/output.mp4`);
+      expect(result.posterKey).toBe(`renders/${score.seed}/${score.genreId}/poster.jpg`);
       const videoBuffer = uploads.get(result.videoKey ?? '');
       expect(videoBuffer).toBeDefined();
       expect(videoBuffer?.subarray(4, 8).toString('ascii')).toBe('ftyp');
 
+      const posterBuffer = uploads.get(result.posterKey ?? '');
+      expect(posterBuffer).toBeDefined();
+      expect(posterBuffer?.subarray(0, 2).toString('hex')).toBe('ffd8'); // JPEG magic bytes
+
       const [renderRow] = await db.select().from(renders).where(eq(renders.id, result.renderId));
       expect(renderRow?.videoKey).toBe(result.videoKey);
+      expect(renderRow?.posterKey).toBe(result.posterKey);
     } finally {
       fetchSpy.mockRestore();
       await db.delete(renders).where(eq(renders.projectId, project.id));
@@ -212,7 +220,13 @@ describe('runRenderAudioJob', () => {
 
     try {
       const result = await runRenderAudioJob(
-        { projectId: project.id, score, audioConfig: DEFAULT_AUDIO_CONFIG, stems: true },
+        {
+          projectId: project.id,
+          score,
+          audioConfig: DEFAULT_AUDIO_CONFIG,
+          shapeData: TEST_SHAPE,
+          stems: true,
+        },
         storage,
       );
 
