@@ -25,9 +25,10 @@ const SCALE_INTERVALS: Record<Mode, readonly number[]> = {
 };
 
 const SEMITONES_PER_OCTAVE = 12;
-/** טווח MIDI חוקי (§4.3: "טווחי כלים ריאליסטיים" — זהו הגבול המוחלט, לא טווח כלי ספציפי). */
-const MIDI_MIN = 0;
-const MIDI_MAX = 127;
+/** טווח MIDI חוקי (§4.3: "טווחי כלים ריאליסטיים" — זהו הגבול המוחלט, לא טווח כלי ספציפי).
+ * ⭐ מיוצא — voiceLeading.ts's pickClosestOctave צריך אותו (ראה שם, 2026-08-23). */
+export const MIDI_MIN = 0;
+export const MIDI_MAX = 127;
 
 export const ALL_MODES: readonly Mode[] = [
   'ionian',

@@ -62,6 +62,19 @@ describe('smoothMelodicLine', () => {
     const smoothed = smoothMelodicLine(jumpy);
     expect(totalMovement(smoothed)).toBeLessThan(totalMovement(jumpy));
   });
+
+  it('§11 2026-08-23 — קריסת פרודקשן אמיתית: לא סוחף מחוץ לטווח MIDI על פני הרבה חזרות', () => {
+    // pitch classes במרחק טריטון (6 חצי-טונים) זה מזה — מייצר "תיקו" בכל מעבר (שני מועמדים
+    // שווי-מרחק), ולפני התיקון זה גרם לסחיפה עקבית לאותו כיוון בכל מחזור. עם progression
+    // חוזר על עצמו הרבה בארים (ציור עם הרבה משיכות → motifSize/loopBars גדולים, §11
+    // 2026-08-23), הסחיפה המצטברת חצתה את גבול ה-MIDI התקף וקרסה על ולידציית ה-schema.
+    const tritoneAlternating = Array.from({ length: 40 }, (_, index) => (index % 2 === 0 ? 0 : 6));
+    const smoothed = smoothMelodicLine(tritoneAlternating);
+    expect(smoothed.every((pitch) => pitch >= 0 && pitch <= 127)).toBe(true);
+    expect(
+      smoothed.every((pitch, index) => mod12(pitch) === mod12(at(tritoneAlternating, index))),
+    ).toBe(true);
+  });
 });
 
 describe('chooseSmoothVoicing', () => {

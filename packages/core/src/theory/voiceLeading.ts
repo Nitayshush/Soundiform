@@ -11,9 +11,18 @@
  * בלי voice leading, כל תו/אקורד נבחר "נכון" מבחינת סולם אבל קופץ אוקטבות אקראית —
  * זו הסיבה שמנועים גיאומטריים נאיביים נשמעים "קופצניים" ולא כמו הפקה מכוונת. ראה גם §4.3
  * הכלל "אין קווינטות/אוקטבות מקבילות" — הבחירה כאן חייבת לכבד גם אותו, לא רק מרחק מינימלי.
+ *
+ * ⭐ 2026-08-23 (תוקן — קריסת פרודקשן אמיתית): pickClosestOctave מחפש "הכי קרוב לתו הקודם",
+ * ולא ל-pitchClass המקורי — סדרה חוזרת (progression שמסתובב, ראה harmonyEngine.ts's
+ * getHarmonicProgressionDegrees) יכולה, בתנאים מסוימים (טעויות-שוויון בין שני מועמדים
+ * שווי-מרחק), לגלוש עקבית לאותו כיוון בכל מחזור — עם מספיק בארים (מציור עם הרבה משיכות,
+ * §11 2026-08-23: motifSize תוסף ולא מוגבל לפי-path בודד) הסחיפה המצטברת יכולה לצאת
+ * מטווח MIDI חוקי (0–127) ולקרוס על ולידציית ה-schema. התיקון: לעולם לא לבחור מועמד
+ * מחוץ לטווח, גם אם הוא "הכי קרוב" מבחינת מרחק גרידא.
  */
 
 import { at } from '../internal/arrayUtils';
+import { MIDI_MAX, MIDI_MIN } from './scales';
 
 const SEMITONES_PER_OCTAVE = 12;
 /** כמה אוקטבות למעלה/מטה לנסות בחיפוש ההיפוך הקרוב ביותר. */
@@ -22,6 +31,7 @@ const OCTAVE_SEARCH_RANGE = 3;
 /**
  * בוחר, מתוך כל ה"היפוכים" האפשריים של pitchClass נתון (אותו class בכל האוקטבות בטווח
  * החיפוש), את הפיץ' הקרוב ביותר לתו הקודם — ליצירת קו מלודי חלק בלי קפיצות מיותרות.
+ * לעולם לא מחזיר פיץ' מחוץ לטווח MIDI חוקי (0–127), גם כשזה היה "הכי קרוב" גרידא.
  */
 export function pickClosestOctave(pitchClass: number, previousPitch: number | null): number {
   if (previousPitch === null) {
@@ -31,7 +41,7 @@ export function pickClosestOctave(pitchClass: number, previousPitch: number | nu
   // מרכז את החיפוש סביב האוקטבה של previousPitch עצמו — לא סביב אוקטבת ה-pitchClass הגולמי,
   // אחרת "הקרוב ביותר" לא נמצא כשה-pitchClass וה-previousPitch רחוקים זה מזה ברישום המוחלט.
   const previousOctave = Math.floor(previousPitch / SEMITONES_PER_OCTAVE);
-  let closestPitch = basePitchClass;
+  let closestPitch: number | null = null;
   let smallestDistance = Infinity;
   for (
     let octaveOffset = -OCTAVE_SEARCH_RANGE;
@@ -39,13 +49,18 @@ export function pickClosestOctave(pitchClass: number, previousPitch: number | nu
     octaveOffset += 1
   ) {
     const candidate = basePitchClass + (previousOctave + octaveOffset) * SEMITONES_PER_OCTAVE;
+    if (candidate < MIDI_MIN || candidate > MIDI_MAX) {
+      continue;
+    }
     const distance = Math.abs(candidate - previousPitch);
     if (distance < smallestDistance) {
       smallestDistance = distance;
       closestPitch = candidate;
     }
   }
-  return closestPitch;
+  // fallback שכמעט לעולם לא מגיע אליו בפועל (דורש previousPitch כבר קרוב לקצה הטווח, מעבר
+  // ל-±3 אוקטבות) — עדיף פיץ' תקף-בטווח גם אם ה-pitch class לא מדויק, מאשר קריסה.
+  return closestPitch ?? Math.min(MIDI_MAX, Math.max(MIDI_MIN, basePitchClass));
 }
 
 /**
