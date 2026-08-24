@@ -28,7 +28,13 @@ import {
   type MixCharacterConfig,
   type MixChainHandle,
 } from '../mixing/mixChain';
-import { createSidechainDuck, type SidechainDuck } from '../mixing/sidechain';
+import {
+  createSidechainDuck,
+  DEFAULT_DUCK_DEPTH,
+  DEFAULT_DUCK_RELEASE_SECONDS,
+  type SidechainDuck,
+} from '../mixing/sidechain';
+import type { TrackEqConfig } from '../mixing/eq';
 import { ticksToSeconds } from '../internal/audioUtils';
 
 /**
@@ -40,6 +46,17 @@ export interface GenreAudioConfig {
   mixCharacter: MixCharacterConfig;
   /** ⭐ 2026-08-22: trance/house — ראה sidechain.ts. undefined/false = בלי pumping. */
   sidechainEnabled?: boolean;
+  /** ⭐ 2026-08-24 (Area 2): כיוונון סיידצ'יין לפי-סגנון — undefined נופל לברירות המחדל. */
+  sidechainDepth?: number;
+  sidechainReleaseSeconds?: number;
+  /** ⭐ 2026-08-24 (Area 2): EQ תלת-פס אופציונלי לפי-טראק — ראה mixing/eq.ts. */
+  trackEq?: Partial<Record<TrackRole, TrackEqConfig>>;
+  /**
+   * ⭐ 2026-08-24 (Area 1, לפי בקשה חיה): תפקידים שהמשתמש בחר "לכבות" לגמרי (SoundSelector.tsx's
+   * "Off" pill) — לא רק צליל אחר, אלא בלי טראק בכלל. מטופל ב-createAllTrackRuntimes (מסנן
+   * לפני בניית provider/mixChain/part — לא מבזבז קול על טראק שממילא ב-0 גיין).
+   */
+  mutedRoles?: readonly TrackRole[];
 }
 
 export const DEFAULT_AUDIO_CONFIG: GenreAudioConfig = {
@@ -97,6 +114,7 @@ export async function createTrackRuntime(
     reverbSeed,
     audioConfig.mixCharacter,
     sidechainDuck,
+    audioConfig.trackEq?.[track.role],
   );
   await provider.load(track.instrumentId);
   // connect() (הפונקציה, לא המתודה) מטפלת נכון באיחוד OutputNode/InputNode של Tone.js —
@@ -128,6 +146,10 @@ export interface TrackRuntimeSet {
  * ⭐ 2026-08-22: כשaudioConfig.sidechainEnabled ויש טראק 'drums' — בונה gain node משותף אחד
  * (ראה sidechain.ts) מתוזמן לפי פגיעות התופים, ומחבר אותו לכל טראק *חוץ* מה-drums עצמו
  * (קיק לא דוחק את עצמו).
+ * ⭐ 2026-08-24: mutedRoles מסונן *לפני* בניית ה-runtimes (לא audioConfig.synthPresets[role]
+ * ל-0-גיין) — טראק מושתק לא בונה provider/mixChain/part בכלל. ⚠️ עיתוי-הסיידצ'יין ממשיך
+ * להתבסס על drumsTrack המקורי מה-score (לא מהרשימה המסוננת) — גם אם התופים עצמם מושתקים,
+ * שאר הטראקים עדיין "פועמים" באותו הקצב שהקיק היה יוצר, לא רק כשהתופים גם מנוגנים בפועל.
  */
 export async function createAllTrackRuntimes(
   score: MusicalScore,
@@ -137,11 +159,19 @@ export async function createAllTrackRuntimes(
   const drumsTrack = score.tracks.find((track) => track.role === 'drums');
   const sidechainDuck: SidechainDuck | null =
     audioConfig.sidechainEnabled && drumsTrack
-      ? createSidechainDuck(drumsTrack.notes, score.tempo)
+      ? createSidechainDuck(
+          drumsTrack.notes,
+          score.tempo,
+          audioConfig.sidechainDepth ?? DEFAULT_DUCK_DEPTH,
+          audioConfig.sidechainReleaseSeconds ?? DEFAULT_DUCK_RELEASE_SECONDS,
+        )
       : null;
 
+  const mutedRoles = new Set(audioConfig.mutedRoles ?? []);
+  const activeTracks = score.tracks.filter((track) => !mutedRoles.has(track.role));
+
   const trackRuntimes = await Promise.all(
-    score.tracks.map((track) =>
+    activeTracks.map((track) =>
       createTrackRuntime(
         track,
         score.tempo,

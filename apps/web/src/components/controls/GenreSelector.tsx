@@ -34,13 +34,12 @@ export function GenreSelector() {
   }
 
   return (
-    // ⭐ 2026-08-24 (מובייל): גלילה אופקית מתחת ל-sm (יותר מדי סגנונות ל-flex-wrap בלי
-    // לתפוס כמה שורות) — shrink-0 על כל pill כדי שלא יידחסו ברוחב הגלילה.
-    <div
-      className="flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible"
-      role="radiogroup"
-      aria-label="Musical style"
-    >
+    // ⭐ 2026-08-24 (בדיקה חיה, מובייל צר — 320px): הגלילה-האופקית הישנה מתחת ל-sm הסתירה
+    // בפועל את רוב הסגנונות (המשתמש לא ידע לגלול, ובנוסף שיתפה שורה עם SoundSelector/
+    // Upload/Save שדחקו אותה עוד יותר — ראה studio/page.tsx, עכשיו בשורה נפרדת). flex-wrap
+    // + size="sm" (פילים קטנים יותר) במקום גלילה — *כל* הסגנונות תמיד גלויים בבת אחת,
+    // גולשים לשורה שנייה אם צריך, לא נחבאים.
+    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Musical style">
       {isLoading && packs.length === 0 ? (
         <span className="text-sm text-muted-foreground">Loading styles…</span>
       ) : (
@@ -49,6 +48,7 @@ export function GenreSelector() {
             key={pack.id}
             type="button"
             role="radio"
+            size="sm"
             variant={pack.id === genreId ? 'default' : 'outline'}
             className="shrink-0 rounded-full"
             aria-checked={pack.id === genreId}

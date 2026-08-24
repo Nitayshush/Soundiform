@@ -22,6 +22,13 @@
  * להתנהגות המוכרת), וכל path *נוסף* תורם max(vertexCount, 3) משלו — כך שציור עם יותר
  * משיכות באמת יוצר יצירה ארוכה/עשירה יותר, לא רק ויזואל נוסף. loop/symmetryTransform
  * נשארים נגזרים מה-path הדומיננטי בלבד (האופי הכללי של הצורה, לא "כמה צויר").
+ *
+ * ⭐ 2026-08-24 (מקצה שיפורים לסאונד, Area 3): sizeHint חדש — אלכסון ה-bounding-box
+ * *המאוחד* (כל ה-paths יחד, לא רק הדומיננטי) מנורמל לאלכסון הקנבס המלא. harmonyEngine.ts
+ * מכפיל בו את בסיס-חישוב durationBars, כך שציור פיזית-גדול יוצר יצירה ארוכה יותר — לא רק
+ * ציור עם הרבה קודקודים (motifSize, שממשיך לקבוע *כמות תווים*, מושג נפרד). נבחר אלכסון-
+ * bbox ולא shapeAnalyzer.ts's `area` כי area=0 לצורות פתוחות (קו בודד) — בדיוק המקרה
+ * הכי-בעייתי שדווח (יצירה שרובה שקטה, §11 שיפור-סאונד).
  */
 
 import type { ShapeData, ShapePath } from '@soundiform/shared';
@@ -41,6 +48,8 @@ const OPEN_SHAPE_PERIMETER_NORMALIZER = 4;
 const MIN_MOTIF_CONTRIBUTION_PER_STROKE = 3;
 /** תקרת motifSize כוללת — תואם RESAMPLE_COUNT: ל-pitchContour יש רק 64 ערכים נבדלים ממילא. */
 const MAX_MOTIF_SIZE = RESAMPLE_COUNT;
+/** אלכסון קנבס מלא בקואורדינטות מנורמלות [0,1]×[0,1] — המנרמל של sizeHint (Area 3). */
+const MAX_SIZE_DIAGONAL = Math.SQRT2;
 
 export const symmetryTransformSchema = z.enum([
   'none',
@@ -57,6 +66,7 @@ export const rawMusicalIntentSchema = z.object({
   seed: z.string().min(1),
   loop: z.boolean(),
   motifSize: z.number().int().positive(),
+  sizeHint: z.number().min(0).max(1),
   pitchContour: z.array(z.number().min(0).max(1)).min(1),
   symmetryTransform: symmetryTransformSchema,
   rotationalOrder: z.number().int().positive(),
@@ -119,6 +129,22 @@ function computeTotalMotifSize(
   return Math.min(MAX_MOTIF_SIZE, total);
 }
 
+/**
+ * גודל הציור (0–1): אלכסון bounding-box *מאוחד* על פני כל ה-paths (לא רק הדומיננטי) —
+ * ציור עם כמה משיכות פזורות נחשב "גדול" גם אם כל משיכה בודדת קטנה. אלכסון (לא שטח) כי
+ * גם צורה פתוחה (קו בודד) חייבת אות-גודל משמעותי — §11 שיפור-סאונד.
+ */
+function computeSizeHint(shape: ShapeData): number {
+  const allPoints = shape.paths.flatMap((path) => path.points);
+  if (allPoints.length === 0) {
+    return 0;
+  }
+  const xs = allPoints.map((point) => point.x);
+  const ys = allPoints.map((point) => point.y);
+  const diagonal = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  return clamp01(diagonal / MAX_SIZE_DIAGONAL);
+}
+
 function computeArticulation(features: ShapeFeatures): ArticulationHint {
   const sharpness = features.vertexCount / RESAMPLE_COUNT;
   return sharpness > SHARPNESS_THRESHOLD ? 'staccato' : 'legato';
@@ -157,6 +183,7 @@ export function geometryToMusic(shape: ShapeData, shapeHash: string): RawMusical
     seed: shapeHash,
     loop: contour.closed,
     motifSize: computeTotalMotifSize(shape, primaryPath, features, symmetry),
+    sizeHint: computeSizeHint(shape),
     pitchContour: resampleByX(resamplePaths, RESAMPLE_COUNT),
     symmetryTransform: toSymmetryTransform(symmetry),
     rotationalOrder: symmetry.rotationalOrder,

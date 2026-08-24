@@ -10,9 +10,17 @@
  * serverRenderer.ts קורא לה — זה המימוש בפועל של "פריוויו ≈ פלט סופי" (§11 Sprint 6), לא
  * רק כוונה. מה שנשאר כאן ייחודי לדפדפן: Tone.start() (מדיניות autoplay), ו-Transport
  * live control (play/stop/seek בזמן אמת) — לעומת serverRenderer שרק "מריץ קדימה" אופליין.
+ *
+ * ⭐ 2026-08-24 (Area 1, דווח על ניגון-מובייל שמושתק אחרי כמה שניות): resumeIfSuspended —
+ * דפדפני מובייל (בעיקר iOS Safari) יכולים להשעות (suspend) את חומרת ה-AudioContext אחרי
+ * שהאפליקציה עוברת לרקע/המסך ננעל/המערכת חוסכת חשמל — לא ניתן לשחזר את זה ב-headless
+ * Chromium (Playwright's mobile-viewport emulation רץ על Blink, לא WebKit אמיתי, אז הבאג
+ * הזה לא בר-שחזור כאן), אבל זו התבנית הידועה/מתועדת לבעיה הזו: לבדוק state ולקרוא ל-
+ * resume() כשצריך, גם מלולאת ה-position-polling (useAudioEngine.ts, כבר רץ בזמן ניגון)
+ * וגם ב-visibilitychange (כדי לתפוס גם מקרה שבו ה-rAF loop עצמו הושהה ברקע).
  */
 
-import { getTransport, start as startAudioContext } from 'tone';
+import { getContext, getTransport, start as startAudioContext } from 'tone';
 import type { MusicalScore } from '@soundiform/core';
 import { createMasterBus } from '../mixing/loudness';
 import {
@@ -32,6 +40,9 @@ export interface BrowserRendererHandle {
   seekSeconds(seconds: number): void;
   getCurrentSeconds(): number;
   readonly durationSeconds: number;
+  /** ⭐ 2026-08-24: בודק אם ה-AudioContext הושעה (בעיקר iOS) ומחזיר אותו לפעולה אם צריך —
+   * בטוח לקרוא לו תדיר (no-op כשה-state כבר 'running'). */
+  resumeIfSuspended(): Promise<void>;
   dispose(): void;
 }
 
@@ -72,6 +83,12 @@ export async function createBrowserRenderer(
     },
     getCurrentSeconds() {
       return transport.seconds;
+    },
+    async resumeIfSuspended() {
+      const context = getContext();
+      if (context.state !== 'running') {
+        await context.resume();
+      }
     },
     durationSeconds,
     dispose() {

@@ -81,6 +81,42 @@ describe('geometryToMusic', () => {
     expect(intent.seed).toBe('abc123');
   });
 
+  describe('§11 שיפור-סאונד Area 3: sizeHint (גודל bounding-box) נפרד מ-motifSize (קודקודים)', () => {
+    it('משולש גדול וקטן: אותו motifSize (3 קודקודים), אך sizeHint שונה משמעותית', () => {
+      const small = geometryToMusic(makeTriangleShapeData({ x: 0.5, y: 0.5 }, 0.02), 'seed-size-a');
+      const large = geometryToMusic(makeTriangleShapeData({ x: 0.5, y: 0.5 }, 0.45), 'seed-size-b');
+      expect(small.motifSize).toBe(large.motifSize);
+      expect(large.sizeHint).toBeGreaterThan(small.sizeHint);
+    });
+
+    it('צורה פתוחה (קו בודד, area=0) עדיין מקבלת sizeHint משמעותי — לא רק צורות סגורות', () => {
+      const longOpenLine: ShapeData = {
+        version: '1.0.0',
+        paths: [
+          {
+            closed: false,
+            points: [
+              { x: 0.05, y: 0.05 },
+              { x: 0.95, y: 0.95 },
+            ],
+          },
+        ],
+      };
+      const intent = geometryToMusic(longOpenLine, 'seed-open-line-size');
+      expect(intent.sizeHint).toBeGreaterThan(0.5);
+    });
+
+    it('sizeHint תמיד בטווח [0,1] גם על נקודה בודדת מנוונת', () => {
+      const degeneratePoint: ShapeData = {
+        version: '1.0.0',
+        paths: [{ closed: false, points: [{ x: 0.5, y: 0.5 }] }],
+      };
+      const intent = geometryToMusic(degeneratePoint, 'seed-degenerate-size');
+      expect(intent.sizeHint).toBeGreaterThanOrEqual(0);
+      expect(intent.sizeHint).toBeLessThanOrEqual(1);
+    });
+  });
+
   describe('כמה משיכות-עט (§11 2026-08-23: כל משיכה תורמת ליצירה)', () => {
     it('משיכה שנייה מגדילה את motifSize מעבר למה שהמשיכה הדומיננטית לבדה הייתה נותנת', () => {
       const triangleOnly = geometryToMusic(makeTriangleShapeData(), 'seed-multi');

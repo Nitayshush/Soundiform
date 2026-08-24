@@ -52,7 +52,12 @@ export function validateConstitution(
   swingAmount = 0,
 ): ConstitutionViolation[] {
   const violations: ConstitutionViolation[] = [];
-  const startTickTolerance = maxTimingJitterTicks(score.tempo);
+  // ⭐ 2026-08-24: Math.ceil, לא הערך השברירי הגולמי — humanizeTiming (groove/humanize.ts)
+  // מעגל (Math.round) tick+jitter, כך שהסטייה בפועל יכולה להגיע ל-Math.round(maxJitterTicks)
+  // (למשל 9.6→10), חורגת מהטולרנס השברירי הגולמי (9.6) גם כשההומניזציה פעלה בדיוק כמתוכנן —
+  // לא הפרה אמיתית, רק פער בין הטולרנס לעיגול בפועל. נתפס ע"י בדיקה אמיתית (seed שגרם
+  // ל-jitter קרוב לקצה הטווח על טראק תופים ב-build).
+  const startTickTolerance = Math.ceil(maxTimingJitterTicks(score.tempo));
 
   score.tracks.forEach((track, trackIndex) => {
     const range = ROLE_PITCH_RANGES[track.role] ?? { min: 0, max: 127 };

@@ -25,7 +25,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { geometryToMusic, composeMusicalScore } from '@soundiform/core';
+import { geometryToMusic, composeMusicalScore, trackRoleSchema } from '@soundiform/core';
 import { VIDEO_ASPECT_RATIOS, type VideoQuality } from '@soundiform/audio';
 import {
   checkCreationQuota,
@@ -55,6 +55,12 @@ const renderRequestSchema = z.object({
   projectId: z.uuid(),
   genreId: z.string().min(1),
   video: z.object({ aspectRatio: z.enum(VIDEO_ASPECT_RATIOS) }).optional(),
+  /**
+   * ⭐ 2026-08-24 (Area 1): בחירת-צליל לפי תפקיד (SoundSelector.tsx) — לא סומכים על id
+   * שרירותי; מאמתים למטה שהוא באמת קיים ב-genrePack.soundOptions[role] לפני שימוש (§0.3:
+   * לעולם לא לסמוך על קליינט למכסות/הרשאות — אותו עיקרון חל גם על תוכן).
+   */
+  soundSelections: z.partialRecord(trackRoleSchema, z.string().min(1)).optional(),
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -75,7 +81,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { projectId, genreId, video } = parsed.data;
+  const { projectId, genreId, video, soundSelections } = parsed.data;
   const db = getDb();
 
   const [genrePackRow] = await db
@@ -107,7 +113,10 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const intent = geometryToMusic(project.shapeData, project.shapeHash);
   const score = composeMusicalScore(intent, toCompositionConfig(genrePack));
-  const audioConfig = toGenreAudioConfig(genrePack);
+  // ⭐ 2026-08-24 (Area 1): toGenreAudioConfig עצמו כבר מאמת כל id מול genrePack.soundOptions
+  // (genreAdapter.ts's resolveSynthPresets) — id לא-קיים נופל בשקט ל-synthMap הרגיל, אף פעם
+  // לא נכשל/נזרק. אין כאן עוד ולידציה נדרשת מעבר לזו שכבר ב-renderRequestSchema (טיפוס התפקיד).
+  const audioConfig = toGenreAudioConfig(genrePack, soundSelections);
 
   const jobId = await enqueueRenderJob({
     projectId,

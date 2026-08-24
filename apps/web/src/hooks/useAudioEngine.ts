@@ -18,6 +18,7 @@ import { geometryToMusic, composeMusicalScore } from '@soundiform/core';
 import { useShapeStore, toShapeData } from '@/stores/shapeStore';
 import { useGenreStore } from '@/stores/genreStore';
 import { useGenrePacksStore } from '@/stores/genrePacksStore';
+import { useSoundSelectionStore } from '@/stores/soundSelectionStore';
 import { toCompositionConfig, toGenreAudioConfig } from '@/lib/genreAdapter';
 
 export interface UseAudioEngineResult {
@@ -45,6 +46,10 @@ export function useAudioEngine(): UseAudioEngineResult {
   const paths = useShapeStore((state) => state.paths);
   const shapeHash = useShapeStore((state) => state.shapeHash);
   const genreId = useGenreStore((state) => state.genreId);
+  // ⭐ 2026-08-24 (Area 1): נבחר-רה-אקטיבית לפי genreId — משתנה זהות בכל selectSound,
+  // ולכן משתתף בתלויות ה-useEffect למטה בדיוק כמו shapeHash/genreId (renderer ישן שייך
+  // לבחירת-צליל הקודמת, לא ניתן להמשיך להשתמש בו).
+  const soundSelections = useSoundSelectionStore((state) => state.selectionsByGenre[genreId]);
 
   const rendererRef = useRef<BrowserRendererHandle | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -62,7 +67,8 @@ export function useAudioEngine(): UseAudioEngineResult {
     }
   }, []);
 
-  // הצורה או הסגנון השתנו — ה-renderer הישן שייך לקומבינציה הקודמת, לא ניתן להמשיך להשתמש בו.
+  // הצורה, הסגנון, או בחירת-הצליל השתנו — ה-renderer הישן שייך לקומבינציה הקודמת, לא ניתן
+  // להמשיך להשתמש בו.
   useEffect(() => {
     return () => {
       rendererRef.current?.dispose();
@@ -73,17 +79,34 @@ export function useAudioEngine(): UseAudioEngineResult {
       setDurationSeconds(0);
       setError(null);
     };
-  }, [shapeHash, genreId, stopPositionLoop]);
+  }, [shapeHash, genreId, soundSelections, stopPositionLoop]);
 
   // פונקציה בשם (function tick) ולא arrow — כדי שהקריאה הרקורסיבית תפנה לזהות המקומית של
   // עצמה (tick), לא לבינדינג runPositionLoop-של-הרינדור-הזה (שESLint מסמן כבעייתי לגישה).
+  // ⭐ 2026-08-24: resumeIfSuspended() בכל frame — זול (no-op כש-state כבר 'running'), ותופס
+  // השעיה של ה-AudioContext (בעיקר iOS Safari, ראה browserRenderer.ts) תוך כדי ניגון פעיל.
   const runPositionLoop = useCallback(function tick() {
     const renderer = rendererRef.current;
     if (!renderer) {
       return;
     }
     setCurrentSeconds(renderer.getCurrentSeconds());
+    void renderer.resumeIfSuspended();
     animationFrameRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  // ⭐ 2026-08-24: מכסה את המקרה שבו ה-rAF loop עצמו הושהה ברקע (מובייל, טאב לא-פעיל/מסך
+  // נעול) — visibilitychange ממשיך לירות גם אז, אז זו נקודת-ההתאוששות האמיתית כשחוזרים.
+  useEffect(() => {
+    const handleVisibilityChange = (): void => {
+      if (document.visibilityState === 'visible') {
+        void rendererRef.current?.resumeIfSuspended();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const play = useCallback(async () => {
@@ -102,7 +125,10 @@ export function useAudioEngine(): UseAudioEngineResult {
         const intent = geometryToMusic(shape, shapeHash);
         const score = composeMusicalScore(intent, toCompositionConfig(genrePack));
         const { createBrowserRenderer } = await import('@soundiform/audio');
-        rendererRef.current = await createBrowserRenderer(score, toGenreAudioConfig(genrePack));
+        rendererRef.current = await createBrowserRenderer(
+          score,
+          toGenreAudioConfig(genrePack, soundSelections),
+        );
         setDurationSeconds(rendererRef.current.durationSeconds);
         setIsLoading(false);
       }
@@ -113,7 +139,7 @@ export function useAudioEngine(): UseAudioEngineResult {
       setIsLoading(false);
       setError(errorMessage(caughtError));
     }
-  }, [paths, shapeHash, genreId, runPositionLoop]);
+  }, [paths, shapeHash, genreId, soundSelections, runPositionLoop]);
 
   const stop = useCallback(() => {
     rendererRef.current?.stop();

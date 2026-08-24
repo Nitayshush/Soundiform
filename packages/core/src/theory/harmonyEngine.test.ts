@@ -17,6 +17,7 @@ import { musicalScoreSchema } from '../score/scoreSchema';
 import { composeMusicalScore, type CompositionConfig } from './harmonyEngine';
 import { validateConstitution } from './rules';
 import {
+  makeAsymmetricShapeData,
   makeCircleShapeData,
   makeSquareShapeData,
   makeTriangleShapeData,
@@ -180,6 +181,39 @@ describe('composeMusicalScore — תקינות כללית', () => {
   });
 });
 
+describe('composeMusicalScore — §11 שיפור-סאונד Area 3: משך לפי גודל הציור', () => {
+  /** מקנה מידה לצורה סביב מרכז נתון — שומר על אותה טופולוגיה/זוויות (ולכן אותו motifSize),
+   * משנה רק את גודל ה-bounding-box בפועל (sizeHint). */
+  function scaleShapeAroundCenter(
+    shape: ShapeData,
+    factor: number,
+    center: { x: number; y: number } = { x: 0.5, y: 0.5 },
+  ): ShapeData {
+    return {
+      ...shape,
+      paths: shape.paths.map((path) => ({
+        ...path,
+        points: path.points.map((point) => ({
+          x: center.x + (point.x - center.x) * factor,
+          y: center.y + (point.y - center.y) * factor,
+        })),
+      })),
+    };
+  }
+
+  it('צורה גדולה נותנת durationBars גדול מאותה צורה מוקטנת (אותו motifSize, sizeHint שונה)', () => {
+    const base = makeAsymmetricShapeData(); // 5 קודקודים חדים, symmetryTransform='none' — baseBarsFromMotif=ceil(5/4)=2, מספיק "מקום" למכפיל להיראות אחרי עיגול.
+    const smallIntent = geometryToMusic(scaleShapeAroundCenter(base, 0.05), 'seed-dur-a');
+    const largeIntent = geometryToMusic(scaleShapeAroundCenter(base, 1.5), 'seed-dur-b');
+    expect(smallIntent.motifSize).toBe(largeIntent.motifSize);
+    expect(largeIntent.sizeHint).toBeGreaterThan(smallIntent.sizeHint);
+
+    const smallScore = composeMusicalScore(smallIntent, DEFAULT_TEST_CONFIG);
+    const largeScore = composeMusicalScore(largeIntent, DEFAULT_TEST_CONFIG);
+    expect(largeScore.durationBars).toBeGreaterThan(smallScore.durationBars);
+  });
+});
+
 describe('composeMusicalScore — §11 item 4: arrangement אמיתי (intro/build/outro)', () => {
   const ARRANGED_CONFIG: CompositionConfig = {
     ...DEFAULT_TEST_CONFIG,
@@ -239,5 +273,50 @@ describe('composeMusicalScore — §11 item 4: arrangement אמיתי (intro/bui
     const score = composeMusicalScore(intent, ARRANGED_CONFIG);
     expect(musicalScoreSchema.safeParse(score).success).toBe(true);
     expect(validateConstitution(score)).toHaveLength(0);
+  });
+
+  it('§11 שיפור-סאונד Area 4: lead ו-bass מנגנים גם ב-intro/build/outro, לא רק ב-loop (תיקון באג השקט)', () => {
+    const intent = geometryToMusic(makeTriangleShapeData(), 'seed-no-more-silence');
+    const score = composeMusicalScore(intent, ARRANGED_CONFIG);
+    const leadTrack = score.tracks.find((track) => track.role === 'lead');
+    const bassTrack = score.tracks.find((track) => track.role === 'bass');
+    expect(leadTrack).toBeDefined();
+    expect(bassTrack).toBeDefined();
+
+    for (const sectionName of ['intro', 'build', 'outro'] as const) {
+      const section = score.sections.find((candidate) => candidate.name === sectionName);
+      expect(section, sectionName).toBeDefined();
+      const startTick = (section?.startBar ?? 0) * 4 * 480;
+      const endTick = startTick + (section?.lengthBars ?? 0) * 4 * 480;
+
+      const leadNotesInSection = leadTrack?.notes.filter(
+        (note) => note.startTick >= startTick && note.startTick < endTick,
+      );
+      const bassNotesInSection = bassTrack?.notes.filter(
+        (note) => note.startTick >= startTick && note.startTick < endTick,
+      );
+      expect(leadNotesInSection?.length ?? 0, `lead ב-${sectionName}`).toBeGreaterThan(0);
+      expect(bassNotesInSection?.length ?? 0, `bass ב-${sectionName}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('§11 שיפור-סאונד Area 4: 100 צורות אקראיות עם arrangement — lead/bass נשארים בסולם ובטווח ריאליסטי (מבחן-קצה לגלישת רגיסטר בין-סקשן)', () => {
+    const shapeRandom = createSeededRandom('harmony-engine-arranged-random-shapes');
+    for (let index = 0; index < RANDOM_SHAPE_COUNT; index += 1) {
+      const shape = makeRandomShape(shapeRandom);
+      const intent = geometryToMusic(shape, `arranged-random-shape-${String(index)}`);
+      const score = composeMusicalScore(intent, ARRANGED_CONFIG);
+      // ⚠️ מסונן ל-note-in-scale/realistic-range על lead/bass בלבד — זה מה ש-Area 4 בפועל
+      // שינה (registerOffsetSemitones על תוכן intro/build/outro, ראה wrapPitchIntoRealisticRange
+      // ב-harmonyEngine.ts). quantized-to-grid על drums הוא edge-case נדיר וקיים-מראש
+      // (סבילות הומניזציה מול עיגול, buildBuildSectionNotes) שלא נגעתי בו בסבב הזה.
+      const relevantViolations = validateConstitution(score).filter(
+        (violation) =>
+          (violation.rule === 'note-in-scale' || violation.rule === 'realistic-range') &&
+          (score.tracks[violation.trackIndex]?.role === 'lead' ||
+            score.tracks[violation.trackIndex]?.role === 'bass'),
+      );
+      expect(relevantViolations, `shape ${String(index)}`).toHaveLength(0);
+    }
   });
 });

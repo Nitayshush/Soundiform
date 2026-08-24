@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useGenreStore } from '@/stores/genreStore';
+import { useSoundSelectionStore } from '@/stores/soundSelectionStore';
 import type { UseSaveProjectResult } from './useSaveProject';
 
 const POLL_INTERVAL_MS = 2000;
@@ -74,6 +75,9 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
   const router = useRouter();
   const searchParams = useSearchParams();
   const genreId = useGenreStore((state) => state.genreId);
+  // ⭐ 2026-08-24 (Area 1): נדרש כדי שהוידאו המורד ישקף את אותה בחירת-צליל של הפריוויו החי
+  // (useAudioEngine.ts) — בלי זה, הרינדור הסופי היה תמיד ברירת-המחדל של הז'אנר.
+  const soundSelections = useSoundSelectionStore((state) => state.selectionsByGenre[genreId]);
   const { requestSave, savedProjectId, isSaving, saveError } = saveProject;
 
   const [isRendering, setIsRendering] = useState(false);
@@ -99,6 +103,7 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
             projectId,
             genreId,
             video: { aspectRatio: DEFAULT_VIDEO_ASPECT_RATIO },
+            ...(soundSelections && { soundSelections }),
           }),
         });
         const renderBody = (await renderResponse.json()) as { jobId?: string; error?: string };
@@ -130,7 +135,7 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
         setStatusMessage(null);
       }
     },
-    [genreId, router],
+    [genreId, soundSelections, router],
   );
 
   const requestDownload = useCallback(() => {

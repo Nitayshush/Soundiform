@@ -19,6 +19,7 @@ import { MusicalGrid } from '@/components/canvas/MusicalGrid';
 import { ScoreStaff } from '@/components/canvas/ScoreStaff';
 import { RevealOverlay } from '@/components/canvas/RevealOverlay';
 import { GenreSelector } from '@/components/controls/GenreSelector';
+import { SoundSelector } from '@/components/controls/SoundSelector';
 import { UploadButton } from '@/components/controls/UploadButton';
 import { Logo } from '@/components/branding/Logo';
 import { Button } from '@/components/ui/button';
@@ -47,10 +48,17 @@ function StudioContent() {
 
   return (
     <main className="flex h-dvh flex-col bg-background">
-      {/* ⭐ 2026-08-24 (מובייל): flex-col sm:flex-row — שתי שורות מכוונות מתחת ל-sm (ראש
-          עם הפעולות התכופות, שורה שנייה עם בקרות משניות), במקום flex-wrap "מקרי" שיצר
-          3-4 שורות דחוסות. GenreSelector עצמו הפך לגלילה אופקית מתחת ל-sm (ראה שם). */}
-      <header className="flex flex-col gap-3 border-b border-border/60 bg-card/60 px-4 py-3 backdrop-blur-md sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      {/* ⭐ 2026-08-24 (מובייל): flex-col sm:flex-row — שורות מכוונות מתחת ל-sm (ראש עם
+          הפעולות התכופות, אחר-כך בקרות משניות), במקום flex-wrap "מקרי" שיצר שורות דחוסות.
+          ⭐ 2026-08-24 (בדיקה חיה, 320px): GenreSelector קיבל שורה נפרדת-לגמרי מתחת ל-sm
+          (במקום לשתף שורה עם Sound/Upload/Save שדחקו אותו לגלילה-אופקית סמויה שהמשתמש לא
+          מצא) — sm:contents "ממיס" את המיכל ב-sm+ בדיוק כמו הקבוצה הראשונה למעלה, כך
+          שהתצוגה בדסקטופ נשארת זהה (שורה אחת), רק מתחת ל-sm זו שורה עצמאית. */}
+      {/* ⭐ 2026-08-24: relative z-40 — בלי זה, הפאנל הנפתח של SoundSelector (absolute, z-30
+          בתוך הכותרת) נתפס מאחורי קנבס הבמה שמתחתיו (pixi/WebGL, נתפס בבדיקת Playwright
+          חיה — קליק על כפתור בפאנל "יורט" ע"י הקנבס). z-40 תואם את אותו ערך שכבר בשימוש
+          ב-Header.tsx הראשי (sticky top-0 z-40) — לא ערך שרירותי חדש. */}
+      <header className="relative z-40 flex flex-col gap-3 border-b border-border/60 bg-card/60 px-4 py-3 backdrop-blur-md sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center justify-between gap-3 sm:contents">
           <Link href="/" className="shrink-0 transition-opacity hover:opacity-80">
             <Logo markOnly className="sm:hidden" />
@@ -72,8 +80,14 @@ function StudioContent() {
             </Button>
           </div>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto sm:flex-1 sm:flex-wrap sm:overflow-visible">
+        <div className="sm:contents">
           <GenreSelector />
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto sm:flex-1 sm:flex-wrap sm:overflow-visible">
+          {/* ⭐ 2026-08-24 (Area 1): כפתור+פאנל קומפקטי (לא כמה שורות-תמיד-גלויות, ראה
+              SoundSelector.tsx) — נעלם לגמרי כשלז'אנר הפעיל אין לו soundOptions
+              (chill/cinematic/reggae). */}
+          <SoundSelector />
           <UploadButton />
           <Button
             type="button"
@@ -124,8 +138,14 @@ function StudioContent() {
             כ-maxWidthPx למעלה) — max-width מה-CSS היה מתנגש עם ה-style המחושב (חותך רוחב
             בלי לעדכן גובה בהתאם, ראה תיעוד ב-useFitAspectRatio.ts). aspect-video/max-h-full/
             w-full נשארים רק כברירת-מחדל לרגע שלפני שה-hook מודד לראשונה. */}
+        {/* ⭐ 2026-08-24: overflow-hidden — קו-הביטחון האחרון נגד ציור/סמנים שדולפים מחוץ
+            לקופסה (דווח בבדיקה חיה: קווים שנראו בורחים מהתיבה הלבנה). DrawingCanvas.tsx כבר
+            מהדק (clamp) כל נקודה ל-[0,1] בזמן הלכידה, אבל ה-backing-store שלו (canvas.width/
+            height) נגזר מ-getBoundingClientRect() ברגע ה-resize — כל פער תת-פיקסל בין המדידה
+            לגודל-CSS בפועל (זום דפדפן, מעבר-רזולוציה) יכול לגרום לקנבס לצייר קצת יותר-גדול
+            מהקופסה שסביבו; overflow-hidden מבטיח שזה תמיד נחתך חזותית, בלי קשר למקור הפער. */}
         <div
-          className="relative aspect-video max-h-full w-full bg-white text-[#211B4A] shadow-lg"
+          className="relative aspect-video max-h-full w-full overflow-hidden bg-white text-[#211B4A] shadow-lg"
           style={fittedSize ? { width: fittedSize.width, height: fittedSize.height } : undefined}
         >
           <DrawingCanvas hidden={isPlaying} />

@@ -9,10 +9,17 @@
  * בלבד) — apps/web הוא זה שממיר GenrePack.synthMap[role] ל-SynthPresetConfig ומעביר לכאן.
  * אם לא סופק preset מפורש, נופלים לברירת מחדל סבירה (DEFAULT_SYNTH_PRESET).
  *
+ * ⭐ 2026-08-24 (מקצה שיפורים לסאונד, Area 2): תמיכה בפריסטים רב-שכבתיים (preset.layers) —
+ * supersaw אמיתי (כמה שכבות saw מוסטות) ו-bass layering (סאב+אופי) דורשים כמה קולות Tone.js
+ * שמתנגנים בו-זמנית לכל תו, לא רק unison "fat" בתוך קול יחיד. כל שכבה היא ToneVoice+Gain
+ * (+פילטר/דיסטורשן אופציונליים) משלה, כולן מסתכמות לפני הפילטר/output ברמת-הפריסט. פריסט
+ * חד-שכבתי (הרוב, ללא preset.layers) ממשיך לעבוד בדיוק כמו קודם — resolveLayers הופך אותו
+ * ל"שכבה אחת מרומזת" עם gain=1, כדי שלא יהיו שני נתיבי-קוד מקבילים.
+ *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import { Filter, Gain, PolySynth, Synth } from 'tone';
+import { Distortion, Filter, Gain, PolySynth, Synth } from 'tone';
 import type { OutputNode } from 'tone';
 import type { Note, TrackRole } from '@soundiform/core';
 import type { InstrumentProvider } from './InstrumentProvider';
@@ -41,6 +48,22 @@ export interface SynthUnisonConfig {
   spreadCents: number;
 }
 
+/**
+ * ⭐ 2026-08-24 (Area 2): שכבת-קול בודדת בתוך פריסט רב-שכבתי — ראה תיעוד הקובץ למעלה.
+ */
+export interface SynthLayerConfig {
+  oscillatorType: OscillatorType;
+  envelope: SynthEnvelopeConfig;
+  /** עוצמת השכבה יחסית (0-1) — לא volume מוחלט. */
+  gain: number;
+  /** הסטת-פיץ' לשכבה בחצאי-טונים (למשל -12 לסאב אוקטבה מתחת). */
+  detuneSemitones?: number;
+  filter?: SynthFilterConfig;
+  unison?: SynthUnisonConfig;
+  /** עיוות/סטורציה לשכבה הזו בלבד (0=בלי) — ראה mixing/distortion.ts. */
+  driveAmount?: number;
+}
+
 export interface SynthPresetConfig {
   oscillatorType: OscillatorType;
   envelope: SynthEnvelopeConfig;
@@ -50,6 +73,8 @@ export interface SynthPresetConfig {
   filter?: SynthFilterConfig;
   /** ⭐ 2026-08-22: undefined = נופל ל-FAT_UNISON_COUNT/SPREAD הגלובליים (ברירת מחדל ישנה). */
   unison?: SynthUnisonConfig;
+  /** ⭐ 2026-08-24: כשמוגדר ולא ריק — מחליף את oscillatorType/envelope/filter/unison שלמעלה. */
+  layers?: SynthLayerConfig[];
 }
 
 // ⚠️ polyphonic: true בכוונה — זו ברירת המחדל שחלה על *כל* role שחסר ב-GenrePack.synthMap
@@ -77,17 +102,48 @@ const FAT_OSCILLATOR_TYPE: Record<OscillatorType, `fat${OscillatorType}`> = {
 const FAT_UNISON_COUNT = 3;
 const FAT_UNISON_SPREAD_CENTS = 18;
 
-function createVoice(preset: SynthPresetConfig): ToneVoice {
-  const unison = preset.unison ?? { count: FAT_UNISON_COUNT, spreadCents: FAT_UNISON_SPREAD_CENTS };
+/** פריסט חד-שכבתי (הרוב) הופך ל"שכבה אחת מרומזת" — נתיב-קוד יחיד ל-createVoice/playNote/dispose. */
+function resolveLayers(preset: SynthPresetConfig): SynthLayerConfig[] {
+  if (preset.layers && preset.layers.length > 0) {
+    return preset.layers;
+  }
+  return [
+    {
+      oscillatorType: preset.oscillatorType,
+      envelope: preset.envelope,
+      gain: 1,
+      ...(preset.filter && { filter: preset.filter }),
+      ...(preset.unison && { unison: preset.unison }),
+    },
+  ];
+}
+
+function createToneVoice(layer: SynthLayerConfig, polyphonic: boolean): ToneVoice {
+  const unison = layer.unison ?? { count: FAT_UNISON_COUNT, spreadCents: FAT_UNISON_SPREAD_CENTS };
   const voiceOptions = {
     oscillator: {
-      type: FAT_OSCILLATOR_TYPE[preset.oscillatorType],
+      type: FAT_OSCILLATOR_TYPE[layer.oscillatorType],
       count: unison.count,
       spread: unison.spreadCents,
     },
-    envelope: preset.envelope,
+    envelope: layer.envelope,
+    detune: (layer.detuneSemitones ?? 0) * 100, // Tone.js detune הוא בסנטים, לא בחצאי-טונים.
   };
-  return preset.polyphonic ? new PolySynth(Synth, voiceOptions) : new Synth(voiceOptions);
+  return polyphonic ? new PolySynth(Synth, voiceOptions) : new Synth(voiceOptions);
+}
+
+interface LayerVoice {
+  voice: ToneVoice;
+  gain: Gain;
+  filterNode: Filter | null;
+  distortionNode: Distortion | null;
+}
+
+function disposeLayerVoice(layerVoice: LayerVoice): void {
+  layerVoice.voice.dispose();
+  layerVoice.filterNode?.dispose();
+  layerVoice.distortionNode?.dispose();
+  layerVoice.gain.dispose();
 }
 
 /**
@@ -103,8 +159,8 @@ export class SynthProvider implements InstrumentProvider {
   private readonly tempoBpm: number;
   private readonly preset: SynthPresetConfig;
   private readonly outputGain: Gain;
-  private voice: ToneVoice | null = null;
-  private filterNode: Filter | null = null;
+  private layerVoices: LayerVoice[] = [];
+  private presetFilterNode: Filter | null = null;
 
   constructor(role: TrackRole, tempoBpm: number, preset: SynthPresetConfig = DEFAULT_SYNTH_PRESET) {
     this.role = role;
@@ -117,31 +173,61 @@ export class SynthProvider implements InstrumentProvider {
 
   // eslint-disable-next-line @typescript-eslint/require-await -- load() חייב Promise לפי InstrumentProvider; אין await אמיתי כרגע (V1 בלי SamplerProvider/רשת).
   async load(_instrumentId: string): Promise<void> {
-    this.voice = createVoice(this.preset);
+    // ⭐ שכבות מרובות מתחברות ל-sumNode משותף (לא ישירות ל-outputGain) — כדי שהפילטר
+    // ברמת-הפריסט (preset.filter, אם מוגדר) יחול על *סכום* השכבות, לא על כל שכבה בנפרד
+    // (שכל שכבה יכולה כבר לקבל פילטר-משלה, layer.filter, לפני הסכימה — ראה §תיעוד למעלה).
+    const layers = resolveLayers(this.preset);
+    const sumNode = this.preset.filter ? new Gain(1) : this.outputGain;
     if (this.preset.filter) {
-      this.filterNode = new Filter(this.preset.filter.frequencyHz, this.preset.filter.type);
+      this.presetFilterNode = new Filter(this.preset.filter.frequencyHz, this.preset.filter.type);
       if (this.preset.filter.resonance !== undefined) {
-        this.filterNode.Q.value = this.preset.filter.resonance;
+        this.presetFilterNode.Q.value = this.preset.filter.resonance;
       }
-      this.voice.connect(this.filterNode);
-      this.filterNode.connect(this.outputGain);
-    } else {
-      this.voice.connect(this.outputGain);
+      sumNode.connect(this.presetFilterNode);
+      this.presetFilterNode.connect(this.outputGain);
     }
+
+    this.layerVoices = layers.map((layer) => {
+      const voice = createToneVoice(layer, this.preset.polyphonic);
+      const layerGain = new Gain(layer.gain);
+      let filterNode: Filter | null = null;
+      let distortionNode: Distortion | null = null;
+      let tail: ToneVoice | Filter | Distortion = voice;
+
+      if (layer.driveAmount !== undefined && layer.driveAmount > 0) {
+        distortionNode = new Distortion(layer.driveAmount);
+        tail.connect(distortionNode);
+        tail = distortionNode;
+      }
+      if (layer.filter) {
+        filterNode = new Filter(layer.filter.frequencyHz, layer.filter.type);
+        if (layer.filter.resonance !== undefined) {
+          filterNode.Q.value = layer.filter.resonance;
+        }
+        tail.connect(filterNode);
+        tail = filterNode;
+      }
+      tail.connect(layerGain);
+      layerGain.connect(sumNode);
+
+      return { voice, gain: layerGain, filterNode, distortionNode };
+    });
   }
 
   playNote(note: Note, time: number): void {
-    if (!this.voice) {
+    if (this.layerVoices.length === 0) {
       throw new Error(`SynthProvider(${this.role}): playNote נקרא לפני load()`);
     }
     const frequencyHz = midiToHz(note.pitch);
     const durationSeconds = ticksToSeconds(note.durationTicks, this.tempoBpm);
-    this.voice.triggerAttackRelease(frequencyHz, durationSeconds, time, note.velocity);
+    for (const layerVoice of this.layerVoices) {
+      layerVoice.voice.triggerAttackRelease(frequencyHz, durationSeconds, time, note.velocity);
+    }
   }
 
   dispose(): void {
-    this.voice?.dispose();
-    this.filterNode?.dispose();
+    this.layerVoices.forEach(disposeLayerVoice);
+    this.presetFilterNode?.dispose();
     this.outputGain.dispose();
   }
 }

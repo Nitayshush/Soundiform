@@ -56,13 +56,28 @@ export function usePlayScore(score: MusicalScore, genreId: string): UsePlayScore
     };
   }, [score, genreId, stopPositionLoop]);
 
+  // ⭐ 2026-08-24: resumeIfSuspended() בכל frame + visibilitychange — אותו תיקון כמו
+  // useAudioEngine.ts, נדרש גם כאן כי דפי שיתוף/גלריה הם בדיוק המקום שסביר שינוגן במובייל.
   const runPositionLoop = useCallback(function tick() {
     const renderer = rendererRef.current;
     if (!renderer) {
       return;
     }
     setCurrentSeconds(renderer.getCurrentSeconds());
+    void renderer.resumeIfSuspended();
     animationFrameRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = (): void => {
+      if (document.visibilityState === 'visible') {
+        void rendererRef.current?.resumeIfSuspended();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const play = useCallback(async () => {
