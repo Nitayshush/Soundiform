@@ -34,7 +34,13 @@ export function GenreSelector() {
   }
 
   return (
-    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Musical style">
+    // ⭐ 2026-08-24 (מובייל): גלילה אופקית מתחת ל-sm (יותר מדי סגנונות ל-flex-wrap בלי
+    // לתפוס כמה שורות) — shrink-0 על כל pill כדי שלא יידחסו ברוחב הגלילה.
+    <div
+      className="flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible"
+      role="radiogroup"
+      aria-label="Musical style"
+    >
       {isLoading && packs.length === 0 ? (
         <span className="text-sm text-muted-foreground">Loading styles…</span>
       ) : (
@@ -44,7 +50,7 @@ export function GenreSelector() {
             type="button"
             role="radio"
             variant={pack.id === genreId ? 'default' : 'outline'}
-            className="rounded-full"
+            className="shrink-0 rounded-full"
             aria-checked={pack.id === genreId}
             onClick={() => {
               setGenreId(pack.id);

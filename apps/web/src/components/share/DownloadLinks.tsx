@@ -30,7 +30,7 @@ export function DownloadLinks({
 }: DownloadLinksProps) {
   const base = `/api/renders/${renderId}/download`;
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {hasVideo && (
         <Button
           type="button"

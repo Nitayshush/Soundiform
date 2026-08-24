@@ -93,22 +93,27 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     <>
       <Header />
       <main className="mx-auto max-w-5xl px-6 py-12">
-        <div className="mb-8 flex items-center gap-4">
-          {/* eslint-disable-next-line @next/next/no-img-element -- avatar host varies (our signed-redirect route or an external OAuth CDN), not next/image-friendly */}
-          <img
-            src={profile.avatarUrl ?? '/icon.svg'}
-            alt=""
-            className="size-16 rounded-full border border-border/60 object-cover"
-          />
-          <div className="flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {profile.displayName ?? `@${profile.username}`}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              @{profile.username} · {creations.length}{' '}
-              {creations.length === 1 ? 'creation' : 'creations'} · {followerCount}{' '}
-              {followerCount === 1 ? 'follower' : 'followers'}
-            </p>
+        {/* ⭐ 2026-08-24 (מובייל): flex-col sm:flex-row — בשורה אחת קשיחה, הכפתור נדחס מדי
+            ב-375px (אווטאר 64px קבוע + שם/סטטיסטיקות + כפתור, בלי לגלוש). אווטאר+שם נשארים
+            צמודים תמיד (קבוצה פנימית משלהם); רק הכפתור יורד לשורה משלו מתחת ל-sm. */}
+        <div className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- avatar host varies (our signed-redirect route or an external OAuth CDN), not next/image-friendly */}
+            <img
+              src={profile.avatarUrl ?? '/icon.svg'}
+              alt=""
+              className="size-16 shrink-0 rounded-full border border-border/60 object-cover"
+            />
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {profile.displayName ?? `@${profile.username}`}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                @{profile.username} · {creations.length}{' '}
+                {creations.length === 1 ? 'creation' : 'creations'} · {followerCount}{' '}
+                {followerCount === 1 ? 'follower' : 'followers'}
+              </p>
+            </div>
           </div>
           {isOwnProfile ? (
             <Button variant="outline" nativeButton={false} render={<Link href="/account" />}>

@@ -58,8 +58,10 @@ export function RevealOverlay() {
       >
         {isOpen ? 'Close' : 'How is this built?'}
       </button>
+      {/* ⭐ 2026-08-24 (מובייל): max-h+overflow-y-auto על ה-aside — הקופסה עצמה יכולה להיות
+          נמוכה מאוד בנייד (ריבועי, ~193px), והפאנל עלול לחרוג מהגובה הזה בלי הגנה. */}
       {isOpen && (
-        <aside className="pointer-events-auto max-w-xs rounded-lg border bg-background/95 p-4 text-sm shadow-lg">
+        <aside className="pointer-events-auto max-h-[70vh] max-w-xs overflow-y-auto rounded-lg border bg-background/95 p-4 text-sm shadow-lg">
           <h2 className="mb-2 font-semibold">From your shape to music</h2>
           <dl className="space-y-1">
             <div className="flex justify-between gap-3">

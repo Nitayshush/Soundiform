@@ -33,7 +33,7 @@ export function ShareButtons({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       <Button
         type="button"
         variant="outline"
