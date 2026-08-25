@@ -78,7 +78,7 @@ export function SoundSelector() {
   const genreId = useGenreStore((state) => state.genreId);
   const packs = useGenrePacksStore((state) => state.packs);
   const selectionsByGenre = useSoundSelectionStore((state) => state.selectionsByGenre);
-  const selectSound = useSoundSelectionStore((state) => state.selectSound);
+  const toggleSound = useSoundSelectionStore((state) => state.toggleSound);
   const previewSound = usePreviewSound();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -226,9 +226,11 @@ export function SoundSelector() {
             </div>
             <div className="flex flex-col gap-3 overflow-y-auto p-3">
               {rolesWithChoices.map(([role, options]) => {
-                const defaultOptionId = options[0]?.id;
-                const selectedOptionId = currentSelections[role] ?? defaultOptionId;
-                const isMuted = selectedOptionId === MUTED_SOUND_OPTION_ID;
+                // ⭐ 2026-08-25 (בחירת-צליל מרובה): בלי בחירה מפורשת, שום פיל לא מסומן כאן —
+                // ברירת-המחדל בפועל (seededIndex, genreAdapter.ts) לא נחשפת ב-UI כ"נבחרה",
+                // כדי לא לרמז על בחירה שהמשתמש לא עשה בעצמו. לוחצים → זו הבחירה הראשונה שלו.
+                const selectedOptionIds = currentSelections[role] ?? [];
+                const isMuted = selectedOptionIds.includes(MUTED_SOUND_OPTION_ID);
 
                 return (
                   <div key={role} className="flex flex-col gap-1.5">
@@ -237,38 +239,39 @@ export function SoundSelector() {
                     </span>
                     <div
                       className="flex flex-wrap items-center gap-1.5"
-                      role="radiogroup"
+                      role="group"
                       aria-label={`${ROLE_LABEL[role]} sound`}
                     >
-                      {options.map((option) => (
-                        <Button
-                          key={option.id}
-                          type="button"
-                          role="radio"
-                          size="sm"
-                          variant={option.id === selectedOptionId ? 'default' : 'outline'}
-                          className="shrink-0 rounded-full"
-                          aria-checked={option.id === selectedOptionId}
-                          onClick={() => {
-                            selectSound(genreId, role, option.id);
-                            void previewSound(role, option.preset);
-                          }}
-                        >
-                          {option.displayName.en}
-                        </Button>
-                      ))}
+                      {options.map((option) => {
+                        const isSelected = selectedOptionIds.includes(option.id);
+                        return (
+                          <Button
+                            key={option.id}
+                            type="button"
+                            size="sm"
+                            variant={isSelected ? 'default' : 'outline'}
+                            className="shrink-0 rounded-full"
+                            aria-pressed={isSelected}
+                            onClick={() => {
+                              toggleSound(genreId, role, option.id);
+                              void previewSound(role, option.preset);
+                            }}
+                          >
+                            {option.displayName.en}
+                          </Button>
+                        );
+                      })}
                       {/* ⭐ לפי בקשה חיה: מכבה את הטראק לגמרי — לא עוד צליל, אלא היעדר-טראק.
                           "Mute" (לא "Off") בכוונה — כמה פריסטים כבר נקראים "...-Off" (למשל
                           Off-Bass, ראה trance.json) והתקבצות ליד "Off" גנרי הייתה מבלבלת. */}
                       <Button
                         type="button"
-                        role="radio"
                         size="sm"
                         variant={isMuted ? 'secondary' : 'outline'}
                         className="shrink-0 rounded-full"
-                        aria-checked={isMuted}
+                        aria-pressed={isMuted}
                         onClick={() => {
-                          selectSound(genreId, role, MUTED_SOUND_OPTION_ID);
+                          toggleSound(genreId, role, MUTED_SOUND_OPTION_ID);
                         }}
                       >
                         Mute

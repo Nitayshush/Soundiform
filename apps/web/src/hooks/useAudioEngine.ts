@@ -127,7 +127,7 @@ export function useAudioEngine(): UseAudioEngineResult {
         const { createBrowserRenderer } = await import('@soundiform/audio');
         rendererRef.current = await createBrowserRenderer(
           score,
-          toGenreAudioConfig(genrePack, soundSelections),
+          toGenreAudioConfig(genrePack, intent.seed, soundSelections),
         );
         setDurationSeconds(rendererRef.current.durationSeconds);
         setIsLoading(false);

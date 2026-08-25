@@ -46,8 +46,15 @@ const DEFAULT_TIME_SIGNATURE: [number, number] = [4, 4];
 const ROOT_OCTAVE_BASE_MIDI = 48;
 /** כמה תווים "יושבים" בבר אחד לצורך חישוב durationBars מתוך motifSize. */
 const NOTES_PER_BAR = 4;
-/** טווח דרגות-סולם למלודיה (~אוקטבה) — Y=0 (למעלה) → הדרגה הגבוהה, Y=1 (למטה) → הנמוכה. */
-const MELODY_DEGREE_RANGE = 8;
+/**
+ * טווח דרגות-סולם למלודיה — Y=0 (למעלה) → הדרגה הגבוהה, Y=1 (למטה) → הנמוכה.
+ * ⭐ 2026-08-25 (תיקון ממוקד: טווח-מלודיה רחב יותר): 8→15 (מ-~אוקטבה ל-~2 אוקטבות) — כדי
+ * שציר-ה-Y ישפיע משמעותית יותר על הפיץ' בפועל. מאומת-חשבונית שבטוח מול ROLE_PITCH_RANGES.lead
+ * (rules.ts, 48–96) על כל שורש אפשרי (48–59) ובכל אחד מ-7 המודים: הדרגה המקסימלית (7+15-1=21)
+ * נותנת אינטרוול מקסימלי של 36 חצי-טונים — 59+36=95≤96, תמיד בטוח. גם עם זאת, applySymmetryTransform's
+ * inversion יכול "להיפתח" רחוק יותר עם הטווח הרחב — ראה wrapPitchIntoRealisticRange ב-buildLeadTrack.
+ */
+const MELODY_DEGREE_RANGE = 15;
 /** המלודיה יושבת אוקטבה מעל השורש (רגיסטר lead טיפוסי). */
 const MELODY_DEGREE_OFFSET = 7;
 /** הבס יושב אוקטבה מתחת לשורש. */
@@ -173,6 +180,31 @@ export interface CompositionConfig {
    * ברירת מחדל אם undefined: ['loop'] (התנהגות ישנה, זהה למה שהיה hardcoded).
    */
   sectionOrder?: readonly Section['name'][];
+  /**
+   * ⭐ 2026-08-25 (מגוון מוזיקלי לפי-צורה): טווח טמפו לגיטימי לסגנון — לצד tempoBpm הקיים
+   * (שנשאר ברירת-המחדל כש-tempoRange לא מוגדר). כשקיים, composeMusicalScore בוחר טמפו בפועל
+   * בתוך הטווח לפי intent.rhythmicDensityHint (סיגנל שהיה מחושב ומעולם לא נצרך) — צורה
+   * "עמוסת-פינות" מקבלת טמפו מהיר יותר בתוך מה שהסגנון מגדיר כלגיטימי.
+   */
+  tempoRange?: { min: number; max: number };
+  /**
+   * ⭐ 2026-08-25: מודים חוקיים לסגנון — לצד mode הקיים (שנשאר ברירת-המחדל כשלא מוגדר, או
+   * כשמוגדר אורך≤1). כשיש יותר ממוד אחד, composeMusicalScore בוחר לפי intent.articulation
+   * (בינארי גיאומטרי טבעי — עקבי עם איך ש-articulation עצמו נגזר מחדות-הצורה).
+   */
+  allowedModes?: readonly Mode[];
+  /**
+   * ⭐ 2026-08-25: פרוגרסיות-אקורדים חלופיות לסגנון — לצד chordProgression הקיים (ברירת-מחדל
+   * כשלא מוגדר). כשקיים, נבחר לפי intent.rotationalOrder כשיש סימטריה-סיבובית אמיתית
+   * (משמעות גיאומטרית: משושה לעומת משולש יבחרו אחרת), אחרת seeded-random.
+   */
+  chordProgressionOptions?: readonly (readonly number[])[];
+  /**
+   * ⭐ 2026-08-25: תבניות-קצב חלופיות לכל role — שדה נפרד מ-rhythmPatterns (שנשאר הפריט
+   * הבודד/ברירת-המחדל כש-role חסר כאן). נבחר לפי intent.rhythmicDensityHint, bucketed
+   * לפי מספר האפשרויות.
+   */
+  rhythmPatternOptions?: Partial<Record<TrackRole, readonly RhythmStepPattern[]>>;
 }
 
 function midiToFrequencyHz(midiPitch: number): number {
@@ -282,7 +314,9 @@ function buildPadTrack(
     role: 'pad',
     instrumentId: 'default-pad',
     notes,
-    mixSettings: { volume: 0.6, pan: 0, reverbSend: 0.3, delaySend: 0.1 },
+    // ⭐ 2026-08-25: 0.6→0.45 — לצד volume:1 של התופים (למטה, composeMusicalScore), כדי
+    // שהאיזון היחסי יעניק לקיק מקום להישמע בולט (ראה תיעוד שם).
+    mixSettings: { volume: 0.45, pan: 0, reverbSend: 0.3, delaySend: 0.1 },
   };
 }
 
@@ -430,7 +464,9 @@ function buildBassTrack(
     role: 'bass',
     instrumentId: 'default-bass',
     notes,
-    mixSettings: { volume: 0.8, pan: 0, reverbSend: 0, delaySend: 0 },
+    // ⭐ 2026-08-25: 0.8→0.65 — אותה סיבה כמו buildPadTrack (מפנה מקום-תדר/עוצמה לתופים,
+    // volume:1, שחולקים איתו את אותו טווח-תדרים נמוך).
+    mixSettings: { volume: 0.65, pan: 0, reverbSend: 0, delaySend: 0 },
   };
 }
 
@@ -452,7 +488,11 @@ function buildLoopLeadNotes(
   const noteCount = fullMelody.length;
   const evenSlotTicks = noteCount > 0 ? totalTicks / noteCount : totalTicks;
   const isStaccato = intent.articulation === 'staccato';
-  const gapRatio = isStaccato ? 0.4 : 0.98;
+  // ⭐ 2026-08-25 (מגוון מוזיקלי לפי-צורה): durationHint (מורכבות-מתאר, geometryToMusic.ts)
+  // מערבב את gapRatio לגרדיאנט רציף בתוך כל טווח — לא רק מתג בינארי staccato/legato כמו קודם.
+  const gapRatio = isStaccato
+    ? lerp(0.25, 0.55, intent.durationHint)
+    : lerp(0.75, 0.98, intent.durationHint);
   const sectionStartTicks = section.startBar * TICKS_PER_BAR;
 
   const patternTicks = config.rhythmPatterns?.lead
@@ -548,9 +588,16 @@ function buildLeadTrack(
   const hasSecondPhrase = intent.symmetryTransform !== 'none';
 
   const sampledY = sampleEvenly(intent.pitchContour, intent.motifSize);
-  const primaryMotif = sampledY.map((y) => scaleDegreeToMidiPitch(root, mode, yToMelodyDegree(y)));
+  // ⭐ 2026-08-25 (טווח-מלודיה רחב יותר): wrap כאן (לא רק ב-buildRampedLeadNotes כמו קודם) —
+  // עם MELODY_DEGREE_RANGE=15 (היה 8), applySymmetryTransform's inversion (2*firstPitch-pitch)
+  // יכול לצאת הרחק מחוץ ל-LEAD_REALISTIC_RANGE בלי זה.
+  const primaryMotif = sampledY
+    .map((y) => scaleDegreeToMidiPitch(root, mode, yToMelodyDegree(y)))
+    .map((pitch) => wrapPitchIntoRealisticRange(pitch, LEAD_REALISTIC_RANGE));
   const secondaryMotif = hasSecondPhrase
-    ? applySymmetryTransform(primaryMotif, intent.symmetryTransform, root, mode)
+    ? applySymmetryTransform(primaryMotif, intent.symmetryTransform, root, mode).map((pitch) =>
+        wrapPitchIntoRealisticRange(pitch, LEAD_REALISTIC_RANGE),
+      )
     : [];
   const fullMelody = hasSecondPhrase ? [...primaryMotif, ...secondaryMotif] : primaryMotif;
 
@@ -581,6 +628,27 @@ function buildLeadTrack(
 const DRUMS_DEGREE_OFFSET = -5;
 
 /**
+ * ⭐ 2026-08-25 (תיקון ממוקד: תופים תלויי-צורה): מעל הסף הזה, ערך ב-cornerHint (חדות-מתאר
+ * מנורמלת, geometryToMusic.ts) נחשב "מספיק חד" כדי להוסיף פגיעת-תופים משלו — לא רק שאריות
+ * רעש-דגימה. תבנית-הקצב של הז'אנר (rhythmPatterns.drums) נשארת רצפה (§4.5 "הסגנון קובע
+ * לבוש") — הגיאומטריה רק *מוסיפה* פגיעות/הדגשות אמיתיות שמייחדות כל ציור, לא מחליפה אותה.
+ */
+const CORNER_HIT_THRESHOLD = 0.3;
+
+/**
+ * ⭐ 2026-08-25: פרופיל-פגיעה תלוי-צורה בנקודת-step בודדת (אינדקס גלובלי לאורך כל היצירה,
+ * עוטף/חוזר מודולו אורך הפרופיל — אותו דפוס "wrap" כמו fullProgressionDegrees). ריק (0) אם
+ * מתחת לסף — לא מוסיף פגיעה שרירותית-נמוכה שרק תעשה רעש.
+ */
+function cornerHitVelocity(cornerProfile: readonly number[], globalStepIndex: number): number {
+  if (cornerProfile.length === 0) {
+    return 0;
+  }
+  const value = at(cornerProfile, globalStepIndex % cornerProfile.length);
+  return value > CORNER_HIT_THRESHOLD ? value : 0;
+}
+
+/**
  * ⭐ טראק תופים אמיתי מ-RhythmStepPattern (§5.1 rhythmPatterns) — היה מוגדר ב-GenrePack מ-
  * Sprint 5 אך מעולם לא נצרך (ראה packages/genres/src/schema.ts תיעוד "לא נצרך ב-V1"). זה מה
  * שסוגר את הפער: הופך תבנית ה-hits הספציפית-לסגנון לטראק רביעי אמיתי שמתנגן בפועל.
@@ -594,9 +662,13 @@ const DRUMS_DEGREE_OFFSET = -5;
  * לקבל את המילוי הצפוף/עולה-אנרגיה המיוחד שלו, buildBuildSectionNotes — זו כן אבחנת-ארנג'מנט
  * לגיטימית, לא "עיצוב-תוכן" כמו הזזת-רגיסטר במלודיה, כי תופים ממילא נגזרים מהסגנון ולא
  * מהצורה) — כך שיש דופק ריתמי רציף מתחילת היצירה ועד סופה, לא רק באמצע.
+ *
+ * ⭐ 2026-08-25 (תיקון ממוקד: תופים תלויי-צורה): מקבל גם cornerProfile — velocity בכל step
+ * הוא max(תבנית-הז'אנר, פגיעה-נגזרת-מגיאומטריה) — ראה cornerHitVelocity/CORNER_HIT_THRESHOLD.
  */
 function buildDrumsSectionNotes(
   pattern: RhythmStepPattern,
+  cornerProfile: readonly number[],
   root: number,
   mode: Mode,
   section: Section,
@@ -615,19 +687,21 @@ function buildDrumsSectionNotes(
 
   const notes: Note[] = [];
   for (let barOffset = 0; barOffset < section.lengthBars; barOffset += 1) {
-    pattern.hits.forEach((hitVelocity, stepIndex) => {
-      if (hitVelocity <= 0) {
+    pattern.hits.forEach((genreVelocity, stepIndex) => {
+      const globalStepIndex = (section.startBar + barOffset) * pattern.stepsPerBar + stepIndex;
+      const velocity = Math.max(genreVelocity, cornerHitVelocity(cornerProfile, globalStepIndex));
+      if (velocity <= 0) {
         return;
       }
       const rawStartTick = (section.startBar + barOffset) * TICKS_PER_BAR + stepIndex * stepTicks;
       const swungStartTick = applySwing(rawStartTick, config.gridSubdivision, config.swingAmount);
       const startTick = humanizeTiming(swungStartTick, config.tempoBpm, random);
-      const velocity = humanizeVelocity(hitVelocity, random);
+      const humanizedVelocity = humanizeVelocity(velocity, random);
       notes.push({
         startTick,
         durationTicks: hitDurationTicks,
         pitch,
-        velocity,
+        velocity: humanizedVelocity,
         articulation: 'staccato',
       });
     });
@@ -748,6 +822,9 @@ function buildSwellNotes(
  * עולים בעוצמה — טכניקת "בנייה" קלאסית, בלי צורך במודולציית פילטר (זה מגיע ב-Item 5).
  * ⭐ 2026-08-24: lead/bass מקבלים את חלקם ב"בנייה" בנפרד (buildRampedLeadNotes/
  * buildRampedBassNotes, קרוא מתוך buildLeadTrack/buildBassTrack) — כאן רק pad/skank+drums.
+ *
+ * ⭐ 2026-08-25 (תיקון ממוקד: תופים תלויי-צורה): drumsCornerProfile מוזן לתוך fillVelocity
+ * באותה שיטה כמו buildDrumsSectionNotes — max(מילוי-קבוע, פגיעה-נגזרת-מגיאומטריה).
  */
 function buildBuildSectionNotes(
   root: number,
@@ -755,6 +832,7 @@ function buildBuildSectionNotes(
   progressionDegrees: readonly number[],
   extendedChords: boolean,
   drumsPattern: RhythmStepPattern | undefined,
+  drumsCornerProfile: readonly number[],
   startBar: number,
   lengthBars: number,
   config: CompositionConfig,
@@ -797,7 +875,9 @@ function buildBuildSectionNotes(
       const barStartTick = (startBar + barOffset) * TICKS_PER_BAR;
       for (let stepIndex = 0; stepIndex < drumsPattern.stepsPerBar; stepIndex += 1) {
         const originalVelocity = at(drumsPattern.hits, stepIndex % drumsPattern.hits.length);
-        const fillVelocity = Math.max(originalVelocity, 0.45);
+        const globalStepIndex = (startBar + barOffset) * drumsPattern.stepsPerBar + stepIndex;
+        const shapeVelocity = cornerHitVelocity(drumsCornerProfile, globalStepIndex);
+        const fillVelocity = Math.max(originalVelocity, 0.45, shapeVelocity);
         const rawStartTick = barStartTick + stepIndex * stepTicks;
         const swungStartTick = applySwing(rawStartTick, config.gridSubdivision, config.swingAmount);
         const startTick = humanizeTiming(swungStartTick, config.tempoBpm, random);
@@ -816,18 +896,124 @@ function buildBuildSectionNotes(
   return { swellNotes, drumsNotes };
 }
 
+function lerp(min: number, max: number, t: number): number {
+  return min + (max - min) * t;
+}
+
+/**
+ * ⭐ 2026-08-25: מוד בפועל — allowedModes (אם מוגדר ובאורך>1) נבחר לפי intent.articulation
+ * (בינארי גיאומטרי: זווית/staccato → אינדקס 0, חלק/legato → אינדקס 1, modulo אורך).
+ * בלי allowedModes (או אורך≤1) — נופל ל-mode הקבוע הרגיל.
+ */
+function selectMode(rawConfig: CompositionConfig, intent: RawMusicalIntent): Mode {
+  if (rawConfig.allowedModes && rawConfig.allowedModes.length > 1) {
+    const index = intent.articulation === 'staccato' ? 0 : 1;
+    return at(rawConfig.allowedModes, index % rawConfig.allowedModes.length);
+  }
+  return rawConfig.mode;
+}
+
+/**
+ * ⭐ 2026-08-25: פרוגרסיית-אקורדים בפועל — chordProgressionOptions (אם מוגדר) נבחר לפי
+ * intent.rotationalOrder כשיש סימטריה-סיבובית אמיתית (rotationalOrder>1 — משושה/משולש וכו',
+ * ראה symmetryDetector.ts), אחרת seeded-random (אותו random() שכבר קיים ב-composeMusicalScore,
+ * §1 דטרמיניזם). בלי chordProgressionOptions — נופל ל-chordProgression הקבוע הרגיל.
+ */
+function selectChordProgression(
+  rawConfig: CompositionConfig,
+  intent: RawMusicalIntent,
+  random: () => number,
+): readonly number[] {
+  const options = rawConfig.chordProgressionOptions;
+  if (!options || options.length === 0) {
+    return rawConfig.chordProgression;
+  }
+  const index =
+    intent.rotationalOrder > 1
+      ? intent.rotationalOrder % options.length
+      : Math.floor(random() * options.length);
+  return at(options, index);
+}
+
+/**
+ * ⭐ 2026-08-25: תבנית-קצב בפועל לתפקיד בודד — rhythmPatternOptions[role] (אם מוגדר) נבחר
+ * לפי intent.rhythmicDensityHint, מדולל ("bucketed") למספר-האפשרויות בפועל. בלי options —
+ * נופל ל-fallback (rhythmPatterns[role] הקבוע הרגיל).
+ */
+function selectRhythmPatternForRole(
+  options: readonly RhythmStepPattern[] | undefined,
+  fallback: RhythmStepPattern | undefined,
+  intent: RawMusicalIntent,
+): RhythmStepPattern | undefined {
+  if (!options || options.length === 0) {
+    return fallback;
+  }
+  const bucket = Math.min(
+    options.length - 1,
+    Math.floor(intent.rhythmicDensityHint * options.length),
+  );
+  return at(options, bucket);
+}
+
+function selectRhythmPatterns(
+  rawConfig: CompositionConfig,
+  intent: RawMusicalIntent,
+): Partial<Record<TrackRole, RhythmStepPattern>> | undefined {
+  if (!rawConfig.rhythmPatternOptions) {
+    return rawConfig.rhythmPatterns;
+  }
+  const roles = new Set<TrackRole>([
+    ...(Object.keys(rawConfig.rhythmPatterns ?? {}) as TrackRole[]),
+    ...(Object.keys(rawConfig.rhythmPatternOptions) as TrackRole[]),
+  ]);
+  const result: Partial<Record<TrackRole, RhythmStepPattern>> = {};
+  for (const role of roles) {
+    const selected = selectRhythmPatternForRole(
+      rawConfig.rhythmPatternOptions[role],
+      rawConfig.rhythmPatterns?.[role],
+      intent,
+    );
+    if (selected) {
+      result[role] = selected;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 /**
  * ⭐⭐ ממיר RawMusicalIntent ל-MusicalScore תקף — אוכף את §4.3 (סולם, קוונטיזציה,
  * voice leading) ומיישם את §4.4 (סימטריה → רטרוגרד/אינוורסיה) על מבנה היצירה בפועל.
- * @param config  טמפו/מוד/גריד/סווינג מה-GenrePack שנבחר (הקורא ממיר GenrePack → CompositionConfig).
+ *
+ * ⭐ 2026-08-25 (מגוון מוזיקלי לפי-צורה): rawConfig הוא מה שהסגנון *מציע* (כולל האופציות
+ * tempoRange/allowedModes/chordProgressionOptions/rhythmPatternOptions, אם קיימות) —
+ * config למטה הוא הבחירה בפועל, אחרי שהוצלבו מול intent (הצורה). זה מה שהופך "אותו סגנון,
+ * צורה אחרת" ליצירה שנשמעת שונה בפועל (טמפו/מוד/פרוגרסיה/גרוב), לא רק במלודיה.
+ * @param rawConfig  טמפו/מוד/גריד/סווינג + אופציות מה-GenrePack שנבחר (הקורא ממיר GenrePack → CompositionConfig).
  */
 export function composeMusicalScore(
   intent: RawMusicalIntent,
-  config: CompositionConfig,
+  rawConfig: CompositionConfig,
 ): MusicalScore {
   const random = createSeededRandom(intent.seed);
   const rootPitchClass = Math.floor(random() * 12);
-  const mode = config.mode;
+
+  const tempoBpm = rawConfig.tempoRange
+    ? Math.round(
+        lerp(rawConfig.tempoRange.min, rawConfig.tempoRange.max, intent.rhythmicDensityHint),
+      )
+    : rawConfig.tempoBpm;
+  const mode = selectMode(rawConfig, intent);
+  const chordProgression = selectChordProgression(rawConfig, intent, random);
+  const rhythmPatterns = selectRhythmPatterns(rawConfig, intent);
+
+  const config: CompositionConfig = {
+    ...rawConfig,
+    tempoBpm,
+    mode,
+    chordProgression,
+    ...(rhythmPatterns && { rhythmPatterns }),
+  };
+
   const root = ROOT_OCTAVE_BASE_MIDI + rootPitchClass;
 
   const baseBarsFromMotif = Math.max(1, Math.ceil(intent.motifSize / NOTES_PER_BAR));
@@ -887,19 +1073,44 @@ export function composeMusicalScore(
     tracks.push(swellTrack);
   }
 
+  // ⭐ 2026-08-25 (תיקון ממוקד: תופים תלויי-צורה): פרופיל-פגיעה נגזר-גיאומטריה, בגודל הלולאה
+  // (loopBars*stepsPerBar) — intro/build/outro עוטפים מודולו אורך זה (cornerHitVelocity),
+  // אותו דפוס "wrap" כמו fullProgressionDegrees. מחושב פעם אחת, נצרך גם למטה בבניית ה-loop
+  // וגם ב-build section.
+  const drumsPattern = config.rhythmPatterns?.drums;
+  const drumsCornerProfile = drumsPattern
+    ? sampleEvenly(intent.cornerHint, Math.max(1, loopBars * drumsPattern.stepsPerBar))
+    : [];
+
   // ⭐ 2026-08-24 (Area 4, בדיקה שלישית): תופים על כל section חוץ מ-build (שמקבל את המילוי
   // המיוחד שלו למטה, buildBuildSectionNotes) — לא רק ה-loop. ראה buildDrumsSectionNotes.
   let drumsTrack: Track | null = null;
-  if (config.rhythmPatterns?.drums) {
-    const pattern = config.rhythmPatterns.drums;
+  if (drumsPattern) {
     const drumsNotes = sections
       .filter((section) => section.name !== 'build')
-      .flatMap((section) => buildDrumsSectionNotes(pattern, root, mode, section, config, random));
+      .flatMap((section) =>
+        buildDrumsSectionNotes(
+          drumsPattern,
+          drumsCornerProfile,
+          root,
+          mode,
+          section,
+          config,
+          random,
+        ),
+      );
     drumsTrack = {
       role: 'drums',
       instrumentId: 'default-drums',
       notes: drumsNotes,
-      mixSettings: { volume: 0.75, pan: 0, reverbSend: 0.1, delaySend: 0 },
+      // ⭐ 2026-08-25 (לפי בקשה חיה: "התופים נבלעים, לא מורגשים כלל"): volume 0.75→1
+      // (התקרה המותרת ע"י mixSettingsSchema, scoreSchema.ts — §4.3 hard cap, לא עוקפים).
+      // הקיק אמור להיות מהאלמנטים הכי בולטים במיקס EDM אמיתי, לא מתחרה בעוצמה שווה מול
+      // bass/lead/pad שיש להם תווים ארוכים/מתמשכים (הקיק קצר-מטבעו, אז "אותה עוצמה נומינלית"
+      // עדיין נשמע חלש יותר) — ראה גם buildBassTrack/buildPadTrack למטה (volume הופחת קצת
+      // כדי שהאיזון היחסי יעבוד גם בתוך התקרה המשותפת של 1). reverbSend 0.1→0 — ריוורב
+      // מטשטש טרנזיינטים, ההיפך מ"מורגש חד" (מיקסים אמיתיים כמעט תמיד משאירים קיק יבש).
+      mixSettings: { volume: 1, pan: 0, reverbSend: 0, delaySend: 0 },
     };
     tracks.push(drumsTrack);
   }
@@ -954,7 +1165,8 @@ export function composeMusicalScore(
         mode,
         progressionDegrees,
         config.extendedChords,
-        config.rhythmPatterns?.drums,
+        drumsPattern,
+        drumsCornerProfile,
         section.startBar,
         section.lengthBars,
         config,

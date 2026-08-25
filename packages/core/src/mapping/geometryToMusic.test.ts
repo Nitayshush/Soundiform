@@ -81,6 +81,20 @@ describe('geometryToMusic', () => {
     expect(intent.seed).toBe('abc123');
   });
 
+  it('§11 מגוון מוזיקלי לפי-צורה: durationHint כבר לא כפילות מילולית של velocityHint', () => {
+    const intent = geometryToMusic(makeTriangleShapeData(), 'seed-duration-independent');
+    expect(intent.durationHint).not.toBe(intent.velocityHint);
+  });
+
+  it('§11 תיקון ממוקד: cornerHint מאוכלס, כל ערך בטווח [0,1] (מזין תזמון-תופים תלוי-צורה)', () => {
+    const intent = geometryToMusic(makeTriangleShapeData(), 'seed-corner-hint');
+    expect(intent.cornerHint.length).toBeGreaterThan(0);
+    for (const value of intent.cornerHint) {
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
+  });
+
   describe('§11 שיפור-סאונד Area 3: sizeHint (גודל bounding-box) נפרד מ-motifSize (קודקודים)', () => {
     it('משולש גדול וקטן: אותו motifSize (3 קודקודים), אך sizeHint שונה משמעותית', () => {
       const small = geometryToMusic(makeTriangleShapeData({ x: 0.5, y: 0.5 }, 0.02), 'seed-size-a');

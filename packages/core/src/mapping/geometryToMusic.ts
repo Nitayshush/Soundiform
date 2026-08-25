@@ -74,6 +74,12 @@ export const rawMusicalIntentSchema = z.object({
   velocityHint: z.number().min(0).max(1),
   durationHint: z.number().min(0).max(1),
   rhythmicDensityHint: z.number().min(0).max(1),
+  /**
+   * ⭐ 2026-08-25 (תופים תלויי-צורה): פרופיל-חדות לאורך הקונטור-הדומיננטי (0–1 בכל נקודה,
+   * ראה shapeAnalyzer.ts's cornerProfile) — לא ערך יחיד כמו articulation, אלא עקומה שלמה.
+   * harmonyEngine.ts דוגם אותה לתוך תזמון-הפגיעות בפועל של טראק התופים.
+   */
+  cornerHint: z.array(z.number().min(0).max(1)).min(1),
 });
 
 /**
@@ -151,13 +157,25 @@ function computeArticulation(features: ShapeFeatures): ArticulationHint {
 }
 
 /**
- * "מילוי" נורמלי (0–1) לשימוש כבסיס ל-velocity/duration (§4.2: שטח/מילוי → וולוסיטי + משך).
- * לצורה סגורה — שטח בפועל. לצורה פתוחה אין שטח מוגדר — נעזרים בהיקף כקירוב.
+ * "מילוי" נורמלי (0–1) לשימוש כבסיס ל-velocity (§4.2: שטח/מילוי → וולוסיטי). לצורה סגורה —
+ * שטח בפועל. לצורה פתוחה אין שטח מוגדר — נעזרים בהיקף כקירוב.
  */
 function computeFillHint(features: ShapeFeatures): number {
   if (features.closed) {
     return clamp01(features.area);
   }
+  return clamp01(features.perimeter / OPEN_SHAPE_PERIMETER_NORMALIZER);
+}
+
+/**
+ * ⭐ 2026-08-25 (מגוון מוזיקלי לפי-צורה): מורכבות-מתאר נורמלת (0–1) — היקף מנורמל, לכל
+ * צורה (סגורה או פתוחה כאחד, בניגוד ל-computeFillHint שמבחין ביניהן). זה signal עצמאי
+ * מ-velocityHint: שתי צורות באותו שטח יכולות להיות אחת "עגולה" (היקף קטן יחסית לשטח)
+ * ואחת "משוננת" (היקף גדול, הרבה עקמומיות) — היום שתיהן קיבלו בדיוק אותו durationHint
+ * כי הוא היה פשוט עותק של velocityHint (ראה geometryToMusic הישן). משמש ב-harmonyEngine.ts's
+ * buildLoopLeadNotes לגרדיאנט gapRatio רציף, לא רק מתג בינארי staccato/legato.
+ */
+function computeContourComplexity(features: ShapeFeatures): number {
   return clamp01(features.perimeter / OPEN_SHAPE_PERIMETER_NORMALIZER);
 }
 
@@ -188,13 +206,13 @@ export function geometryToMusic(shape: ShapeData, shapeHash: string): RawMusical
     symmetryTransform: toSymmetryTransform(symmetry),
     rotationalOrder: symmetry.rotationalOrder,
     articulation: computeArticulation(features),
-    // v1: velocity ו-duration נגזרים מאותו אות "מילוי" גולמי — Sprint 4/5 (genre packs, mixSettings)
-    // צפויים להבחין ביניהם לפי סגנון. ראה §4.5: הצורה קובעת תוכן, הסגנון קובע לבוש.
     velocityHint: fillHint,
-    durationHint: fillHint,
+    // ⭐ 2026-08-25: כבר לא עותק של velocityHint — ראה computeContourComplexity למעלה.
+    durationHint: computeContourComplexity(features),
     // v1: אותו אות קודקודים/דגימות כמו articulation — מדד "צפיפות קצוות" ייעודי (למשל אורך-קשת
     // בין שינויי כיוון) הוא שיפור עתידי אם יתברר שהמיפוי הזה גס מדי בפועל.
     rhythmicDensityHint: features.vertexCount / RESAMPLE_COUNT,
+    cornerHint: [...features.cornerProfile],
   };
 
   return rawMusicalIntentSchema.parse(intent);

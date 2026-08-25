@@ -52,4 +52,30 @@ describe('analyzeShape', () => {
     expect(features.boundingBox.minY).toBeCloseTo(0.2, 1);
     expect(features.boundingBox.maxY).toBeCloseTo(0.8, 1);
   });
+
+  describe('§11 תיקון ממוקד: cornerProfile (תופים תלויי-צורה)', () => {
+    it('אורך cornerProfile תואם למספר נקודות הקונטור, וכל ערך בטווח [0,1]', () => {
+      const contour = extractContour(makeTriangleShapeData({ x: 0.5, y: 0.5 }, 0.3));
+      const features = analyzeShape(contour);
+
+      expect(features.cornerProfile).toHaveLength(contour.points.length);
+      for (const value of features.cornerProfile) {
+        expect(value).toBeGreaterThanOrEqual(0);
+        expect(value).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it('משולש (חד) מייצר ערך-שיא ב-cornerProfile גבוה משמעותית מעיגול (חלק)', () => {
+      const triangleFeatures = analyzeShape(
+        extractContour(makeTriangleShapeData({ x: 0.5, y: 0.5 }, 0.3)),
+      );
+      const circleFeatures = analyzeShape(
+        extractContour(makeCircleShapeData({ x: 0.5, y: 0.5 }, 0.3)),
+      );
+
+      const triangleMax = Math.max(...triangleFeatures.cornerProfile);
+      const circleMax = Math.max(...circleFeatures.cornerProfile);
+      expect(triangleMax).toBeGreaterThan(circleMax);
+    });
+  });
 });

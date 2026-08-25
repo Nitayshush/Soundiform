@@ -320,3 +320,122 @@ describe('composeMusicalScore — §11 item 4: arrangement אמיתי (intro/bui
     }
   });
 });
+
+describe('composeMusicalScore — §11 מגוון מוזיקלי לפי-צורה: פרמטרי-סגנון תלויי-צורה', () => {
+  // ⚠️ בכוונה בונים RawMusicalIntent ישירות (base מ-geometryToMusic + override לשדה בודד) —
+  // לא תלוי בניחוש מה articulation/rotationalOrder בפועל עבור צורה גיאומטרית נתונה, רק
+  // בודק את מנגנון-הבחירה עצמו בתוך composeMusicalScore על ערכי-סיגנל ידועים ושונים.
+  const baseIntent = geometryToMusic(makeTriangleShapeData(), 'seed-variety-base');
+
+  it('טמפו: rhythmicDensityHint שונה → טמפו בפועל שונה בתוך tempoRange (במקום tempoBpm הקבוע)', () => {
+    const config: CompositionConfig = {
+      ...DEFAULT_TEST_CONFIG,
+      tempoRange: { min: 110, max: 150 },
+    };
+    const low = composeMusicalScore({ ...baseIntent, rhythmicDensityHint: 0 }, config);
+    const high = composeMusicalScore({ ...baseIntent, rhythmicDensityHint: 1 }, config);
+    expect(low.tempo).toBe(110);
+    expect(high.tempo).toBe(150);
+  });
+
+  it('מוד: articulation שונה → מוד בפועל שונה מתוך allowedModes (במקום mode הקבוע)', () => {
+    const config: CompositionConfig = {
+      ...DEFAULT_TEST_CONFIG,
+      allowedModes: ['aeolian', 'dorian'],
+    };
+    const staccato = composeMusicalScore({ ...baseIntent, articulation: 'staccato' }, config);
+    const legato = composeMusicalScore({ ...baseIntent, articulation: 'legato' }, config);
+    expect(staccato.key.mode).toBe('aeolian');
+    expect(legato.key.mode).toBe('dorian');
+  });
+
+  it('פרוגרסיית אקורדים: rotationalOrder שונה (סימטריה סיבובית אמיתית) → פרוגרסיה שונה מתוך chordProgressionOptions', () => {
+    const config: CompositionConfig = {
+      ...DEFAULT_TEST_CONFIG,
+      chordProgressionOptions: [
+        [0, 5, 3, 4],
+        [1, 4, 0, 5],
+        [2, 6, 1, 5],
+      ],
+    };
+    const scoreA = composeMusicalScore({ ...baseIntent, rotationalOrder: 3 }, config); // 3%3=0
+    const scoreB = composeMusicalScore({ ...baseIntent, rotationalOrder: 4 }, config); // 4%3=1
+    const padA = scoreA.tracks.find((track) => track.role === 'pad');
+    const padB = scoreB.tracks.find((track) => track.role === 'pad');
+    expect(padA?.notes[0]?.pitch).not.toBe(padB?.notes[0]?.pitch);
+  });
+
+  it('תבנית-קצב: rhythmicDensityHint שונה → תבנית-בס שונה מתוך rhythmPatternOptions (bucketed)', () => {
+    const config: CompositionConfig = {
+      ...DEFAULT_TEST_CONFIG,
+      rhythmPatternOptions: {
+        bass: [
+          { stepsPerBar: 16, hits: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] },
+          { stepsPerBar: 16, hits: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] },
+        ],
+      },
+    };
+    const low = composeMusicalScore({ ...baseIntent, rhythmicDensityHint: 0 }, config);
+    const high = composeMusicalScore({ ...baseIntent, rhythmicDensityHint: 0.99 }, config);
+    const bassLow = low.tracks.find((track) => track.role === 'bass');
+    const bassHigh = high.tracks.find((track) => track.role === 'bass');
+    expect(bassLow?.notes.length).not.toBe(bassHigh?.notes.length);
+  });
+
+  it('דטרמיניזם נשמר: אותו intent+config → תמיד אותה תוצאה, גם עם כל האופציות החדשות מוגדרות', () => {
+    const config: CompositionConfig = {
+      ...DEFAULT_TEST_CONFIG,
+      tempoRange: { min: 110, max: 150 },
+      allowedModes: ['aeolian', 'dorian'],
+      chordProgressionOptions: [
+        [0, 5, 3, 4],
+        [1, 4, 0, 5],
+      ],
+      rhythmPatternOptions: {
+        bass: [{ stepsPerBar: 16, hits: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] }],
+      },
+    };
+    const scoreA = composeMusicalScore(baseIntent, config);
+    const scoreB = composeMusicalScore(baseIntent, config);
+    expect(scoreA).toEqual(scoreB);
+  });
+});
+
+describe('composeMusicalScore — §11 תיקון ממוקד: תופים תלויי-צורה (cornerHint)', () => {
+  const DRUMS_CONFIG: CompositionConfig = {
+    ...DEFAULT_TEST_CONFIG,
+    rhythmPatterns: {
+      drums: { stepsPerBar: 16, hits: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] },
+    },
+  };
+  const baseIntent = geometryToMusic(makeTriangleShapeData(), 'seed-drums-variety');
+
+  it("cornerHint שונה משמעותית → תבנית-תופים בפועל שונה, גם עם אותה תבנית-קצב קבועה של הז'אנר", () => {
+    const flatCornerHint = baseIntent.cornerHint.map(() => 0);
+    const sharpCornerHint = baseIntent.cornerHint.map(() => 1);
+    const flatScore = composeMusicalScore(
+      { ...baseIntent, cornerHint: flatCornerHint },
+      DRUMS_CONFIG,
+    );
+    const sharpScore = composeMusicalScore(
+      { ...baseIntent, cornerHint: sharpCornerHint },
+      DRUMS_CONFIG,
+    );
+    const flatDrums = flatScore.tracks.find((track) => track.role === 'drums');
+    const sharpDrums = sharpScore.tracks.find((track) => track.role === 'drums');
+    expect(sharpDrums?.notes.length ?? 0).toBeGreaterThan(flatDrums?.notes.length ?? 0);
+  });
+
+  it("מתחת לסף (cornerHint נמוך) — תבנית-הז'אנר נשארת הרצפה, לא נעלמת", () => {
+    const flatCornerHint = baseIntent.cornerHint.map(() => 0);
+    const score = composeMusicalScore({ ...baseIntent, cornerHint: flatCornerHint }, DRUMS_CONFIG);
+    const drumsTrack = score.tracks.find((track) => track.role === 'drums');
+    expect(drumsTrack?.notes.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('דטרמיניזם: אותו intent (כולל cornerHint) → אותה תבנית-תופים בדיוק, תמיד', () => {
+    const scoreA = composeMusicalScore(baseIntent, DRUMS_CONFIG);
+    const scoreB = composeMusicalScore(baseIntent, DRUMS_CONFIG);
+    expect(scoreA).toEqual(scoreB);
+  });
+});

@@ -144,6 +144,12 @@ export const genrePackSchema = z.object({
    * (למעלה) קובע רק אם buildChord מוסיף גם 7th ('extended') — לא כמות/סוג הדרגות.
    */
   chordProgression: z.array(z.number().int()).min(1),
+  /**
+   * ⭐ 2026-08-25 (מגוון מוזיקלי לפי-צורה): פרוגרסיות-אקורדים חלופיות — undefined/מערך-ריק =
+   * רק chordProgression הקבוע (התנהגות ישנה, ללא שינוי). כשמוגדר, composeMusicalScore
+   * (packages/core) בוחר ביניהן לפי סימטריה-סיבובית של הצורה (rotationalOrder) או seeded-random.
+   */
+  chordProgressionOptions: z.array(z.array(z.number().int()).min(1)).optional(),
   roles: z.array(trackRoleSchema).min(1),
   // partialRecord ולא record: pack מגדיר רק את ה-roles שהוא בפועל משתמש בהם (roles למעלה),
   // לא נדרש filler-data מלאכותי לתפקידים שלא רלוונטיים לסגנון (למשל skank בז'אנרים לא-רגאיי).

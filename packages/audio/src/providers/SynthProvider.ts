@@ -176,12 +176,22 @@ export class SynthProvider implements InstrumentProvider {
     // ⭐ שכבות מרובות מתחברות ל-sumNode משותף (לא ישירות ל-outputGain) — כדי שהפילטר
     // ברמת-הפריסט (preset.filter, אם מוגדר) יחול על *סכום* השכבות, לא על כל שכבה בנפרד
     // (שכל שכבה יכולה כבר לקבל פילטר-משלה, layer.filter, לפני הסכימה — ראה §תיעוד למעלה).
+    //
+    // ⭐ 2026-08-25 (תיקון-באג אמיתי): synthPresetSchema מתעד "layers, כשמוגדר, *מחליף* את
+    // oscillatorType/envelope/filter/unison שלמעלה" — אבל הקוד כאן החיל את preset.filter
+    // *תמיד*, גם כש-layers מוגדר. זה גרם לבאג שקט אמיתי: פריסט-תופים עם שכבת-טרנזיינט
+    // highpass (למשל "קליק" גבוה מעל שכבת-סאב) ו-preset.filter ברמה-העליונה שהוא lowpass
+    // (לשכבת-הסאב) — הקומבינציה ביטלה כמעט לחלוטין את שכבת-הטרנזיינט (highpass מעל 1500Hz
+    // דרך lowpass מתחת ל-300Hz = כמעט כלום עובר), בלי שגיאה גלויה. עכשיו preset.filter
+    // מוחל רק כש-layers לא מוגדר (התנהגות ה"שכבה המרומזת" היחידה) — עקבי עם התיעוד.
+    const hasExplicitLayers = Boolean(this.preset.layers && this.preset.layers.length > 0);
     const layers = resolveLayers(this.preset);
-    const sumNode = this.preset.filter ? new Gain(1) : this.outputGain;
-    if (this.preset.filter) {
-      this.presetFilterNode = new Filter(this.preset.filter.frequencyHz, this.preset.filter.type);
-      if (this.preset.filter.resonance !== undefined) {
-        this.presetFilterNode.Q.value = this.preset.filter.resonance;
+    const presetFilterConfig = hasExplicitLayers ? undefined : this.preset.filter;
+    const sumNode = presetFilterConfig ? new Gain(1) : this.outputGain;
+    if (presetFilterConfig) {
+      this.presetFilterNode = new Filter(presetFilterConfig.frequencyHz, presetFilterConfig.type);
+      if (presetFilterConfig.resonance !== undefined) {
+        this.presetFilterNode.Q.value = presetFilterConfig.resonance;
       }
       sumNode.connect(this.presetFilterNode);
       this.presetFilterNode.connect(this.outputGain);

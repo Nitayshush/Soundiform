@@ -56,11 +56,12 @@ const renderRequestSchema = z.object({
   genreId: z.string().min(1),
   video: z.object({ aspectRatio: z.enum(VIDEO_ASPECT_RATIOS) }).optional(),
   /**
-   * ⭐ 2026-08-24 (Area 1): בחירת-צליל לפי תפקיד (SoundSelector.tsx) — לא סומכים על id
-   * שרירותי; מאמתים למטה שהוא באמת קיים ב-genrePack.soundOptions[role] לפני שימוש (§0.3:
-   * לעולם לא לסמוך על קליינט למכסות/הרשאות — אותו עיקרון חל גם על תוכן).
+   * ⭐ 2026-08-24 (Area 1), מורחב 2026-08-25 (בחירת-צליל מרובה): בחירת-צליל לפי תפקיד
+   * (SoundSelector.tsx) — עכשיו מערך id-ים (כמה תתי-צלילים ביחד), לא id בודד. לא סומכים על
+   * id שרירותי; מאמתים למטה שכל אחד באמת קיים ב-genrePack.soundOptions[role] לפני שימוש
+   * (§0.3: לעולם לא לסמוך על קליינט למכסות/הרשאות — אותו עיקרון חל גם על תוכן).
    */
-  soundSelections: z.partialRecord(trackRoleSchema, z.string().min(1)).optional(),
+  soundSelections: z.partialRecord(trackRoleSchema, z.array(z.string().min(1)).min(1)).optional(),
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -116,7 +117,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // ⭐ 2026-08-24 (Area 1): toGenreAudioConfig עצמו כבר מאמת כל id מול genrePack.soundOptions
   // (genreAdapter.ts's resolveSynthPresets) — id לא-קיים נופל בשקט ל-synthMap הרגיל, אף פעם
   // לא נכשל/נזרק. אין כאן עוד ולידציה נדרשת מעבר לזו שכבר ב-renderRequestSchema (טיפוס התפקיד).
-  const audioConfig = toGenreAudioConfig(genrePack, soundSelections);
+  const audioConfig = toGenreAudioConfig(genrePack, intent.seed, soundSelections);
 
   const jobId = await enqueueRenderJob({
     projectId,

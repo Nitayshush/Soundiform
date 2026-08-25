@@ -37,6 +37,13 @@ export interface ShapeFeatures {
   perimeter: number;
   /** מספר פינות שזוהו — למשולש ≈3, לריבוע ≈4, לעיגול ≈0 (§4.2). */
   vertexCount: number;
+  /**
+   * ⭐ 2026-08-25 (תופים תלויי-צורה): זווית-הפנייה (turning angle) הגולמית בכל נקודת-קונטור,
+   * מנורמלת ל-0–1 (angle/π) — לפני הסינון-לפינות-מובהקות (סף+non-max-suppression) שמייצר
+   * את vertexCount. אורך = מספר נקודות הקונטור (RESAMPLE_COUNT). זה הסיגנל ש"כמה חד הציור
+   * בכל נקודה לאורך זמן" — geometryToMusic.ts ממפה אותו ל-cornerHint, שמניע תזמון-תופים.
+   */
+  cornerProfile: readonly number[];
   closed: boolean;
 }
 
@@ -101,13 +108,16 @@ function turningAngle(previous: ShapePoint, current: ShapePoint, next: ShapePoin
   return Math.abs(diff);
 }
 
-function countVertices(points: ShapePoint[], closed: boolean): number {
+/**
+ * ⭐ 2026-08-25: חולצה מ-countVertices (היה קוד פנימי חד-פעמי) כדי ש-analyzeShape יוכל
+ * לחשוף את מערך-הזוויות הגולמי כ-cornerProfile, לא רק את המספר-המצומצם vertexCount.
+ */
+function computeTurningAngles(points: ShapePoint[], closed: boolean): number[] {
   const count = points.length;
   if (count < 2 * DIRECTION_WINDOW + 1) {
-    return 0;
+    return points.map(() => 0);
   }
-
-  const angles = points.map((_, index) => {
+  return points.map((_, index) => {
     const isEdgePoint = !closed && (index < DIRECTION_WINDOW || index >= count - DIRECTION_WINDOW);
     if (isEdgePoint) {
       return 0;
@@ -116,9 +126,11 @@ function countVertices(points: ShapePoint[], closed: boolean): number {
     const nextIndex = (index + DIRECTION_WINDOW) % count;
     return turningAngle(at(points, previousIndex), at(points, index), at(points, nextIndex));
   });
+}
 
+function countVerticesFromAngles(angles: number[], closed: boolean): number {
   let vertexCount = 0;
-  for (let index = 0; index < count; index += 1) {
+  for (let index = 0; index < angles.length; index += 1) {
     const angle = at(angles, index);
     if (angle < CORNER_ANGLE_THRESHOLD_RAD) {
       continue;
@@ -157,13 +169,15 @@ export function analyzeShape(contour: Contour): ShapeFeatures {
   const { points, closed } = contour;
   const signedArea = closed ? computeSignedArea(points) : 0;
   const centerOfMass = closed ? computePolygonCentroid(points, signedArea) : averagePoint(points);
+  const turningAngles = computeTurningAngles(points, closed);
 
   return {
     centerOfMass,
     boundingBox: computeBoundingBox(points),
     area: Math.abs(signedArea),
     perimeter: computePerimeter(points, closed),
-    vertexCount: countVertices(points, closed),
+    vertexCount: countVerticesFromAngles(turningAngles, closed),
+    cornerProfile: turningAngles.map((angle) => angle / Math.PI),
     closed,
   };
 }

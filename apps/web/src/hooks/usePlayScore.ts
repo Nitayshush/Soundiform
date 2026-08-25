@@ -90,7 +90,10 @@ export function usePlayScore(score: MusicalScore, genreId: string): UsePlayScore
           throw new Error(`Genre not found: ${genreId}`);
         }
         const { createBrowserRenderer } = await import('@soundiform/audio');
-        rendererRef.current = await createBrowserRenderer(score, toGenreAudioConfig(genrePack));
+        rendererRef.current = await createBrowserRenderer(
+          score,
+          toGenreAudioConfig(genrePack, score.seed),
+        );
         setDurationSeconds(rendererRef.current.durationSeconds);
         setIsLoading(false);
       }
