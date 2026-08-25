@@ -402,14 +402,16 @@
               "envelope": { "attack": 0.001, "decay": 0.15, "sustain": 0, "release": 0.05 },
               "gain": 1,
               "detuneSemitones": 0,
-              "filter": { "type": "lowpass", "frequencyHz": 2500, "resonance": 1 }
+              "filter": { "type": "lowpass", "frequencyHz": 2500, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             },
             {
               "oscillatorType": "square",
               "envelope": { "attack": 0.001, "decay": 0.04, "sustain": 0, "release": 0.02 },
               "gain": 0.6,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 900, "resonance": 1 }
+              "filter": { "type": "highpass", "frequencyHz": 900, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             }
           ]
         }
@@ -427,14 +429,16 @@
               "envelope": { "attack": 0.001, "decay": 0.09, "sustain": 0, "release": 0.03 },
               "gain": 1,
               "detuneSemitones": 0,
-              "filter": { "type": "lowpass", "frequencyHz": 3500, "resonance": 1 }
+              "filter": { "type": "lowpass", "frequencyHz": 3500, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             },
             {
               "oscillatorType": "triangle",
               "envelope": { "attack": 0.001, "decay": 0.03, "sustain": 0, "release": 0.015 },
               "gain": 0.5,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 1200, "resonance": 1 }
+              "filter": { "type": "highpass", "frequencyHz": 1200, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             }
           ]
         }
@@ -452,14 +456,16 @@
               "envelope": { "attack": 0.001, "decay": 0.22, "sustain": 0, "release": 0.1 },
               "gain": 1,
               "detuneSemitones": -5,
-              "filter": { "type": "lowpass", "frequencyHz": 450, "resonance": 1 }
+              "filter": { "type": "lowpass", "frequencyHz": 450, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             },
             {
               "oscillatorType": "triangle",
               "envelope": { "attack": 0.001, "decay": 0.03, "sustain": 0, "release": 0.02 },
               "gain": 0.7,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 700, "resonance": 1 }
+              "filter": { "type": "highpass", "frequencyHz": 700, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             }
           ]
         }
@@ -477,14 +483,16 @@
               "envelope": { "attack": 0.001, "decay": 0.2, "sustain": 0, "release": 0.1 },
               "gain": 1,
               "detuneSemitones": -7,
-              "filter": { "type": "lowpass", "frequencyHz": 240, "resonance": 1 }
+              "filter": { "type": "lowpass", "frequencyHz": 240, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             },
             {
               "oscillatorType": "triangle",
               "envelope": { "attack": 0.001, "decay": 0.03, "sustain": 0, "release": 0.02 },
               "gain": 0.75,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 800, "resonance": 1 }
+              "filter": { "type": "highpass", "frequencyHz": 800, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             }
           ]
         }
@@ -503,14 +511,16 @@
               "gain": 1,
               "detuneSemitones": -7,
               "filter": { "type": "lowpass", "frequencyHz": 300, "resonance": 1.2 },
-              "driveAmount": 0.4
+              "driveAmount": 0.4,
+              "unison": { "count": 1, "spreadCents": 0 }
             },
             {
               "oscillatorType": "square",
               "envelope": { "attack": 0.001, "decay": 0.02, "sustain": 0, "release": 0.01 },
               "gain": 0.8,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 900, "resonance": 1 }
+              "filter": { "type": "highpass", "frequencyHz": 900, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             }
           ]
         }
@@ -529,14 +539,16 @@
               "gain": 1,
               "detuneSemitones": -5,
               "filter": { "type": "lowpass", "frequencyHz": 380, "resonance": 1.5 },
-              "driveAmount": 0.7
+              "driveAmount": 0.7,
+              "unison": { "count": 1, "spreadCents": 0 }
             },
             {
               "oscillatorType": "square",
               "envelope": { "attack": 0.001, "decay": 0.02, "sustain": 0, "release": 0.01 },
               "gain": 0.6,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 1000, "resonance": 1 }
+              "filter": { "type": "highpass", "frequencyHz": 1000, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             }
           ]
         }
@@ -554,14 +566,16 @@
               "envelope": { "attack": 0.001, "decay": 0.45, "sustain": 0, "release": 0.25 },
               "gain": 1,
               "detuneSemitones": -3,
-              "filter": { "type": "lowpass", "frequencyHz": 190, "resonance": 1 }
+              "filter": { "type": "lowpass", "frequencyHz": 190, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             },
             {
               "oscillatorType": "triangle",
               "envelope": { "attack": 0.001, "decay": 0.04, "sustain": 0, "release": 0.02 },
               "gain": 0.65,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 700, "resonance": 1 }
+              "filter": { "type": "highpass", "frequencyHz": 700, "resonance": 1 },
+              "unison": { "count": 1, "spreadCents": 0 }
             }
           ]
         }

@@ -7,8 +7,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { GenrePack } from '@soundiform/genres';
-import { toGenreAudioConfig } from './genreAdapter';
+import { composeMusicalScore, geometryToMusic } from '@soundiform/core';
+import type { ShapeData } from '@soundiform/shared';
+import { loadGenrePackById, type GenrePack } from '@soundiform/genres';
+import { toCompositionConfig, toGenreAudioConfig } from './genreAdapter';
 
 function makeTestPack(): GenrePack {
   return {
@@ -105,5 +107,55 @@ describe('toGenreAudioConfig — בחירת-צליל מרובה (mergeSynthPrese
     expect(() =>
       toGenreAudioConfig(makeTestPack(), 'seed', { bass: ['does-not-exist'] }),
     ).not.toThrow();
+  });
+});
+
+/** צורה חדה/מורכבת במיוחד — הרבה קודקודים חדים לאורך כל הצורה, לא רק כמה. בדיוק המקרה
+ * שדווח כ"קליטק/חירחורים": ציור מלא-פינות אמור לדחוף את cornerHint גבוה על פני הרבה נקודות
+ * לאורך כל הלולאה, לא רק בכמה מקומות בודדים. */
+function makeSpikyShapeData(): ShapeData {
+  const pointCount = 40;
+  const points = Array.from({ length: pointCount }, (_, index) => {
+    const angle = (index / pointCount) * 2 * Math.PI;
+    const radius = index % 2 === 0 ? 0.45 : 0.15; // כוכב חד — קפיצה חדה בכל נקודה שנייה
+    return {
+      x: 0.5 + radius * Math.cos(angle),
+      y: 0.5 + radius * Math.sin(angle),
+    };
+  });
+  return { version: '1.0.0', paths: [{ points, closed: true }] };
+}
+
+describe("composeMusicalScore + genreAdapter — תיקון-ביצועים עם תוכן-ז'אנר אמיתי (לא סינתטי)", () => {
+  it('צורה חדה-במיוחד + פאק trance האמיתי (packages/genres) → צפיפות-תופים עדיין חסומה', () => {
+    const trancePack = loadGenrePackById('trance');
+    expect(trancePack).not.toBeNull();
+    if (!trancePack) {
+      return;
+    }
+
+    const shape = makeSpikyShapeData();
+    const intent = geometryToMusic(shape, 'seed-spiky-real-content');
+    const score = composeMusicalScore(intent, toCompositionConfig(trancePack));
+
+    const drumsTrack = score.tracks.find((track) => track.role === 'drums');
+    expect(drumsTrack?.notes.length ?? 0).toBeGreaterThan(0);
+
+    // ⚠️ 'build' מקבל מילוי-כל-step מכוון (buildBuildSectionNotes, ותיק — לא תלוי ב-
+    // cornerHint) — 16/בר שם זה נכון-בכוונה, לא מה שנבדק כאן. משתמשים ב-loop הארוך-ביותר
+    // כמדד הכי-נקי לצפיפות התלויה-בקורנר; טולרנס קטן (לא שוויון מדויק) כי הומניזציה יכולה
+    // להזיז תו-גבול בכמה טיקים לתוך/מחוץ לטווח (ראה groove/humanize.ts).
+    const loopSection = score.sections.find((section) => section.name === 'loop');
+    expect(loopSection).toBeDefined();
+    const loopStartTick = (loopSection?.startBar ?? 0) * 4 * 480;
+    const loopEndTick = loopStartTick + (loopSection?.lengthBars ?? 0) * 4 * 480;
+    const loopNotes = (drumsTrack?.notes ?? []).filter(
+      (note) => note.startTick >= loopStartTick && note.startTick < loopEndTick,
+    );
+    const notesPerBar = loopNotes.length / (loopSection?.lengthBars ?? 1);
+    // ⚠️ התקרה המדויקת (4 בסיס + עד 3 נוספות = 7/בר) מאומתת ב-harmonyEngine.test.ts's ייעודי
+    // (intent סינתטי, בלי רעש-גבולות). כאן, עם intent אמיתי מ-geometryToMusic ותוכן-ז'אנר
+    // אמיתי, מספיק להראות שהצפיפות עדיין *באותו סדר-גודל* — רחוק מ-16/בר (המצב הישן, ללא תקרה).
+    expect(notesPerBar).toBeLessThanOrEqual(8);
   });
 });

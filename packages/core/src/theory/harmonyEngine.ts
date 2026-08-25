@@ -633,7 +633,19 @@ const DRUMS_DEGREE_OFFSET = -5;
  * רעש-דגימה. תבנית-הקצב של הז'אנר (rhythmPatterns.drums) נשארת רצפה (§4.5 "הסגנון קובע
  * לבוש") — הגיאומטריה רק *מוסיפה* פגיעות/הדגשות אמיתיות שמייחדות כל ציור, לא מחליפה אותה.
  */
-const CORNER_HIT_THRESHOLD = 0.3;
+const CORNER_HIT_THRESHOLD = 0.5;
+
+/**
+ * ⭐ 2026-08-25 (תיקון-ביצועים, לפי בקשה חיה: "הסאונד יוצא מקוטע עם קפיצות וחירחורים"):
+ * תקרה קשיחה על כמה פגיעות-נוספות (מעבר לתבנית-הז'אנר) cornerHint יכול להוסיף *לכל בר*.
+ * לפני התיקון, כל step שעבר את הסף קיבל פגיעה — לצורה מורכבת/משוננת זה יכול היה להפוך
+ * "four-on-floor" (4 פגיעות/בר) ל-16+ פגיעות/בר, על כל הבארים בכל אורך היצירה. שילוב של
+ * צפיפות-פגיעות כזו עם פריסטים דו-שכבתיים (מאז הרחבת ספריית-התופים) ואוטומציית-הסיידצ'יין
+ * שמתוזמנת מחדש בכל פגיעה (sidechain.ts) יכול להעמיס על הרינדור-בזמן-אמת ולגרום לקליקים/
+ * חירחורים בפועל. עכשיו: לכל היותר MAX_EXTRA_CORNER_HITS_PER_BAR פגיעות-נוספות לבר,
+ * נבחרות top-K לפי עוצמת-cornerHint (לא "כל step שעובר סף") — ראה selectExtraCornerHitSteps.
+ */
+const MAX_EXTRA_CORNER_HITS_PER_BAR = 3;
 
 /**
  * ⭐ 2026-08-25: פרופיל-פגיעה תלוי-צורה בנקודת-step בודדת (אינדקס גלובלי לאורך כל היצירה,
@@ -646,6 +658,36 @@ function cornerHitVelocity(cornerProfile: readonly number[], globalStepIndex: nu
   }
   const value = at(cornerProfile, globalStepIndex % cornerProfile.length);
   return value > CORNER_HIT_THRESHOLD ? value : 0;
+}
+
+/**
+ * ⭐ 2026-08-25 (תיקון-ביצועים): בוחר עד MAX_EXTRA_CORNER_HITS_PER_BAR מיקומי-step *בר בודד*
+ * שבהם cornerHint עובר את הסף — רק ב-steps שהז'אנר ממילא לא מכה בהם (הוספת-פגיעה אמיתית,
+ * לא הדגשת-עוצמה של פגיעה קיימת — זו מטופלת בנפרד ב-Math.max, בלי לעלות בעלות-CPU כי
+ * הפגיעה כבר קיימת ממילא). top-K לפי עוצמה, לא "כל step שעובר סף" — זה מה שמבטיח את התקרה.
+ */
+function selectExtraCornerHitSteps(
+  cornerProfile: readonly number[],
+  pattern: RhythmStepPattern,
+  barGlobalStepStart: number,
+): ReadonlyMap<number, number> {
+  const candidates: { stepIndex: number; value: number }[] = [];
+  for (let stepIndex = 0; stepIndex < pattern.stepsPerBar; stepIndex += 1) {
+    const genreVelocity = at(pattern.hits, stepIndex % pattern.hits.length);
+    if (genreVelocity > 0) {
+      continue;
+    }
+    const value = cornerHitVelocity(cornerProfile, barGlobalStepStart + stepIndex);
+    if (value > 0) {
+      candidates.push({ stepIndex, value });
+    }
+  }
+  candidates.sort((a, b) => b.value - a.value);
+  const selected = new Map<number, number>();
+  for (const candidate of candidates.slice(0, MAX_EXTRA_CORNER_HITS_PER_BAR)) {
+    selected.set(candidate.stepIndex, candidate.value);
+  }
+  return selected;
 }
 
 /**
@@ -687,9 +729,17 @@ function buildDrumsSectionNotes(
 
   const notes: Note[] = [];
   for (let barOffset = 0; barOffset < section.lengthBars; barOffset += 1) {
+    const barGlobalStepStart = (section.startBar + barOffset) * pattern.stepsPerBar;
+    // ⭐ 2026-08-25 (תיקון-ביצועים): עד MAX_EXTRA_CORNER_HITS_PER_BAR פגיעות-*חדשות* לבר —
+    // הדגשת-עוצמה על פגיעות קיימות (למטה, בתוך ה-forEach) לא כפופה לתקרה, כי היא לא מוסיפה
+    // עלות-CPU (אותה פגיעה ממילא הייתה מנוגנת).
+    const extraHitSteps = selectExtraCornerHitSteps(cornerProfile, pattern, barGlobalStepStart);
     pattern.hits.forEach((genreVelocity, stepIndex) => {
-      const globalStepIndex = (section.startBar + barOffset) * pattern.stepsPerBar + stepIndex;
-      const velocity = Math.max(genreVelocity, cornerHitVelocity(cornerProfile, globalStepIndex));
+      const accentValue =
+        genreVelocity > 0
+          ? cornerHitVelocity(cornerProfile, barGlobalStepStart + stepIndex)
+          : (extraHitSteps.get(stepIndex) ?? 0);
+      const velocity = Math.max(genreVelocity, accentValue);
       if (velocity <= 0) {
         return;
       }

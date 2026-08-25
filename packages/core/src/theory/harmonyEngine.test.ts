@@ -433,6 +433,19 @@ describe('composeMusicalScore — §11 תיקון ממוקד: תופים תלו�
     expect(drumsTrack?.notes.length ?? 0).toBeGreaterThan(0);
   });
 
+  it('תקרת-ביצועים: גם עם cornerHint מקסימלי בכל נקודה (הצורה החדה ביותר האפשרית), מספר הפגיעות-לבר חסום — לא כל 16 ה-steps נהיים פגיעה', () => {
+    // ⭐ 2026-08-25 (תיקון-ביצועים, לפי בקשה חיה: "הסאונד יוצא מקוטע עם קפיצות וחירחורים") —
+    // לפני התיקון, cornerHint=1 בכל מקום היה הופך four-on-floor (4 פגיעות/בר) ל-16
+    // פגיעות/בר (כל step) — עומס-CPU בזמן-אמת + אוטומציית-סיידצ'יין צפופה מדי שגרמו
+    // לחירחורים. עכשיו: לכל היותר MAX_EXTRA_CORNER_HITS_PER_BAR=3 פגיעות-נוספות לבר, מעל
+    // ה-4 הקיימות בתבנית-הז'אנר — תקרה של 7/בר, לא 16/בר.
+    const maxCornerHint = baseIntent.cornerHint.map(() => 1);
+    const score = composeMusicalScore({ ...baseIntent, cornerHint: maxCornerHint }, DRUMS_CONFIG);
+    const drumsTrack = score.tracks.find((track) => track.role === 'drums');
+    const notesPerBar = (drumsTrack?.notes.length ?? 0) / score.durationBars;
+    expect(notesPerBar).toBeLessThanOrEqual(7);
+  });
+
   it('דטרמיניזם: אותו intent (כולל cornerHint) → אותה תבנית-תופים בדיוק, תמיד', () => {
     const scoreA = composeMusicalScore(baseIntent, DRUMS_CONFIG);
     const scoreB = composeMusicalScore(baseIntent, DRUMS_CONFIG);
