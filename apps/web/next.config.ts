@@ -1,6 +1,14 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // ⭐ 2026-08-25 (לפי בקשה חיה: בדיקה בנייד דרך IP-רשת מקומית): Next.js dev server חוסם
+  // בברירת-מחדל בקשות cross-origin ל-assets/endpoints של סביבת-הפיתוח (JS chunks, API
+  // routes) מכל origin שאינו localhost — זה מה שגרם ל"ציור/סאונד חסרים" בנייד: ה-HTML
+  // הראשוני נטען (סטטי, אותו origin), אבל fetch-י ה-client (/api/genres וכו') ו-chunks
+  // נחסמו בשקט כי המכשיר ניגש דרך ה-IP של הרשת המקומית, לא localhost. משפיע רק על `next dev`
+  // — לא קיים/רלוונטי בפרודקשן. ⚠️ ה-IP הזה תלוי-רשת ועלול להשתנות (DHCP) — אם הבדיקה
+  // בנייד תפסיק לעבוד אחרי ניתוק-רשת, לבדוק `ipconfig` ולעדכן כאן.
+  allowedDevOrigins: ['192.168.0.100'],
   // חבילות ה-workspace נשלחות כ-TS גולמי (בלי build step) — צריך טרנספילציה על ידי Next.js.
   transpilePackages: [
     '@soundiform/core',

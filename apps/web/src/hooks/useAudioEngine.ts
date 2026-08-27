@@ -109,6 +109,26 @@ export function useAudioEngine(): UseAudioEngineResult {
     };
   }, []);
 
+  // ⭐ 2026-08-27 (לפי בקשה חיה: "בהתחלה עובד, אחר-כך מושתק, קפיצה מדי פעם" — מובייל): הדפוס
+  // הזה תואם בדיוק AudioContext auto-suspend של הדפדפן/המערכת (לא CPU-underrun כמו הקטיעות
+  // הקודמות) — rAF *עצמו* לא רץ כשהמסך כבוי/הטאב ברקע, אז resumeIfSuspended (למעלה) לא מקבל
+  // הזדמנות לרוץ בכלל עד שחוזרים ל-visible. בנוסף, context.resume() שנקרא מתוך rAF/
+  // visibilitychange (לא user-gesture אמיתי) עלול להידחות ע"י דפדפנים קפדניים ברגע שה-context
+  // *באמת* הושעה ע"י מדיניות (לא רק חיסכון-חשמל) — נגיעה ממשית היא user-gesture אמיתי,
+  // הדרך הכי אמינה לשחרר-מחדש. מאזין תמיד פעיל (לא רק ב-isPlaying) כדי לתפוס גם את הרגע
+  // שבו המשתמש נוגע כדי ללחוץ Play אחרי שה-context כבר נוצר-אך-מושהה מסבב קודם.
+  useEffect(() => {
+    const handleUserInteraction = (): void => {
+      void rendererRef.current?.resumeIfSuspended();
+    };
+    document.addEventListener('pointerdown', handleUserInteraction);
+    document.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    return () => {
+      document.removeEventListener('pointerdown', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, []);
+
   const play = useCallback(async () => {
     if (!shapeHash || paths.length === 0) {
       return;
@@ -147,6 +167,26 @@ export function useAudioEngine(): UseAudioEngineResult {
     setIsPlaying(false);
     setCurrentSeconds(0);
   }, [stopPositionLoop]);
+
+  // ⭐ 2026-08-27: Media Session API — מסמן למערכת-ההפעלה (בעיקר אנדרואיד/iOS) שזו הפעלת-
+  // מדיה לגיטימית וממושכת, לא רק "טאב ברקע" — בלי זה, דפדפני-מובייל נוטים להשעות את
+  // ה-AudioContext הרבה יותר אגרסיבית גם כשהטאב עצמו עדיין גלוי/פעיל (בדיוק "עובד בהתחלה,
+  // אחר-כך מושתק" שדווח). action handlers (play/pause) מחוברים לאותן play/stop כמו כפתורי-
+  // ה-UI, כדי שגם בקרת-המדיה של המכשיר (מסך-נעילה וכו') תעבוד נכון, לא רק שתירשם. playbackState
+  // מתעדכן ל-'none' כשהניגון נעצר, כדי לא להשאיר "רפאים" בבקרת-המדיה.
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) {
+      return;
+    }
+    navigator.mediaSession.metadata = new MediaMetadata({ title: 'Soundiform' });
+    navigator.mediaSession.setActionHandler('play', () => void play());
+    navigator.mediaSession.setActionHandler('pause', () => stop());
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'none';
+    return () => {
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+    };
+  }, [isPlaying, play, stop]);
 
   return {
     isPlaying,

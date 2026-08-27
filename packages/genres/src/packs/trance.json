@@ -649,7 +649,7 @@
       }
     ]
   },
-  "mixChain": { "reverbDecaySeconds": 3.5, "delayTime": "8n", "delayFeedback": 0.3 },
+  "mixChain": { "reverbDecaySeconds": 2, "delayTime": "8n", "delayFeedback": 0.3 },
   "arrangement": { "sectionOrder": ["intro", "loop", "build", "outro"] },
   "sidechainEnabled": true,
   "requiresSamples": false

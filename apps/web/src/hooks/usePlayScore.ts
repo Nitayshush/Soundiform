@@ -80,6 +80,23 @@ export function usePlayScore(score: MusicalScore, genreId: string): UsePlayScore
     };
   }, []);
 
+  // ⭐ 2026-08-27 (לפי בקשה חיה: "בהתחלה עובד, אחר-כך מושתק, קפיצה מדי פעם" — מובייל, אותו
+  // תיקון כמו useAudioEngine.ts): rAF עצמו לא רץ כשהמסך כבוי/הטאב ברקע, אז resumeIfSuspended
+  // למעלה לא מקבל הזדמנות לרוץ בכלל עד שחוזרים ל-visible. context.resume() מתוך רגע-נגיעה
+  // ממשי (לא rAF/visibilitychange) נחשב user-gesture אמיתי — הדרך הכי אמינה לשחרר-מחדש
+  // context שדפדפן קפדני השעה ע"י מדיניות, לא רק חיסכון-חשמל.
+  useEffect(() => {
+    const handleUserInteraction = (): void => {
+      void rendererRef.current?.resumeIfSuspended();
+    };
+    document.addEventListener('pointerdown', handleUserInteraction);
+    document.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    return () => {
+      document.removeEventListener('pointerdown', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, []);
+
   const play = useCallback(async () => {
     setError(null);
     try {
@@ -112,6 +129,22 @@ export function usePlayScore(score: MusicalScore, genreId: string): UsePlayScore
     setIsPlaying(false);
     setCurrentSeconds(0);
   }, [stopPositionLoop]);
+
+  // ⭐ 2026-08-27: Media Session API — ראה useAudioEngine.ts לתיעוד המלא. אותו תיקון כאן,
+  // כי דפי שיתוף/גלריה הם בדיוק המקום שסביר שינוגן במובייל.
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) {
+      return;
+    }
+    navigator.mediaSession.metadata = new MediaMetadata({ title: 'Soundiform' });
+    navigator.mediaSession.setActionHandler('play', () => void play());
+    navigator.mediaSession.setActionHandler('pause', () => stop());
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'none';
+    return () => {
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+    };
+  }, [isPlaying, play, stop]);
 
   return { isPlaying, isLoading, currentSeconds, durationSeconds, error, play, stop };
 }
