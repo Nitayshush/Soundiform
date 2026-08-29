@@ -213,14 +213,17 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
       backgroundPulse.blendMode = 'add';
       burstsLayer.blendMode = 'add';
 
-      // shapeGlowLayer/shapeCrispLayer ראשונים — הצורה המקורית מצטיירת מתחת לסרגל התווים.
+      // ⭐⭐ 2026-08-29 (תיקון באג שדווח על הסרטון, הוחל גם כאן): שכבות-הצורה היו **ראשונות**
+      // (מתחת לסרגל התווים), ופסי-התווים (alpha 0.85 + זוהר) קברו אותן ביצירה צפופה — הצורה
+      // לא "לא נחשפה", היא לא נראתה. עכשיו הן מעל התווים ומתחת לקו-הסורק בלבד. ⚠️ הסדר כאן
+      // חייב להישאר זהה ל-packages/video/src/drawFrame.ts, אחרת "פריוויו ≈ פלט סופי" נשבר.
       app.stage.addChild(
-        shapeGlowLayer,
-        shapeCrispLayer,
         backgroundPulse,
         glowLayer,
         notesLayer,
         burstsLayer,
+        shapeGlowLayer,
+        shapeCrispLayer,
         scanLine,
       );
       appRef.current = app;

@@ -61,7 +61,11 @@ const renderRequestSchema = z.object({
    * id שרירותי; מאמתים למטה שכל אחד באמת קיים ב-genrePack.soundOptions[role] לפני שימוש
    * (§0.3: לעולם לא לסמוך על קליינט למכסות/הרשאות — אותו עיקרון חל גם על תוכן).
    */
-  soundSelections: z.partialRecord(trackRoleSchema, z.array(z.string().min(1)).min(1)).optional(),
+  // ⚠️ 2026-08-29 (באג אמיתי שנתפס בבדיקה חיה — "Invalid request"): **בלי** .min(1) על המערך.
+  // ביטול-בחירה של הצליל האחרון לתפקיד משאיר מערך ריק (soundSelectionStore.ts), וזה מצב
+  // חוקי לגמרי — resolveSynthPresets כבר מפרש אותו כ"אין בחירה, קח ברירת מחדל". הסכימה
+  // היא זו שדחתה, וכך נשברה כל ההורדה אחרי ביטול-בחירה.
+  soundSelections: z.partialRecord(trackRoleSchema, z.array(z.string().min(1))).optional(),
 });
 
 export async function POST(request: Request): Promise<NextResponse> {

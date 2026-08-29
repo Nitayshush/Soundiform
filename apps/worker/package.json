@@ -19,6 +19,7 @@
     "@soundiform/db": "workspace:*",
     "@soundiform/genres": "workspace:*",
     "@soundiform/shared": "workspace:*",
+    "@soundiform/video": "workspace:*",
     "@soundiform/storage": "workspace:*",
     "fastify": "^5.12.0",
     "bullmq": "^6.1.2",

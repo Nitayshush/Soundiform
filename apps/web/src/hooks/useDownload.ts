@@ -63,13 +63,56 @@ async function pollForRenderId(jobId: string): Promise<string> {
   throw new Error('Render is taking longer than expected — try again in a moment');
 }
 
+/**
+ * ⚠️ מסלול ה-worker המקורי — **נשמר בכוונה ולא נמחק** (§0 כלל 2). מאז 2026-08-29 ההורדה
+ * רצה במכשיר (ראה renderAndDownload למטה), כי ה-worker לא פרוס בשום מקום ובפועל רץ על
+ * מחשב מקומי. אם יתברר שמכשירים מסוימים (בעיקר iOS) לא יכולים לקודד וידאו בדפדפן ונחליט
+ * להקים worker אמיתי — זו הפונקציה שמחזירה את המסלול הזה לשירות, בלי לכתוב אותו מחדש.
+ */
+export async function renderViaWorkerQueue(
+  projectId: string,
+  genreId: string,
+  aspectRatio: string,
+  soundSelections?: Record<string, string[]>,
+): Promise<string> {
+  const renderResponse = await fetch('/api/render', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectId,
+      genreId,
+      video: { aspectRatio },
+      ...(soundSelections && { soundSelections }),
+    }),
+  });
+  const renderBody = (await renderResponse.json()) as { jobId?: string; error?: string };
+  if (!renderResponse.ok || !renderBody.jobId) {
+    throw new Error(renderBody.error ?? 'Render failed to start');
+  }
+  return pollForRenderId(renderBody.jobId);
+}
+
 export interface UseDownloadResult {
   requestDownload: () => void;
   isDownloading: boolean;
   downloadError: string | null;
   /** הודעת-התקדמות קריאה-לאדם ("Rendering your video…") — לא רק spinner. */
   statusMessage: string | null;
+  /**
+   * ⭐ 2026-08-29: הודעה למכשיר שלא יכול ליצור וידאו (אין WebCodecs). **לא שגיאה** —
+   * היצירה נשמרה ונשתפת כרגיל, רק בלי קובץ mp4. ראה lib/video/webcodecsSupport.ts.
+   */
+  unsupportedNotice: string | null;
 }
+
+/** ⭐ 2026-08-29: טקסט לכל שלב ברינדור-במכשיר (lib/download/clientRender.ts). */
+const STAGE_MESSAGES: Record<string, string> = {
+  preparing: 'Preparing…',
+  audio: 'Preparing your audio…',
+  video: 'Creating your video…',
+  uploading: 'Uploading…',
+  saving: 'Saving your creation…',
+};
 
 export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResult {
   const router = useRouter();
@@ -83,6 +126,7 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [unsupportedNotice, setUnsupportedNotice] = useState<string | null>(null);
   const pendingDownloadRef = useRef(false);
   const autoDownloadAttemptedRef = useRef(false);
   // ⚠️ נלכד פעם אחת ב-mount, לא נקרא reactively מ-searchParams — useSaveProject's autoSave
@@ -94,24 +138,46 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
     async (projectId: string): Promise<void> => {
       setIsRendering(true);
       setRenderError(null);
+      setUnsupportedNotice(null);
       try {
-        setStatusMessage('Rendering your video…');
-        const renderResponse = await fetch('/api/render', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId,
-            genreId,
-            video: { aspectRatio: DEFAULT_VIDEO_ASPECT_RATIO },
-            ...(soundSelections && { soundSelections }),
-          }),
+        // ⭐⭐ 2026-08-29: הרינדור עבר **למכשיר**. ה-worker לא פרוס בשום מקום (רץ בפועל על
+        // מחשב מקומי), ולכן ההורדה לקחה דקות; קידוד H.264 בדפדפן נמדד ב-2.13x מהזמן-אמת
+        // באנדרואיד — מהר בסדר-גודל. ראה lib/download/clientRender.ts.
+        const { runClientRender } = await import('@/lib/download/clientRender');
+        const { renderId, hasVideo, downgradedTo, limitedCompatibility } = await runClientRender({
+          projectId,
+          genreId,
+          aspectRatio: DEFAULT_VIDEO_ASPECT_RATIO,
+          ...(soundSelections && { soundSelections }),
+          onProgress: ({ stage, ratio }) => {
+            setStatusMessage(
+              stage === 'video' && ratio !== undefined
+                ? `Creating your video… ${String(Math.round(ratio * 100))}%`
+                : STAGE_MESSAGES[stage],
+            );
+          },
         });
-        const renderBody = (await renderResponse.json()) as { jobId?: string; error?: string };
-        if (!renderResponse.ok || !renderBody.jobId) {
-          throw new Error(renderBody.error ?? 'Render failed to start');
-        }
 
-        const renderId = await pollForRenderId(renderBody.jobId);
+        if (!hasVideo) {
+          // ⚠️ לא שגיאה: היצירה נשמרה ומשותפת, רק בלי קובץ וידאו. מכשירים/דפדפנים ללא
+          // WebCodecs (נתפס בפועל ב-Firefox בדסקטופ) — ראה lib/video/webcodecsSupport.ts.
+          setUnsupportedNotice(
+            "Your creation was saved and plays here on the site. This browser can't create video files at all — open Soundiform in Chrome to download the video.",
+          );
+        } else if (limitedCompatibility) {
+          // ⚠️⚠️ נתפס בבדיקה חיה: הדפדפן הזה (בפועל Firefox, שלא מקודד AAC) מייצר MP4 עם
+          // Opus. הוא מתנגן **באתר** — ולכן הוא כן מועלה ומשמש את דף השיתוף והגלריה — אבל
+          // **לא נפתח** ב-Windows Media Player ובחלק מהאפליקציות. לכן במקרה הזה במכוון
+          // *לא* מפעילים הורדה אוטומטית: עדיף להסביר מאשר להוריד קובץ שלא ייפתח.
+          setUnsupportedNotice(
+            'Your creation was saved and plays here on the site. To download a video file that opens everywhere, open Soundiform in Chrome — this browser can only produce an audio format that many players reject.',
+          );
+        } else if (downgradedTo) {
+          // ⚠️ פחות ממה שהמנוי מזכה בו — אומרים את זה במפורש ולא "משתיקים" את ההבדל.
+          setUnsupportedNotice(
+            `Your device couldn't encode the full resolution, so the video was created at ${downgradedTo}.`,
+          );
+        }
 
         setStatusMessage('Creating your share link…');
         const shareResponse = await fetch('/api/shares', {
@@ -121,9 +187,15 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
         });
         const shareBody = (await shareResponse.json()) as { slug?: string };
 
-        setStatusMessage('Starting your download…');
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- זה לא ניווט-דף: /api/.../download מפנה (307) לקובץ חתום ב-R2 ומפעיל הורדה בדפדפן, לא render של עמוד Next.js. router.push() לא מתאים כאן.
-        window.location.href = `/api/renders/${renderId}/download?type=video`;
+        // ⚠️ מורידים רק כשיש קובץ שבאמת ייפתח אצל המשתמש. בלי וידאו — אין מה להוריד;
+        // ועם וידאו בתאימות-מוגבלת (Opus) — הורדה אוטומטית הייתה נותנת קובץ שלא נפתח,
+        // ולכן מדלגים עליה במכוון ומסבירים למעלה. בשני המקרים ממשיכים לדף השיתוף,
+        // שם היצירה כן מנוגנת ומשותפת.
+        if (hasVideo && !limitedCompatibility) {
+          setStatusMessage('Starting your download…');
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- זה לא ניווט-דף: /api/.../download מפנה (307) לקובץ חתום ב-R2 ומפעיל הורדה בדפדפן, לא render של עמוד Next.js. router.push() לא מתאים כאן.
+          window.location.href = `/api/renders/${renderId}/download?type=video`;
+        }
 
         if (shareBody.slug) {
           router.push(`/s/${shareBody.slug}`);
@@ -176,5 +248,6 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
     isDownloading: isSaving || isRendering,
     downloadError: saveError ?? renderError,
     statusMessage,
+    unsupportedNotice,
   };
 }

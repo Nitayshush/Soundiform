@@ -1,0 +1,22 @@
+{
+  "name": "@soundiform/video",
+  "version": "0.1.0",
+  "private": true,
+  "description": "⭐ ציור פריים-וידאו בודד, חסין-סביבה: מקבל 2D context ומצייר עליו — אותו קוד בדיוק ל-@napi-rs/canvas בשרת ול-canvas של הדפדפן. ראה docs/PROJECT.md §3 (תלוי core+shared בלבד, כמו audio).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@soundiform/core": "workspace:*",
+    "@soundiform/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
+  }
+}

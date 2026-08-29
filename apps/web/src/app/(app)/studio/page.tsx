@@ -50,7 +50,8 @@ function StudioContent() {
   // ל-why). קריאה כפולה ל-useSaveProject() הייתה יוצרת שני state instances לא-מסונכרנים.
   const saveProject = useSaveProject();
   const { requestSave, isSaving, saveError, savedProjectId } = saveProject;
-  const { requestDownload, isDownloading, downloadError, statusMessage } = useDownload(saveProject);
+  const { requestDownload, isDownloading, downloadError, statusMessage, unsupportedNotice } =
+    useDownload(saveProject);
   const noteBoardGrid = useNoteBoardGrid();
   const stageContainerRef = useRef<HTMLDivElement>(null);
   // ⭐ תואם max-w-5xl (64rem @ 16px root) — הקאפ הזה *חייב* להיכנס לחישוב ב-useFitAspectRatio
@@ -133,6 +134,8 @@ function StudioContent() {
           {error && <span className="text-destructive">{error}</span>}
           {saveError && <span className="text-destructive">{saveError}</span>}
           {downloadError && <span className="text-destructive">{downloadError}</span>}
+          {/* ⚠️ לא שגיאה — המכשיר לא יכול לקודד וידאו, אבל היצירה נשמרה ומשותפת. */}
+          {unsupportedNotice && <span className="text-amber-500">{unsupportedNotice}</span>}
           {statusMessage && <span>{statusMessage}</span>}
           {durationSeconds > 0 && (
             <span className="font-mono" data-testid="playback-time">

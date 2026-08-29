@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Soundiform — WebCodecs check</title>
+    <!--
+      ⚠️ קובץ בדיקה זמני (ספייק) — לא חלק מהמוצר. נועד לענות על שאלה אחת בלבד:
+      האם המכשיר הזה יכול לקודד וידאו H.264 בדפדפן (WebCodecs), ובאיזו מהירות —
+      כדי להחליט אם אפשר לוותר על ה-worker ולרנדר הורדות על המכשיר עצמו.
+      נמחק אחרי שהתשובה מתקבלת משני מכשירים (אנדרואיד + אייפון).
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #211b4a;
+        --card: #2c2559;
+        --ok: #34d399;
+        --bad: #f87171;
+        --warn: #fbbf24;
+        --text: #f5f3ff;
+        --muted: #b6aee0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 20px;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.5 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      p.sub {
+        margin: 0 0 20px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      button {
+        width: 100%;
+        padding: 16px;
+        font-size: 17px;
+        font-weight: 600;
+        border: 0;
+        border-radius: 12px;
+        background: #8b7cf6;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+      }
+      .row {
+        background: var(--card);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-top: 10px;
+      }
+      .row .label {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .row .value {
+        font-size: 17px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        word-break: break-word;
+      }
+      .ok {
+        color: var(--ok);
+      }
+      .bad {
+        color: var(--bad);
+      }
+      .warn {
+        color: var(--warn);
+      }
+      #summary {
+        margin-top: 18px;
+        padding: 14px;
+        border-radius: 12px;
+        font-weight: 700;
+        text-align: center;
+        display: none;
+      }
+      video {
+        width: 100%;
+        margin-top: 14px;
+        border-radius: 10px;
+        display: none;
+        background: #000;
+      }
+      canvas {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WebCodecs check</h1>
+    <p class="sub">
+      בודק אם המכשיר הזה יכול לקודד וידאו בדפדפן. לחץ, חכה, ושלח צילום מסך של כל התוצאות.
+    </p>
+
+    <button id="run">הפעל בדיקה</button>
+    <div id="results"></div>
+    <div id="summary"></div>
+    <video id="preview" controls playsinline muted></video>
+    <canvas id="scratch"></canvas>
+
+    <script>
+      const results = document.getElementById('results');
+      const summaryEl = document.getElementById('summary');
+      const runButton = document.getElementById('run');
+      const canvas = document.getElementById('scratch');
+
+      function addRow(label, value, cls) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = '<div class="label"></div><div class="value ' + (cls || '') + '"></div>';
+        row.querySelector('.label').textContent = label;
+        row.querySelector('.value').textContent = value;
+        results.appendChild(row);
+        return row;
+      }
+
+      /** מצייר פריים שדומה בעלות-הציור למה שהמוצר באמת מצייר (פסים צבעוניים + זוהר + קו סורק). */
+      function drawFrame(ctx, width, height, progress) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        const colors = ['#8b7cf6', '#f59e0b', '#34d399', '#e11d48'];
+        for (let i = 0; i < 120; i += 1) {
+          const color = colors[i % colors.length];
+          ctx.fillStyle = color;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 14;
+          ctx.globalAlpha = 0.85;
+          const x = (((i * 37) % 100) / 100) * width;
+          const y = (((i * 53) % 100) / 100) * height;
+          ctx.fillRect(x, y, width * 0.06, Math.max(4, height / 40));
+        }
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#211b4a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(progress * width, 0);
+        ctx.lineTo(progress * width, height);
+        ctx.stroke();
+      }
+
+      async function probeConfig(width, height, codec) {
+        try {
+          const support = await VideoEncoder.isConfigSupported({
+            codec: codec,
+            width: width,
+            height: height,
+            bitrate: 5_000_000,
+            framerate: 30,
+          });
+          return support && support.supported ? 'supported' : 'NOT supported';
+        } catch (error) {
+          return 'error: ' + (error && error.message ? error.message : String(error));
+        }
+      }
+
+      async function encodeTest(width, height, codec, frameCount) {
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        const chunks = [];
+        let encoderError = null;
+        const encoder = new VideoEncoder({
+          output: (chunk) => {
+            chunks.push(chunk.byteLength);
+          },
+          error: (error) => {
+            encoderError = error;
+          },
+        });
+        encoder.configure({
+          codec: codec,
+          width: width,
+          height: height,
+          bitrate: 5_000_000,
+          framerate: 30,
+        });
+
+        const startedAt = performance.now();
+        let drawMs = 0;
+        for (let i = 0; i < frameCount; i += 1) {
+          const drawStart = performance.now();
+          drawFrame(ctx, width, height, i / frameCount);
+          drawMs += performance.now() - drawStart;
+
+          const frame = new VideoFrame(canvas, {
+            timestamp: Math.round((i * 1_000_000) / 30),
+            duration: Math.round(1_000_000 / 30),
+          });
+          encoder.encode(frame, { keyFrame: i % 60 === 0 });
+          frame.close();
+
+          // נותן לדפדפן לנשום כדי שלא ייחנק ושהתור לא יתפוצץ.
+          if (encoder.encodeQueueSize > 10) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
+        }
+        await encoder.flush();
+        const totalMs = performance.now() - startedAt;
+        encoder.close();
+
+        if (encoderError) {
+          throw encoderError;
+        }
+        const bytes = chunks.reduce((sum, n) => sum + n, 0);
+        return { totalMs: totalMs, drawMs: drawMs, frames: chunks.length, bytes: bytes };
+      }
+
+      runButton.addEventListener('click', async () => {
+        runButton.disabled = true;
+        runButton.textContent = 'רץ…';
+        results.innerHTML = '';
+        summaryEl.style.display = 'none';
+
+        addRow('דפדפן', navigator.userAgent);
+
+        if (typeof VideoEncoder === 'undefined') {
+          addRow('VideoEncoder', 'לא קיים במכשיר הזה', 'bad');
+          summaryEl.style.display = 'block';
+          summaryEl.style.background = '#4c1d1d';
+          summaryEl.className = 'bad';
+          summaryEl.textContent = '❌ WebCodecs לא נתמך — נצטרך שרת למכשיר הזה';
+          runButton.disabled = false;
+          runButton.textContent = 'הפעל שוב';
+          return;
+        }
+        addRow('VideoEncoder', 'קיים ✓', 'ok');
+        addRow(
+          'AudioEncoder (AAC)',
+          typeof AudioEncoder === 'undefined' ? 'לא קיים' : 'קיים ✓',
+          typeof AudioEncoder === 'undefined' ? 'warn' : 'ok',
+        );
+
+        const codec = 'avc1.42001f';
+        addRow('H.264 720p', await probeConfig(1280, 720, codec));
+        addRow('H.264 1080p', await probeConfig(1920, 1080, 'avc1.640028'));
+
+        try {
+          const frameCount = 150; // 5 שניות ב-30fps
+          const run = await encodeTest(1280, 720, codec, frameCount);
+          const seconds = run.totalMs / 1000;
+          const videoSeconds = frameCount / 30;
+          const factor = videoSeconds / seconds;
+
+          addRow('פריימים שקודדו', run.frames + ' / ' + frameCount, run.frames > 0 ? 'ok' : 'bad');
+          addRow('זמן קידוד (5 שניות וידאו, 720p)', seconds.toFixed(2) + ' שניות');
+          addRow('מתוכו ציור בלבד', (run.drawMs / 1000).toFixed(2) + ' שניות');
+          addRow('מהירות', factor.toFixed(2) + 'x מזמן-אמת', factor >= 1 ? 'ok' : 'warn');
+          addRow('גודל', (run.bytes / 1024).toFixed(0) + ' KB');
+
+          // הערכה ליצירה אמיתית של 40 שניות
+          addRow('הערכה לווידאו של 40 שניות', (40 / factor).toFixed(0) + ' שניות המתנה');
+
+          summaryEl.style.display = 'block';
+          if (factor >= 1) {
+            summaryEl.style.background = '#14532d';
+            summaryEl.className = 'ok';
+            summaryEl.textContent = '✅ עובד ומהיר מזמן-אמת — אפשר לוותר על השרת';
+          } else {
+            summaryEl.style.background = '#4a3a12';
+            summaryEl.className = 'warn';
+            summaryEl.textContent = '⚠️ עובד אבל איטי מזמן-אמת — צריך לשקול';
+          }
+        } catch (error) {
+          addRow('שגיאת קידוד', (error && error.message) || String(error), 'bad');
+          summaryEl.style.display = 'block';
+          summaryEl.style.background = '#4c1d1d';
+          summaryEl.className = 'bad';
+          summaryEl.textContent = '❌ הקידוד נכשל במכשיר הזה';
+        }
+
+        runButton.disabled = false;
+        runButton.textContent = 'הפעל שוב';
+      });
+    </script>
+  </body>
+</html>

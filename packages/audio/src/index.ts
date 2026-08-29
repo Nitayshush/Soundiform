@@ -22,6 +22,10 @@ export * from './providers/InstrumentProvider';
 export * from './providers/SynthProvider';
 export * from './mixing/mixChain';
 export * from './mixing/loudness';
+// ⭐ 2026-08-29: מקודדי הקבצים חסינים-סביבה (Uint8Array, בלי Buffer) — גם ה-worker וגם
+// הדפדפן משתמשים באותו קוד, מאז שההורדה רצה במכשיר.
+export * from './encoders/wav';
+export * from './encoders/midi';
 export * from './render/browserRenderer';
 export * from './render/offlineRenderer';
 // ⭐ 2026-08-29: apps/web צריך את אורך-היצירה *לפני* שהרינדור מתחיל, כדי להעריך כמה זמן
