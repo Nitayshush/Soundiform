@@ -12,8 +12,9 @@
 
 'use client';
 
-import { Suspense, useRef } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Maximize, Minimize } from 'lucide-react';
 import { DrawingCanvas } from '@/components/canvas/DrawingCanvas';
 import { MusicalGrid } from '@/components/canvas/MusicalGrid';
 import { ScoreStaff } from '@/components/canvas/ScoreStaff';
@@ -29,6 +30,7 @@ import { useSaveProject } from '@/hooks/useSaveProject';
 import { useDownload } from '@/hooks/useDownload';
 import { useFitAspectRatio } from '@/hooks/useFitAspectRatio';
 import { useNoteBoardGrid } from '@/hooks/useNoteBoardGrid';
+import { useVisibleViewport } from '@/hooks/useVisibleViewport';
 import { useShapeStore } from '@/stores/shapeStore';
 
 function StudioContent() {
@@ -54,6 +56,33 @@ function StudioContent() {
     useDownload(saveProject);
   const noteBoardGrid = useNoteBoardGrid();
   const stageContainerRef = useRef<HTMLDivElement>(null);
+  // ⭐ 2026-08-29 (לפי בקשה חיה): מצב-ציור מוגדל בנייד. מימוש ב-CSS (fixed inset-0) ולא דרך
+  // Fullscreen API בכוונה — ב-iOS Safari requestFullscreen לא נתמך על אלמנטים רגילים (רק
+  // וידאו), כך שה-API היה עובד באנדרואיד ונכשל בשקט באייפון. CSS עובד זהה בשתיהן.
+  const [isStageExpanded, setIsStageExpanded] = useState(false);
+  // ⚠️ נמדד רק במצב מורחב — ראה useVisibleViewport.ts: `dvh` לבדו לא הספיק בנייד אחרי סיבוב,
+  // ותחתית הלוח (עם כפתור ההקטנה) נחתכה.
+  const visibleViewport = useVisibleViewport(isStageExpanded);
+
+  // ⚠️ יציאה ב-Escape (מקלדת חיצונית/טאבלט) + מניעת גלילת-רקע מאחורי הלוח המוגדל, שגורמת
+  // ל"קפיצות" מטרידות תוך כדי ציור בנייד.
+  useEffect(() => {
+    if (!isStageExpanded) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setIsStageExpanded(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isStageExpanded]);
   // ⭐ תואם max-w-5xl (64rem @ 16px root) — הקאפ הזה *חייב* להיכנס לחישוב ב-useFitAspectRatio
   // עצמו, לא להישאר class Tailwind נפרד; ראה התיעוד ב-useFitAspectRatio.ts לבאג שזה תיקן.
   const fittedSize = useFitAspectRatio(stageContainerRef, 1024);
@@ -161,9 +190,34 @@ function StudioContent() {
           מונעת מהמיכל הזה להתכווץ מתחת לגודל-התוכן שלו — ה-box הפנימי (עם aspect-video
           כברירת מחדל לפני שה-hook מודד) "דוחף" את המיכל לגבוה מדי, מה שגורם למדידה
           שגויה (rect.height מנופח) ולקופסה שיוצאת מטווח ה-viewport ב-landscape. */}
+      {/* ⭐⭐ 2026-08-29 (לפי בקשה חיה: "הלוח קטן בנייד, וגם לא גדל כשהופכים את המכשיר"):
+          במצב מורחב המיכל הופך ל-fixed inset-0 ומכסה גם את הכותרת — כל המסך לציור.
+          ⚠️ לא נדרש שום חישוב-גודל חדש: useFitAspectRatio ו-DrawingCanvas שניהם עובדים עם
+          ResizeObserver, אז שינוי גודל המיכל מודד מחדש מעצמו — כולל **בחירת יחס-הצורה**
+          (ריבוע מתחת ל-640px רוחב, 16:9 מעליו), ולכן סיבוב לרוחב במצב מורחב באמת מנצל את
+          המסך במקום להישאר ריבוע קטן. זו הסיבה שלא נגעתי ב-hook עצמו. */}
+      {/* ⚠️⚠️ 2026-08-29 (נתפס בבדיקה חיה בנייד): `inset-0` נמדד מול ה-layout viewport, שבנייד
+          **גבוה מהאזור הנראה** כשסרגל-הכתובת מוצג — ולכן תחתית הלוח (ואיתה כפתור ההקטנה)
+          נחתכה מתחת לקצה המסך. `h-[100dvh]` הוא ה-viewport ה**דינמי**, שמתכווץ/מתרחב יחד עם
+          כרום-הדפדפן, ולכן תמיד תואם למה שבאמת נראה. `relative` — כדי שכפתור ההקטנה ימוקם
+          מול המסך ולא מול קופסת-הציור (ראה הכפתור למטה). */}
       <div
         ref={stageContainerRef}
-        className="flex min-h-0 flex-1 items-center justify-center bg-muted/30 p-4"
+        className={
+          isStageExpanded
+            ? 'fixed inset-x-0 z-50 flex h-[100dvh] items-center justify-center bg-background p-1'
+            : 'relative flex min-h-0 flex-1 items-center justify-center bg-muted/30 p-4'
+        }
+        // ⚠️ המידה הנמדדת גוברת על h-[100dvh] (שנשאר כגיבוי לרגע שלפני המדידה הראשונה
+        // ולדפדפנים בלי visualViewport). offsetTop נדרש כי כרום מרחף דוחף את האזור הנראה
+        // כלפי מטה — בלעדיו הלוח מתחיל מעל ראש המסך והתחתית נחתכת.
+        style={
+          isStageExpanded && visibleViewport
+            ? { height: visibleViewport.height, top: visibleViewport.offsetTop }
+            : isStageExpanded
+              ? { top: 0 }
+              : undefined
+        }
       >
         {/* ⭐ הרקע הזה לבן במכוון (לא bg-background) — סרגל התווים/קנבס הציור, בניגוד
             ל-header שנשאר על הפלטה הכהה. text-[#211B4A] נותן ל-MusicalGrid (currentColor)
@@ -178,9 +232,21 @@ function StudioContent() {
             height) נגזר מ-getBoundingClientRect() ברגע ה-resize — כל פער תת-פיקסל בין המדידה
             לגודל-CSS בפועל (זום דפדפן, מעבר-רזולוציה) יכול לגרום לקנבס לצייר קצת יותר-גדול
             מהקופסה שסביבו; overflow-hidden מבטיח שזה תמיד נחתך חזותית, בלי קשר למקור הפער. */}
+        {/* ⭐ 2026-08-29 (לפי בקשה חיה: "שיגדל לגודל של כל המסך"): במצב מורחב הלוח **ממלא**
+            את המסך במקום להשתבץ ביחס-צורה קבוע. מותר: הציור מנורמל ל-[0,1] בשני הצירים
+            (toShapeData), אז יחס-הלוח לא משפיע על המוזיקה שנוצרת — והוידאו המיוצא ממילא
+            מקבל את היחס שלו בנפרד. לכן במצב מורחב לא מחילים את fittedSize בכלל. */}
         <div
-          className="relative aspect-video max-h-full w-full overflow-hidden bg-white text-[#211B4A] shadow-lg"
-          style={fittedSize ? { width: fittedSize.width, height: fittedSize.height } : undefined}
+          className={
+            isStageExpanded
+              ? 'relative h-full w-full overflow-hidden bg-white text-[#211B4A] shadow-lg'
+              : 'relative aspect-video max-h-full w-full overflow-hidden bg-white text-[#211B4A] shadow-lg'
+          }
+          style={
+            !isStageExpanded && fittedSize
+              ? { width: fittedSize.width, height: fittedSize.height }
+              : undefined
+          }
         >
           <DrawingCanvas hidden={isPlaying} />
           <MusicalGrid
@@ -193,6 +259,28 @@ function StudioContent() {
           <ScoreStaff progress={progress} />
           <RevealOverlay />
         </div>
+        {/* ⭐ 2026-08-29 (לפי בקשה חיה): כפתור הגדלה/הקטנה כמו בנגני וידאו — **בנייד בלבד**
+            (sm:hidden), כי בדסקטופ הלוח ממילא גדול.
+            ⚠️⚠️ ממוקם מול **המיכל** ולא מול קופסת-הציור — נתפס בבדיקה חיה: כשהוא ישב בתוך
+            הקופסה, סיבוב המכשיר גרם לתחתית הקופסה להיחתך ואיתה נעלם כפתור ההקטנה, כלומר
+            המשתמש נתקע במצב מורחב בלי דרך לצאת. המיכל תמיד תופס בדיוק את האזור הנראה
+            (h-[100dvh] למעלה), ולכן הכפתור גלוי תמיד.
+            ⚠️ touch-none מונע מהמגע על הכפתור להתחיל שרטוט על הקנבס שמתחתיו. */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsStageExpanded((expanded) => !expanded);
+          }}
+          aria-label={isStageExpanded ? 'Exit full screen' : 'Draw in full screen'}
+          aria-pressed={isStageExpanded}
+          className="absolute right-3 bottom-3 z-20 flex size-11 touch-none items-center justify-center rounded-full bg-[#211B4A]/80 text-white shadow-lg backdrop-blur-sm active:bg-[#211B4A] sm:hidden"
+        >
+          {isStageExpanded ? (
+            <Minimize className="size-5" aria-hidden="true" />
+          ) : (
+            <Maximize className="size-5" aria-hidden="true" />
+          )}
+        </button>
       </div>
       <AudioDebugHUD />
     </main>

@@ -34,6 +34,11 @@ const POLL_INTERVAL_MS = 2000;
 // לאיכויות/משכים גדולים יותר (pro/studio).
 const MAX_POLL_ATTEMPTS = 150;
 const DEFAULT_VIDEO_ASPECT_RATIO = '16:9'; // ⭐ ברירת מחדל ל-YouTube (הבקשה המפורשת של Nitay).
+/**
+ * ⭐ 2026-08-29 (לפי בקשה חיה): זמן קריאה לפני שהדף מתחלף לדף השיתוף. בלי זה, הודעה כמו
+ * "היצירה נשמרה בגלריה, הורד דרך Chrome" נעלמה מיד עם הניווט והמשתמש לא הספיק לראות אותה.
+ */
+const NOTICE_READ_MS = 10000;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Download failed';
@@ -139,6 +144,10 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
       setIsRendering(true);
       setRenderError(null);
       setUnsupportedNotice(null);
+      /** ה-slug לניווט, נאסף בתוך ה-try ומשמש **אחרי** ה-finally — ראה ההערה למטה. */
+      let shareSlug: string | null = null;
+      /** האם הוצגה הודעה שהמשתמש צריך זמן לקרוא לפני שהדף מתחלף. */
+      let noticeToRead = false;
       try {
         // ⭐⭐ 2026-08-29: הרינדור עבר **למכשיר**. ה-worker לא פרוס בשום מקום (רץ בפועל על
         // מחשב מקומי), ולכן ההורדה לקחה דקות; קידוד H.264 בדפדפן נמדד ב-2.13x מהזמן-אמת
@@ -158,6 +167,7 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
           },
         });
 
+        noticeToRead = !hasVideo || Boolean(limitedCompatibility) || Boolean(downgradedTo);
         if (!hasVideo) {
           // ⚠️ לא שגיאה: היצירה נשמרה בגלריה וניתנת לשיתוף — רק בלי קובץ mp4. קורה כשאין
           // WebCodecs בכלל, או כשהקידוד נכשל בדפדפן הזה (בפועל: Firefox). ההודעה חייבת
@@ -198,14 +208,24 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
           window.location.href = `/api/renders/${renderId}/download?type=video`;
         }
 
-        if (shareBody.slug) {
-          router.push(`/s/${shareBody.slug}`);
-        }
+        shareSlug = shareBody.slug ?? null;
       } catch (caughtError) {
         setRenderError(errorMessage(caughtError));
       } finally {
         setIsRendering(false);
         setStatusMessage(null);
+      }
+
+      // ⚠️⚠️ 2026-08-29 (נתפס בבדיקה חיה): הניווט לדף השיתוף קרה מיד, והמשתמש לא הספיק
+      // לקרוא את ההודעה שהיצירה נשמרה ושצריך Chrome כדי להוריד — היא נעלמה יחד עם הדף.
+      // ⚠️ ההשהיה **מחוץ** ל-finally בכוונה: כך ה-spinner כבר כבוי ו-statusMessage נוקה,
+      // והמשתמש רואה מסך שקט עם ההודעה בלבד — ולא "Saving…" מסתובב במשך 5 שניות.
+      // כשאין מה לקרוא (ההורדה פשוט הצליחה) — מנווטים מיד, בלי להשהות סתם.
+      if (shareSlug) {
+        if (noticeToRead) {
+          await sleep(NOTICE_READ_MS);
+        }
+        router.push(`/s/${shareSlug}`);
       }
     },
     [genreId, soundSelections, router],
