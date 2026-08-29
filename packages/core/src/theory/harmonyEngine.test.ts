@@ -15,6 +15,7 @@ import { createSeededRandom } from '../internal/seededRandom';
 import { geometryToMusic } from '../mapping/geometryToMusic';
 import { musicalScoreSchema } from '../score/scoreSchema';
 import { composeMusicalScore, type CompositionConfig } from './harmonyEngine';
+import { buildNoteBoardRows } from './noteBoard';
 import { validateConstitution } from './rules';
 import {
   makeAsymmetricShapeData,
@@ -450,5 +451,184 @@ describe('composeMusicalScore — §11 תיקון ממוקד: תופים תלו�
     const scoreA = composeMusicalScore(baseIntent, DRUMS_CONFIG);
     const scoreB = composeMusicalScore(baseIntent, DRUMS_CONFIG);
     expect(scoreA).toEqual(scoreB);
+  });
+});
+
+describe('composeMusicalScore — לוח-תווים אבסולוטי (absoluteNoteBoard)', () => {
+  const ABSOLUTE_CONFIG: CompositionConfig = {
+    ...DEFAULT_TEST_CONFIG,
+    absoluteNoteBoard: true,
+  };
+
+  it('שורש+מוד קבועים: שני seeds שונים על אותו סגנון → אותו key בדיוק (לא אקראי-לפי-צורה)', () => {
+    const intentA = geometryToMusic(makeTriangleShapeData(), 'seed-absolute-a');
+    const intentB = geometryToMusic(makeCircleShapeData(), 'seed-absolute-b');
+    const scoreA = composeMusicalScore(intentA, ABSOLUTE_CONFIG);
+    const scoreB = composeMusicalScore(intentB, ABSOLUTE_CONFIG);
+    expect(scoreA.key).toEqual(scoreB.key);
+    expect(scoreA.key.mode).toBe(ABSOLUTE_CONFIG.mode);
+  });
+
+  it('כל תו במלודיה נלקח מתוך 15 התווים הקבועים של הלוח — לא ערך אחר', () => {
+    const intent = geometryToMusic(makeAsymmetricShapeData(), 'seed-absolute-rows');
+    const score = composeMusicalScore(intent, ABSOLUTE_CONFIG);
+    const lead = score.tracks.find((track) => track.role === 'lead');
+    const rootMidi = 48 + score.key.root;
+    const allowedPitches = new Set(buildNoteBoardRows(rootMidi, score.key.mode));
+    expect(lead?.notes.length).toBeGreaterThan(0);
+    for (const note of lead?.notes ?? []) {
+      expect(allowedPitches.has(note.pitch)).toBe(true);
+    }
+  });
+
+  it('אין דגימת-motifSize/שיקוף-סימטריה: בלי rhythmPatterns.lead, מספר התווים ב-loop הוא בדיוק lengthBars×16', () => {
+    // ריבוע = symmetryTransform!=='none' — בנתיב הישן זה היה מכפיל ב-2 את motifSize;
+    // בנתיב האבסולוטי אמור להיות תלוי רק ב-lengthBars×COLUMNS_PER_BAR (16), לא ב-motifSize כלל.
+    // ⚠️ ABSOLUTE_CONFIG לא מגדיר rhythmPatterns.lead — זה בדיוק ה-fallback הבטוח (16/בר
+    // ללא סינון). ראה הבדיקה הבאה לסינון-לפי-תבנית (תיקון-החירחורים).
+    const symmetricIntent = geometryToMusic(makeSquareShapeData(), 'seed-absolute-symmetric');
+    const score = composeMusicalScore(symmetricIntent, ABSOLUTE_CONFIG);
+    const lead = score.tracks.find((track) => track.role === 'lead');
+    const loopSection = score.sections.find((section) => section.name === 'loop');
+    expect(loopSection).toBeDefined();
+    expect(lead?.notes.length).toBe((loopSection?.lengthBars ?? 0) * 16);
+  });
+
+  it('תיקון-חירחורים: עם rhythmPatterns.lead דליל, מספר התווים ב-loop = פגיעות-התבנית × lengthBars (לא 16×)', () => {
+    const sparseLeadConfig: CompositionConfig = {
+      ...ABSOLUTE_CONFIG,
+      rhythmPatterns: {
+        lead: { stepsPerBar: 16, hits: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] }, // 4/בר
+      },
+    };
+    const intent = geometryToMusic(makeSquareShapeData(), 'seed-lead-density-fix');
+    const score = composeMusicalScore(intent, sparseLeadConfig);
+    const lead = score.tracks.find((track) => track.role === 'lead');
+    const loopSection = score.sections.find((section) => section.name === 'loop');
+    expect(loopSection).toBeDefined();
+    expect(lead?.notes.length).toBe((loopSection?.lengthBars ?? 0) * 4);
+    expect(validateConstitution(score)).toHaveLength(0);
+  });
+
+  it('flag דלוק: כל ה-seeds מייצרים את אותו שורש בדיוק (בניגוד לבדיקה המקבילה למעלה עם flag כבוי)', () => {
+    const seeds = Array.from(
+      { length: 10 },
+      (_, index) => `seed-absolute-variety-${String(index)}`,
+    );
+    const roots = new Set(
+      seeds.map(
+        (seed) =>
+          composeMusicalScore(geometryToMusic(makeSquareShapeData(), seed), ABSOLUTE_CONFIG).key
+            .root,
+      ),
+    );
+    expect(roots.size).toBe(1);
+  });
+});
+
+describe('composeMusicalScore — לוח-תווים אבסולוטי שלב 2: הרמוניה (בס/פאד) לפי מיקום-הצורה', () => {
+  const ABSOLUTE_CONFIG: CompositionConfig = {
+    ...DEFAULT_TEST_CONFIG,
+    absoluteNoteBoard: true,
+  };
+  const HARMONY_ROLE_RANGES: Record<'bass' | 'pad', { min: number; max: number }> = {
+    bass: { min: 24, max: 60 },
+    pad: { min: 36, max: 84 },
+  };
+
+  it("בס/פאד תלויים בצורה, לא ב-seed: אותה צורה + seeds שונים → אותו רצף-פיצ'ים בדיוק", () => {
+    const shape = makeSquareShapeData();
+    const scoreA = composeMusicalScore(geometryToMusic(shape, 'seed-harmony-a'), ABSOLUTE_CONFIG);
+    const scoreB = composeMusicalScore(geometryToMusic(shape, 'seed-harmony-b'), ABSOLUTE_CONFIG);
+    const pitchesA = scoreA.tracks
+      .find((track) => track.role === 'bass')
+      ?.notes.map((n) => n.pitch);
+    const pitchesB = scoreB.tracks
+      .find((track) => track.role === 'bass')
+      ?.notes.map((n) => n.pitch);
+    expect(pitchesA).toEqual(pitchesB);
+    const padA = scoreA.tracks.find((track) => track.role === 'pad')?.notes.map((n) => n.pitch);
+    const padB = scoreB.tracks.find((track) => track.role === 'pad')?.notes.map((n) => n.pitch);
+    expect(padA).toEqual(padB);
+  });
+
+  it('בס/פאד משתנים בין צורות שונות (לא קפואים על פרוגרסיה קבועה אחת)', () => {
+    const scoreTriangle = composeMusicalScore(
+      geometryToMusic(makeTriangleShapeData(), 'seed-shape-variety'),
+      ABSOLUTE_CONFIG,
+    );
+    const scoreCircle = composeMusicalScore(
+      geometryToMusic(makeCircleShapeData(), 'seed-shape-variety'),
+      ABSOLUTE_CONFIG,
+    );
+    const bassTriangle = scoreTriangle.tracks.find((track) => track.role === 'bass')?.notes[0]
+      ?.pitch;
+    const bassCircle = scoreCircle.tracks.find((track) => track.role === 'bass')?.notes[0]?.pitch;
+    expect(bassTriangle).not.toBe(bassCircle);
+  });
+
+  it('כל פיץ׳ בבס/פאד נשאר בטווח התפקיד שלו (מוודא שקיפול ה-%7 מונע חריגה מ-generateInversions)', () => {
+    for (const shape of [
+      makeTriangleShapeData(),
+      makeSquareShapeData(),
+      makeCircleShapeData(),
+      makeAsymmetricShapeData(),
+    ]) {
+      const score = composeMusicalScore(
+        geometryToMusic(shape, 'seed-range-check'),
+        ABSOLUTE_CONFIG,
+      );
+      for (const role of ['bass', 'pad'] as const) {
+        const range = HARMONY_ROLE_RANGES[role];
+        const track = score.tracks.find((t) => t.role === role);
+        for (const note of track?.notes ?? []) {
+          expect(note.pitch).toBeGreaterThanOrEqual(range.min);
+          expect(note.pitch).toBeLessThanOrEqual(range.max);
+        }
+      }
+    }
+  });
+
+  it('validateConstitution ריק (כולל note-in-scale/realistic-range) על כמה צורות שונות', () => {
+    for (const shape of [makeTriangleShapeData(), makeSquareShapeData(), makeCircleShapeData()]) {
+      const score = composeMusicalScore(
+        geometryToMusic(shape, 'seed-constitution'),
+        ABSOLUTE_CONFIG,
+      );
+      expect(validateConstitution(score)).toHaveLength(0);
+    }
+  });
+
+  it('תופים: עם absoluteNoteBoard, ה-pitch משתנה בין ברים לפי מיקום-הצורה (לא קבוע כמו קודם)', () => {
+    const config: CompositionConfig = {
+      ...ABSOLUTE_CONFIG,
+      rhythmPatterns: {
+        drums: { stepsPerBar: 16, hits: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] },
+      },
+    };
+    const score = composeMusicalScore(
+      geometryToMusic(makeAsymmetricShapeData(), 'seed-drums-absolute-pitch'),
+      config,
+    );
+    const drumsTrack = score.tracks.find((track) => track.role === 'drums');
+    const distinctPitches = new Set(drumsTrack?.notes.map((note) => note.pitch));
+    expect(distinctPitches.size).toBeGreaterThan(1);
+    expect(validateConstitution(score)).toHaveLength(0);
+  });
+
+  it('תופים: בלי absoluteNoteBoard, ה-pitch נשאר קבוע (ללא שינוי-התנהגות לסגנונות אחרים)', () => {
+    const config: CompositionConfig = {
+      ...DEFAULT_TEST_CONFIG,
+      rhythmPatterns: {
+        drums: { stepsPerBar: 16, hits: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] },
+      },
+    };
+    const score = composeMusicalScore(
+      geometryToMusic(makeAsymmetricShapeData(), 'seed-drums-legacy-pitch'),
+      config,
+    );
+    const drumsTrack = score.tracks.find((track) => track.role === 'drums');
+    const distinctPitches = new Set(drumsTrack?.notes.map((note) => note.pitch));
+    expect(distinctPitches.size).toBe(1);
   });
 });

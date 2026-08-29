@@ -13,7 +13,7 @@
  * לא כאן. הפונקציות כאן לא יודעות אם מדובר ב-AudioContext אמיתי או OfflineAudioContext.
  */
 
-import { connect, Gain, Part } from 'tone';
+import { connect, FeedbackDelay, Gain, Part } from 'tone';
 import type { InputNode } from 'tone';
 import type { MusicalScore, Note, Track, TrackRole } from '@soundiform/core';
 import { TICKS_PER_BEAT } from '@soundiform/core';
@@ -25,9 +25,11 @@ import {
 import {
   buildMixChain,
   DEFAULT_MIX_CHARACTER,
+  SEND_EPSILON,
   type MixCharacterConfig,
   type MixChainHandle,
 } from '../mixing/mixChain';
+import { createSharedReverbBus, type SharedReverbBus } from '../mixing/sharedReverb';
 import {
   createSidechainDuck,
   DEFAULT_DUCK_DEPTH,
@@ -103,7 +105,8 @@ export async function createTrackRuntime(
   tempoBpm: number,
   destination: InputNode,
   audioConfig: GenreAudioConfig,
-  reverbSeed: string,
+  reverbBus: InputNode | undefined,
+  delayBus: InputNode | undefined,
   sidechainDuck?: Gain,
 ): Promise<TrackRuntime> {
   const preset = audioConfig.synthPresets[track.role] ?? DEFAULT_SYNTH_PRESET;
@@ -111,8 +114,8 @@ export async function createTrackRuntime(
   const mixChain = await buildMixChain(
     track.mixSettings,
     destination,
-    reverbSeed,
-    audioConfig.mixCharacter,
+    reverbBus,
+    delayBus,
     sidechainDuck,
     audioConfig.trackEq?.[track.role],
   );
@@ -141,6 +144,17 @@ export interface TrackRuntimeSet {
   disposeAll: () => void;
 }
 
+/** אפיק-דיליי משותף מינימלי — Tone.FeedbackDelay יחיד משמש כ"input" גם: Web Audio מסכם
+ * חיבורים מרובים לצומת אחת אוטומטית, אז כמה delaySendGain יכולים להתחבר ישירות אליו. */
+function createSharedDelayBus(
+  character: MixCharacterConfig,
+  destination: InputNode,
+): { input: InputNode; dispose(): void } {
+  const delay = new FeedbackDelay(character.delayTime, character.delayFeedback);
+  delay.connect(destination);
+  return { input: delay, dispose: () => delay.dispose() };
+}
+
 /**
  * יוצר runtime (provider+mixChain+part מתוזמן) לכל טראק ב-score, על ה-context הפעיל.
  * ⭐ 2026-08-22: כשaudioConfig.sidechainEnabled ויש טראק 'drums' — בונה gain node משותף אחד
@@ -150,6 +164,9 @@ export interface TrackRuntimeSet {
  * ל-0-גיין) — טראק מושתק לא בונה provider/mixChain/part בכלל. ⚠️ עיתוי-הסיידצ'יין ממשיך
  * להתבסס על drumsTrack המקורי מה-score (לא מהרשימה המסוננת) — גם אם התופים עצמם מושתקים,
  * שאר הטראקים עדיין "פועמים" באותו הקצב שהקיק היה יוצר, לא רק כשהתופים גם מנוגנים בפועל.
+ * ⭐ 2026-08-28 (שדרוג-תשתית): אפיק-ריוורב/דיליי **משותף אחד ליצירה כולה** (לא פר-טראק) —
+ * נבנה רק אם יש בכלל טראק פעיל ששולח משהו אליו (אחרת בזבוז-CPU נטו על אפקט שאף אחד לא
+ * שומע). ראה mixChain.ts/sharedReverb.ts לפירוט המלא.
  */
 export async function createAllTrackRuntimes(
   score: MusicalScore,
@@ -170,6 +187,15 @@ export async function createAllTrackRuntimes(
   const mutedRoles = new Set(audioConfig.mutedRoles ?? []);
   const activeTracks = score.tracks.filter((track) => !mutedRoles.has(track.role));
 
+  const reverbBus: SharedReverbBus | null = activeTracks.some(
+    (track) => track.mixSettings.reverbSend > SEND_EPSILON,
+  )
+    ? createSharedReverbBus(audioConfig.mixCharacter.reverbDecaySeconds, destination, score.seed)
+    : null;
+  const delayBus = activeTracks.some((track) => track.mixSettings.delaySend > SEND_EPSILON)
+    ? createSharedDelayBus(audioConfig.mixCharacter, destination)
+    : null;
+
   const trackRuntimes = await Promise.all(
     activeTracks.map((track) =>
       createTrackRuntime(
@@ -177,7 +203,8 @@ export async function createAllTrackRuntimes(
         score.tempo,
         destination,
         audioConfig,
-        `${score.seed}:${track.role}`,
+        reverbBus?.input,
+        delayBus?.input,
         track.role === 'drums' ? undefined : (sidechainDuck?.gain ?? undefined),
       ),
     ),
@@ -188,6 +215,8 @@ export async function createAllTrackRuntimes(
     disposeAll: () => {
       disposeTrackRuntimes(trackRuntimes);
       sidechainDuck?.dispose();
+      reverbBus?.dispose();
+      delayBus?.dispose();
     },
   };
 }

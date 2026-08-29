@@ -110,6 +110,95 @@ describe('toGenreAudioConfig — בחירת-צליל מרובה (mergeSynthPrese
   });
 });
 
+/**
+ * ⭐ 2026-08-28 (הסבב המבני לסאונד בנייד) — תקציב-האוסצילטורים (applyOscillatorBudget).
+ * הרקע: מדידה על מנוע-הרינדור הראתה שהעלות כמעט-לינארית במספר האוסצילטורים הכולל, ושבחירת
+ * 4 צלילים לכל תפקיד מגיעה ל-136 אוסצילטורים — פי 6.5 מצליל בודד, ומעבר ליכולת של נייד.
+ * הדרישה המוזיקלית (מפורשות מהמשתמש): **כל הצלילים שנבחרו חייבים להמשיך להתנגן יחד** —
+ * אסור להשתיק/לסובב ביניהם. לכן הקיצוץ הוא ב"עובי" (unison) בלבד, יחסית, עם רצפה של 1.
+ */
+describe('toGenreAudioConfig — תקציב-אוסצילטורים בערימת-צלילים', () => {
+  const WIDE_ENVELOPE = { attack: 0.01, decay: 0.1, sustain: 0.8, release: 0.1 };
+
+  /** בונה pack עם N אופציות-צליל זהות ורחבות ל-role נתון. */
+  function makeHeavyPack(role: 'lead' | 'pad', count: number, polyphonic: boolean): GenrePack {
+    const base = makeTestPack();
+    return {
+      ...base,
+      roles: [role],
+      synthMap: {
+        [role]: { oscillatorType: 'sawtooth', envelope: WIDE_ENVELOPE, polyphonic },
+      },
+      soundOptions: {
+        [role]: Array.from({ length: count }, (_, index) => ({
+          id: `wide-${String(index)}`,
+          displayName: { he: `רחב ${String(index)}`, en: `Wide ${String(index)}` },
+          preset: {
+            oscillatorType: 'sawtooth' as const,
+            envelope: WIDE_ENVELOPE,
+            polyphonic,
+            unison: { count: 9, spreadCents: 30 },
+          },
+        })),
+      },
+    };
+  }
+
+  function totalOscillators(preset: { layers?: { unison?: { count: number } }[] } | undefined) {
+    return (preset?.layers ?? []).reduce((sum, layer) => sum + (layer.unison?.count ?? 2), 0);
+  }
+
+  it('בחירה בודדת כבדה (9 אוסצילטורים, מונופוני) לא נוגעים בה — התקציב לא מתערב', () => {
+    const config = toGenreAudioConfig(makeHeavyPack('lead', 4, false), 'seed', {
+      lead: ['wide-0'],
+    });
+    // בחירה בודדת מוחזרת כמו-שהיא (בלי layers בכלל), בדיוק כמו קודם.
+    expect(config.synthPresets.lead?.layers).toBeUndefined();
+    expect(config.synthPresets.lead?.unison?.count).toBe(9);
+  });
+
+  /** מה שהיה נוצר בלי תקציב בכלל: 4 צלילים × unison 9. */
+  const UNBUDGETED_STACK_OSCILLATORS = 4 * 9;
+
+  it('ערימה מונופונית חורגת מוקטנת — אבל כל צליל שנבחר עדיין מיוצג בשכבה משלו', () => {
+    const config = toGenreAudioConfig(makeHeavyPack('lead', 4, false), 'seed', {
+      lead: ['wide-0', 'wide-1', 'wide-2', 'wide-3'],
+    });
+    const preset = config.synthPresets.lead;
+    expect(preset?.layers).toHaveLength(4); // אף צליל שנבחר לא נעלם
+    expect(totalOscillators(preset)).toBeLessThan(UNBUDGETED_STACK_OSCILLATORS);
+    for (const layer of preset?.layers ?? []) {
+      expect(layer.unison?.count).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('ערימה פוליפונית מוקטנת חזק יותר ממונופונית — אקורד מכפיל את העלות בפועל', () => {
+    const selection = ['wide-0', 'wide-1', 'wide-2', 'wide-3'];
+    const mono = toGenreAudioConfig(makeHeavyPack('lead', 4, false), 'seed', { lead: selection });
+    const poly = toGenreAudioConfig(makeHeavyPack('pad', 4, true), 'seed', { pad: selection });
+
+    expect(poly.synthPresets.pad?.polyphonic).toBe(true);
+    expect(poly.synthPresets.pad?.layers).toHaveLength(4);
+    // ⭐ זו הנקודה המהותית: אותה ערימה בדיוק, אבל פוליפונית — חייבת לצאת דקה יותר, כי כל
+    // שכבה שלה תתנגן על כל תו באקורד. בלי המשקל הזה התקציב היה "מתמחר" פאד בזול ולא נוגע
+    // בדיוק בתפקיד היקר ביותר (מדידה: הפאד היה 80 מתוך 136 האוסצילטורים).
+    expect(totalOscillators(poly.synthPresets.pad)).toBeLessThan(
+      totalOscillators(mono.synthPresets.lead),
+    );
+  });
+
+  it('ערימה קיצונית: אף שכבה לא יורדת מתחת לאוסצילטור אחד (צליל נבחר לא נעלם)', () => {
+    const config = toGenreAudioConfig(makeHeavyPack('pad', 8, true), 'seed', {
+      pad: Array.from({ length: 8 }, (_, index) => `wide-${String(index)}`),
+    });
+    const preset = config.synthPresets.pad;
+    expect(preset?.layers).toHaveLength(8);
+    for (const layer of preset?.layers ?? []) {
+      expect(layer.unison?.count).toBeGreaterThanOrEqual(1);
+    }
+  });
+});
+
 /** צורה חדה/מורכבת במיוחד — הרבה קודקודים חדים לאורך כל הצורה, לא רק כמה. בדיוק המקרה
  * שדווח כ"קליטק/חירחורים": ציור מלא-פינות אמור לדחוף את cornerHint גבוה על פני הרבה נקודות
  * לאורך כל הלולאה, לא רק בכמה מקומות בודדים. */

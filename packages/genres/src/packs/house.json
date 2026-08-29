@@ -331,7 +331,7 @@
           "envelope": { "attack": 0.25, "decay": 0.2, "sustain": 0.75, "release": 0.7 },
           "polyphonic": true,
           "filter": { "type": "lowpass", "frequencyHz": 2600, "resonance": 1 },
-          "unison": { "count": 3, "spreadCents": 10 }
+          "unison": { "count": 5, "spreadCents": 28 }
         }
       },
       {
@@ -582,8 +582,9 @@
       }
     ]
   },
-  "mixChain": { "reverbDecaySeconds": 2, "delayTime": "8n", "delayFeedback": 0.35 },
+  "mixChain": { "reverbDecaySeconds": 1.5, "delayTime": "8n", "delayFeedback": 0.35 },
   "arrangement": { "sectionOrder": ["intro", "loop", "build", "outro"] },
   "sidechainEnabled": true,
-  "requiresSamples": false
+  "requiresSamples": false,
+  "absoluteNoteBoard": true
 }

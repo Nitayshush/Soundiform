@@ -174,6 +174,14 @@ export const genrePackSchema = z.object({
   sidechainDepth: z.number().min(0).max(1).optional(),
   sidechainReleaseSeconds: z.number().positive().optional(),
   requiresSamples: z.boolean(), // ⚠️ true → מושבת ב-V1
+  /**
+   * ⭐ 2026-08-27 (לוח-תווים אבסולוטי): undefined/false = התנהגות ישנה (שורש אקראי-לפי-seed,
+   * מוד נבחר לפי חדות-הצורה, חצי-שני של מנגינה סימטרית משוקף אלגוריתמית — ראה harmonyEngine.ts).
+   * true = המנגינה נבנית ממיפוי-ישיר וקבוע של מיקום-הצורה על לוח-תווים (שורש+מוד קבועים,
+   * ללא שיקוף-סימטריה) — ראה packages/core/src/theory/noteBoard.ts. מוגדר true רק ב-trance/
+   * house בשלב זה; סגנונות אחרים ממתינים לסבב הרחבה נפרד.
+   */
+  absoluteNoteBoard: z.boolean().optional(),
 });
 
 export type GenrePack = z.infer<typeof genrePackSchema>;

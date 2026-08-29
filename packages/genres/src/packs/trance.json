@@ -33,9 +33,9 @@
     ],
     "lead": [
       {
-        "name": "arp-16th",
+        "name": "offbeat-stabs",
         "stepsPerBar": 16,
-        "hits": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        "hits": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]
       },
       {
         "name": "arp-8th",
@@ -43,9 +43,9 @@
         "hits": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
       },
       {
-        "name": "offbeat-stabs",
+        "name": "arp-16th",
         "stepsPerBar": 16,
-        "hits": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]
+        "hits": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
       }
     ],
     "pad": [
@@ -649,8 +649,9 @@
       }
     ]
   },
-  "mixChain": { "reverbDecaySeconds": 2, "delayTime": "8n", "delayFeedback": 0.3 },
+  "mixChain": { "reverbDecaySeconds": 1.5, "delayTime": "8n", "delayFeedback": 0.3 },
   "arrangement": { "sectionOrder": ["intro", "loop", "build", "outro"] },
   "sidechainEnabled": true,
-  "requiresSamples": false
+  "requiresSamples": false,
+  "absoluteNoteBoard": true
 }

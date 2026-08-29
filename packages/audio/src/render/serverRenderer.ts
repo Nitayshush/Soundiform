@@ -23,7 +23,7 @@
  */
 
 import './webAudioPolyfill';
-import { getTransport, OfflineContext, setContext } from 'tone';
+import { getContext, getTransport, OfflineContext, setContext } from 'tone';
 import type { MusicalScore } from '@soundiform/core';
 import { createMasterBus } from '../mixing/loudness';
 import {
@@ -55,6 +55,12 @@ export async function renderToBuffer(
   // עומס-יתר של הקונסטרוקטור: (channels, duration-בשניות, sampleRate) — Tone בונה context
   // אופליין משלו דרך standardized-audio-context, שמוצא את window.OfflineAudioContext
   // (שהוזרק ב-webAudioPolyfill.ts, ראה import למעלה) במקום מימוש דפדפן.
+  // ⭐ 2026-08-29 (תיקון דליפה אמיתי): שומרים את ה-context הקודם ומשחזרים אותו ב-finally.
+  // עד כאן setContext נקרא ולא שוחזר לעולם, כך שכל קריאה ל-renderToBuffer השאירה
+  // OfflineContext נטוש. בתהליך קצר-חיים זה לא הורגש, אבל apps/worker מרנדר הרבה ג'ובים
+  // באותו תהליך — שם זו דליפת-זיכרון מצטברת אמיתית. (נתפס דרך בדיקות: הצטברות של כמה
+  // רינדורים בתהליך אחד הפילה את תהליך-העובד של vitest; ראה vitest.config.ts.)
+  const previousContext = getContext();
   const toneContext = new OfflineContext(CHANNEL_COUNT, durationSeconds, SAMPLE_RATE);
   setContext(toneContext);
 
@@ -76,7 +82,10 @@ export async function renderToBuffer(
 
     return { sampleRate: renderedBuffer.sampleRate, durationSeconds, channels };
   } finally {
+    // ⚠️ סדר חשוב: משחררים את הצמתים *לפני* שמחזירים את ה-context, כדי ש-dispose ירוץ על
+    // ה-context שהם באמת שייכים לו.
     disposeAll();
     masterBus.dispose();
+    setContext(previousContext);
   }
 }

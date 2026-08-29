@@ -23,4 +23,9 @@ export * from './providers/SynthProvider';
 export * from './mixing/mixChain';
 export * from './mixing/loudness';
 export * from './render/browserRenderer';
+export * from './render/offlineRenderer';
+// ⭐ 2026-08-29: apps/web צריך את אורך-היצירה *לפני* שהרינדור מתחיל, כדי להעריך כמה זמן
+// הרינדור-מראש ייקח ולהציג התקדמות אמיתית למשתמש (ראה useAudioEngine.ts).
+export { computeDurationSeconds } from './render/sharedScheduling';
+export * from './render/globalContextLock';
 export * from './render/renderJob';

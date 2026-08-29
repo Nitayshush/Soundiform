@@ -22,23 +22,36 @@ import { GenreSelector } from '@/components/controls/GenreSelector';
 import { SoundSelector } from '@/components/controls/SoundSelector';
 import { UploadButton } from '@/components/controls/UploadButton';
 import { Logo } from '@/components/branding/Logo';
+import { AudioDebugHUD } from '@/components/debug/AudioDebugHUD';
 import { Button } from '@/components/ui/button';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useSaveProject } from '@/hooks/useSaveProject';
 import { useDownload } from '@/hooks/useDownload';
 import { useFitAspectRatio } from '@/hooks/useFitAspectRatio';
+import { useNoteBoardGrid } from '@/hooks/useNoteBoardGrid';
 import { useShapeStore } from '@/stores/shapeStore';
 
 function StudioContent() {
   const shapeHash = useShapeStore((state) => state.shapeHash);
   const clear = useShapeStore((state) => state.clear);
-  const { isPlaying, isLoading, currentSeconds, durationSeconds, error, canPlay, play, stop } =
-    useAudioEngine();
+  const {
+    isPlaying,
+    isLoading,
+    currentSeconds,
+    durationSeconds,
+    error,
+    canPlay,
+    play,
+    stop,
+    renderElapsedSeconds,
+    renderProgress,
+  } = useAudioEngine();
   // ⭐ נקרא פעם אחת בלבד — מועבר גם לכפתור Save וגם ל-useDownload (ראה הערת useDownload.ts
   // ל-why). קריאה כפולה ל-useSaveProject() הייתה יוצרת שני state instances לא-מסונכרנים.
   const saveProject = useSaveProject();
   const { requestSave, isSaving, saveError, savedProjectId } = saveProject;
   const { requestDownload, isDownloading, downloadError, statusMessage } = useDownload(saveProject);
+  const noteBoardGrid = useNoteBoardGrid();
   const stageContainerRef = useRef<HTMLDivElement>(null);
   // ⭐ תואם max-w-5xl (64rem @ 16px root) — הקאפ הזה *חייב* להיכנס לחישוב ב-useFitAspectRatio
   // עצמו, לא להישאר class Tailwind נפרד; ראה התיעוד ב-useFitAspectRatio.ts לבאג שזה תיקן.
@@ -71,7 +84,7 @@ function StudioContent() {
               onClick={() => void (isPlaying ? stop() : play())}
               disabled={!canPlay || isLoading}
             >
-              {isLoading ? 'Loading…' : isPlaying ? 'Stop' : 'Play'}
+              {isLoading ? 'Creating…' : isPlaying ? 'Stop' : 'Play'}
             </Button>
             {/* ⭐ §11 item 8: וידאו-כברירת-מחדל להורדה (נגיש ל-YouTube) — הכפתור הראשון-אי-פעם
                 שבפועל מפעיל את שרשרת render→share→download; ראה useDownload.ts. */}
@@ -99,6 +112,24 @@ function StudioContent() {
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+          {/* ⭐ 2026-08-29 (לפי בקשה חיה): הרינדור-מראש לוקח זמן ממשי בנייד (נמדד: ~88 שניות
+              ליצירה של 40 שניות) — בלי משוב נראה כאילו הכפתור לא הגיב. מציגים מונה עולה,
+              ואחוז אמיתי כשיש כבר מדידת-מהירות למכשיר הזה (renderSpeedMemory.ts). */}
+          {isLoading && (
+            <span
+              className="flex items-center gap-2 font-medium text-foreground"
+              role="status"
+              aria-live="polite"
+              data-testid="render-progress"
+            >
+              <span
+                className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                aria-hidden="true"
+              />
+              Creating your sound… {renderElapsedSeconds.toFixed(0)}s
+              {renderProgress !== null && ` · ${Math.round(renderProgress * 100).toFixed(0)}%`}
+            </span>
+          )}
           {error && <span className="text-destructive">{error}</span>}
           {saveError && <span className="text-destructive">{saveError}</span>}
           {downloadError && <span className="text-destructive">{downloadError}</span>}
@@ -149,11 +180,18 @@ function StudioContent() {
           style={fittedSize ? { width: fittedSize.width, height: fittedSize.height } : undefined}
         >
           <DrawingCanvas hidden={isPlaying} />
-          <MusicalGrid />
+          <MusicalGrid
+            {...(noteBoardGrid && {
+              rows: noteBoardGrid.rows,
+              columns: noteBoardGrid.columns,
+              rowLabels: noteBoardGrid.rowLabels,
+            })}
+          />
           <ScoreStaff progress={progress} />
           <RevealOverlay />
         </div>
       </div>
+      <AudioDebugHUD />
     </main>
   );
 }

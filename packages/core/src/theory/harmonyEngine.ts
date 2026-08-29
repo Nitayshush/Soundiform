@@ -39,6 +39,15 @@ import {
 import { humanizeTiming, humanizeVelocity } from '../groove/humanize';
 import { createSeededRandom } from '../internal/seededRandom';
 import { at } from '../internal/arrayUtils';
+import {
+  ABSOLUTE_BOARD_ROOT_PITCH_CLASS,
+  ABSOLUTE_BOARD_ROW_COUNT,
+  buildNoteBoardRows,
+  COLUMNS_PER_BAR,
+  MELODY_DEGREE_OFFSET,
+  MELODY_DEGREE_RANGE,
+  quantizeYToRowIndex,
+} from './noteBoard';
 
 const SCORE_FORMAT_VERSION = '1.0.0';
 const DEFAULT_TIME_SIGNATURE: [number, number] = [4, 4];
@@ -54,9 +63,9 @@ const NOTES_PER_BAR = 4;
  * נותנת אינטרוול מקסימלי של 36 חצי-טונים — 59+36=95≤96, תמיד בטוח. גם עם זאת, applySymmetryTransform's
  * inversion יכול "להיפתח" רחוק יותר עם הטווח הרחב — ראה wrapPitchIntoRealisticRange ב-buildLeadTrack.
  */
-const MELODY_DEGREE_RANGE = 15;
-/** המלודיה יושבת אוקטבה מעל השורש (רגיסטר lead טיפוסי). */
-const MELODY_DEGREE_OFFSET = 7;
+// MELODY_DEGREE_RANGE/MELODY_DEGREE_OFFSET/ABSOLUTE_BOARD_ROOT_PITCH_CLASS/COLUMNS_PER_BAR
+// עברו ל-noteBoard.ts (מקור-אמת יחיד, נצרך גם ע"י MusicalGrid.tsx דרך @soundiform/core) —
+// מיובאים למטה כדי למנוע import מעגלי (noteBoard.ts גם צריך אותם).
 /** הבס יושב אוקטבה מתחת לשורש. */
 const BASS_DEGREE_OFFSET = -7;
 
@@ -205,6 +214,15 @@ export interface CompositionConfig {
    * לפי מספר האפשרויות.
    */
   rhythmPatternOptions?: Partial<Record<TrackRole, readonly RhythmStepPattern[]>>;
+  /**
+   * ⭐ 2026-08-27 (לוח-תווים אבסולוטי): undefined/false = התנהגות ישנה (שורש אקראי-לפי-seed,
+   * mode נבחר לפי selectMode/allowedModes, buildLeadTrack דוגם motifSize תווים + שיקוף-סימטריה
+   * לחצי-שני). true = השורש/מוד קבועים (mode כאן משמש ישירות ללא selectMode, root נקבע ל-
+   * ABSOLUTE_BOARD_ROOT_PITCH_CLASS ב-composeMusicalScore) ו-buildLeadTrack דוגם ישירות את כל
+   * intent.pitchContour על פני עמודות-זמן קבועות (COLUMNS_PER_BAR לבר, ראה noteBoard.ts) —
+   * ללא motifSize, ללא applySymmetryTransform. משפיע רק על lead; בס/פאד ללא שינוי.
+   */
+  absoluteNoteBoard?: boolean;
 }
 
 function midiToFrequencyHz(midiPitch: number): number {
@@ -285,6 +303,28 @@ function getHarmonicProgressionDegrees(
   );
 }
 
+/**
+ * ⭐ 2026-08-27 (לוח-תווים אבסולוטי — שלב 2): מחליף את getHarmonicProgressionDegrees
+ * כש-absoluteNoteBoard דלוק — דרגת-הסולם של כל בר נגזרת ישירות ממיקום-Y של הצורה באותו בר
+ * (כמו buildAbsoluteBoardMelody, ברזולוציית-בר במקום ברזולוציית-עמודה), לא ממחזור
+ * chordProgression קבוע. buildBassTrack/buildPadTrack/buildSwellNotes/buildBuildSectionNotes
+ * ממשיכים לצרוך את המערך הזה בדיוק כמו היום — שום שינוי אצלם.
+ * ⚠️ `% 7` (לא הטווח המלא 0–14 כמו במלודיה): chooseSmoothVoicing/generateInversions
+ * (voiceLeading.ts) יכולים להוסיף עד +24 חצי-טונים מעל הטריאדה הבסיסית כדי למזער תנועה
+ * מהאקורד הקודם — עם דרגה עד 14 זה יכול לחרוג מ-ROLE_PITCH_RANGES.pad.max=84 (נבדק:
+ * דרגה 14 → טריאדה [72,75,79] → inversion יוצא [79,84,87]). קיפול לאוקטבה אחת (0–6, בדיוק
+ * הטווח שכבר בשימוש בטוח היום ע"י chordProgression הסטטי בכל קובצי ה-JSON) שומר על כל
+ * מרווחי-הביטחון הקיימים בלי לגעת ב-voiceLeading/chords בכלל.
+ */
+function buildAbsoluteBoardProgressionDegrees(
+  intent: RawMusicalIntent,
+  barCount: number,
+): number[] {
+  return sampleEvenly(intent.pitchContour, barCount).map(
+    (y) => quantizeYToRowIndex(y, ABSOLUTE_BOARD_ROW_COUNT) % 7,
+  );
+}
+
 function buildPadTrack(
   root: number,
   mode: Mode,
@@ -314,9 +354,10 @@ function buildPadTrack(
     role: 'pad',
     instrumentId: 'default-pad',
     notes,
-    // ⭐ 2026-08-25: 0.6→0.45 — לצד volume:1 של התופים (למטה, composeMusicalScore), כדי
-    // שהאיזון היחסי יעניק לקיק מקום להישמע בולט (ראה תיעוד שם).
-    mixSettings: { volume: 0.45, pan: 0, reverbSend: 0.3, delaySend: 0.1 },
+    // ⭐ 2026-08-25: 0.6→0.45, ⭐ 2026-08-27 (לפי בקשה חיה: "התופים עדיין לא בולטים מספיק"):
+    // 0.45→0.4 — תופים כבר ב-volume:1 (התקרה של mixSettingsSchema, אי אפשר להעלות את זה
+    // עוד), אז ה"הגברה היחסית" היחידה האפשרית היא להנמיך עוד קצת את שאר הכלים.
+    mixSettings: { volume: 0.4, pan: 0, reverbSend: 0.3, delaySend: 0.1 },
   };
 }
 
@@ -464,9 +505,9 @@ function buildBassTrack(
     role: 'bass',
     instrumentId: 'default-bass',
     notes,
-    // ⭐ 2026-08-25: 0.8→0.65 — אותה סיבה כמו buildPadTrack (מפנה מקום-תדר/עוצמה לתופים,
-    // volume:1, שחולקים איתו את אותו טווח-תדרים נמוך).
-    mixSettings: { volume: 0.65, pan: 0, reverbSend: 0, delaySend: 0 },
+    // ⭐ 2026-08-25: 0.8→0.65, ⭐ 2026-08-27 (לפי בקשה חיה): 0.65→0.58 — אותה סיבה כמו
+    // buildPadTrack (מפנה מקום-תדר/עוצמה לתופים, volume:1, שחולקים איתו טווח-תדרים נמוך).
+    mixSettings: { volume: 0.58, pan: 0, reverbSend: 0, delaySend: 0 },
   };
 }
 
@@ -574,19 +615,12 @@ function buildRampedLeadNotes(
 }
 
 /**
- * ⭐ 2026-08-24: בונה את טראק ה-lead המלא — loop (buildLoopLeadNotes, ללא שינוי מהתנהגות
- * הישנה) + intro/build/outro (buildRampedLeadNotes, Area 4) — כל הסקשנים ביחד.
+ * הנתיב הישן (ללא absoluteNoteBoard): motifSize תווים מדוגמים מ-pitchContour, ועם סימטריה —
+ * חצי-שני משוקף אלגוריתמית (applySymmetryTransform) במקום נדגם מהציור. ⚠️ ללא שינוי מהתנהגות
+ * הקודמת — משמש כל סגנון שלא הוגדר לו absoluteNoteBoard.
  */
-function buildLeadTrack(
-  intent: RawMusicalIntent,
-  root: number,
-  mode: Mode,
-  sections: readonly Section[],
-  config: CompositionConfig,
-  random: () => number,
-): Track {
+function buildLegacyMelody(intent: RawMusicalIntent, root: number, mode: Mode): number[] {
   const hasSecondPhrase = intent.symmetryTransform !== 'none';
-
   const sampledY = sampleEvenly(intent.pitchContour, intent.motifSize);
   // ⭐ 2026-08-25 (טווח-מלודיה רחב יותר): wrap כאן (לא רק ב-buildRampedLeadNotes כמו קודם) —
   // עם MELODY_DEGREE_RANGE=15 (היה 8), applySymmetryTransform's inversion (2*firstPitch-pitch)
@@ -599,7 +633,70 @@ function buildLeadTrack(
         wrapPitchIntoRealisticRange(pitch, LEAD_REALISTIC_RANGE),
       )
     : [];
-  const fullMelody = hasSecondPhrase ? [...primaryMotif, ...secondaryMotif] : primaryMotif;
+  return hasSecondPhrase ? [...primaryMotif, ...secondaryMotif] : primaryMotif;
+}
+
+/**
+ * ⭐ 2026-08-27 (לוח-תווים אבסולוטי): דוגם ישירות את כל intent.pitchContour על פני
+ * COLUMNS_PER_BAR עמודות לכל בר של סקשן ה-loop (אורך-הלולאה כבר נגזר מהצורה, sizeHint/
+ * motifSize, למעלה ב-composeMusicalScore) — כל עמודה מקבלת תו אחד מ-noteBoardRows הקבוע,
+ * לפי מיקום-Y בפועל. אין motifSize, אין שיקוף-סימטריה: כל תו נדגם ישירות מהתוואי שצויר.
+ *
+ * ⭐ 2026-08-28 (לפי בקשה חיה: "חירחורי-סאונד בנייד", טראנס/האוס בלבד): בלי הסינון למטה,
+ * הפונקציה הזו הייתה מזינה תמיד 16 תווים/בר ברצף, לכל אורך היצירה — קצב-הפעלה גבוה
+ * ורציף (תו כל ~100-130ms ללא הפסקה) שלא היה קיים במנוע הישן (fullMelody.length שם היה
+ * motifSize, נמוך בהרבה). בס/פאד/תופים כבר מוגבלים לפגיעות תבנית-הקצב *שלהם* — המנגינה
+ * הייתה היחידה שהתעלמה מ-config.rhythmPatterns.lead (קיים בדיוק לשם כך, נבחר לפי
+ * rhythmicDensityHint — טראנס למשל מגדיר 16/8/4 פגיעות-לבר). מסננים כאן לעמודות שבהן
+ * לתבנית יש פגיעה בפועל — אותו פיץ' מדויק בכל עמודה שנשארת (אין שינוי-תוכן), רק פחות
+ * מהן הופכות לתו מושמע כשהסגנון/הצורה קוראים לגרוב דליל יותר. ⚠️ לא נוגעים ב-
+ * buildLoopLeadNotes/buildRampedLeadNotes: הן כבר מסתנכרנות ל-patternHitTicks כשהאורך
+ * תואם בדיוק (מוודא את זה ב-harmonyEngine.test.ts) — פחות תווים בקלט = פחות דחיסה גם
+ * ב-intro/build/outro, בלי שינוי נוסף שם.
+ */
+function buildAbsoluteBoardMelody(
+  intent: RawMusicalIntent,
+  root: number,
+  mode: Mode,
+  sections: readonly Section[],
+  config: CompositionConfig,
+): number[] {
+  const loopSection = sections.find((section) => section.name === 'loop');
+  const totalColumns = Math.max(1, (loopSection?.lengthBars ?? 1) * COLUMNS_PER_BAR);
+  const noteBoardRows = buildNoteBoardRows(root, mode);
+  const allColumnPitches = sampleEvenly(intent.pitchContour, totalColumns).map((y) =>
+    at(noteBoardRows, quantizeYToRowIndex(y, noteBoardRows.length)),
+  );
+  const leadPattern = config.rhythmPatterns?.lead;
+  if (!leadPattern || leadPattern.hits.every((hitVelocity) => hitVelocity <= 0)) {
+    return allColumnPitches;
+  }
+  return allColumnPitches.filter(
+    (_, index) => at(leadPattern.hits, index % leadPattern.hits.length) > 0,
+  );
+}
+
+/**
+ * ⭐ 2026-08-24: בונה את טראק ה-lead המלא — loop (buildLoopLeadNotes, ללא שינוי מהתנהגות
+ * הישנה) + intro/build/outro (buildRampedLeadNotes, Area 4) — כל הסקשנים ביחד.
+ */
+function buildLeadTrack(
+  intent: RawMusicalIntent,
+  root: number,
+  mode: Mode,
+  sections: readonly Section[],
+  config: CompositionConfig,
+  random: () => number,
+): Track {
+  // ⭐ 2026-08-27 (לוח-תווים אבסולוטי): עם absoluteNoteBoard, מנגינה = דגימה ישירה של *כל*
+  // intent.pitchContour על פני עמודות-זמן קבועות (COLUMNS_PER_BAR לבר) — לא motifSize
+  // (נגזר-קודקודים), ובלי applySymmetryTransform (החצי השני היה "מומצא" משיקוף אלגוריתמי
+  // של הראשון, לא נדגם מהציור בפועל — בדיוק מה שהעיקרון האבסולוטי אוסר). כל תו נלקח ישירות
+  // מ-noteBoardRows הקבוע (שורש+מוד קבועים, ראה composeMusicalScore) — לא צריך
+  // wrapPitchIntoRealisticRange: עם שורש קבוע [60,84]⊂[48,96] מבנייה.
+  const fullMelody = config.absoluteNoteBoard
+    ? buildAbsoluteBoardMelody(intent, root, mode, sections, config)
+    : buildLegacyMelody(intent, root, mode);
 
   const notes: Note[] = [];
   for (const section of sections) {
@@ -616,7 +713,9 @@ function buildLeadTrack(
     role: 'lead',
     instrumentId: 'default-lead',
     notes,
-    mixSettings: { volume: 0.85, pan: 0, reverbSend: 0.2, delaySend: 0.15 },
+    // ⭐ 2026-08-27 (לפי בקשה חיה): 0.85→0.78 — לצד bass/pad (למעלה), כדי שהתופים (כבר
+    // ב-volume:1, התקרה של mixSettingsSchema) יבלטו יותר יחסית במיקס.
+    mixSettings: { volume: 0.78, pan: 0, reverbSend: 0.2, delaySend: 0.15 },
   };
 }
 
@@ -714,10 +813,10 @@ function buildDrumsSectionNotes(
   root: number,
   mode: Mode,
   section: Section,
+  sectionProgressionDegrees: readonly number[],
   config: CompositionConfig,
   random: () => number,
 ): Note[] {
-  const pitch = scaleDegreeToMidiPitch(root, mode, DRUMS_DEGREE_OFFSET);
   const stepTicks = TICKS_PER_BAR / pattern.stepsPerBar;
   // ⚠️ §4.3 "הכל מקוונטז לגריד" חל גם על durationTicks (לא רק startTick, שעובר הומניזציה/סווינג
   // בנפרד) — quantizeToGrid+ticksPerGridUnit, לא Math.round(stepTicks*X) גולמי, אחרת התוצאה
@@ -727,8 +826,25 @@ function buildDrumsSectionNotes(
     quantizeToGrid(stepTicks * 0.6, config.gridSubdivision),
   );
 
+  // ⚠️ 2026-08-29 (תיקון קריסה אמיתית שנתפסה בסטודיו: "at: אינדקס NaN מחוץ לתחום המערך"):
+  // הקורא מעביר `fullProgressionDegrees.slice(startBar, startBar+lengthBars)`, וזה יכול לצאת
+  // **ריק** (סקשן שמתחיל בגבול/מעבר לאורך הפרוגרסיה). אז `barOffset % 0` הוא NaN, ו-at()
+  // זרק — קריסה שהפילה את כל ה-ScoreStaff. נופלים לדרגה 0, בדיוק כמו המסלול הלא-אבסולוטי
+  // (הקורא מעביר שם [0] קבוע). אותה הגנה כבר קיימת ב-buildLoopBassNotes (Math.max(1, length)).
+  const safeProgressionDegrees =
+    sectionProgressionDegrees.length > 0 ? sectionProgressionDegrees : [0];
+
   const notes: Note[] = [];
   for (let barOffset = 0; barOffset < section.lengthBars; barOffset += 1) {
+    // ⭐ 2026-08-27 (לוח-תווים אבסולוטי — תופים): עם absoluteNoteBoard, ה-pitch נגזר מאותה
+    // דרגת-בר שכבר קובעת את הבס/פאד (sectionProgressionDegrees) — לא קבוע-יחיד כמו קודם.
+    // אחרת (flag כבוי), הקורא (composeMusicalScore) מעביר [0] קבוע — degree+DRUMS_DEGREE_OFFSET
+    // יוצא בדיוק כמו הקבוע הישן, אפס שינוי-התנהגות לסגנונות אחרים.
+    const pitch = scaleDegreeToMidiPitch(
+      root,
+      mode,
+      at(safeProgressionDegrees, barOffset % safeProgressionDegrees.length) + DRUMS_DEGREE_OFFSET,
+    );
     const barGlobalStepStart = (section.startBar + barOffset) * pattern.stepsPerBar;
     // ⭐ 2026-08-25 (תיקון-ביצועים): עד MAX_EXTRA_CORNER_HITS_PER_BAR פגיעות-*חדשות* לבר —
     // הדגשת-עוצמה על פגיעות קיימות (למטה, בתוך ה-forEach) לא כפופה לתקרה, כי היא לא מוסיפה
@@ -914,13 +1030,23 @@ function buildBuildSectionNotes(
   // ע"י בדיקה אמיתית). "מילוי" אמיתי כאן = פגיעה בכל steps (גם מה שהיה rest בלולאה), לא צעד עדין יותר.
   const drumsNotes: Note[] = [];
   if (drumsPattern) {
-    const pitch = scaleDegreeToMidiPitch(root, mode, DRUMS_DEGREE_OFFSET);
+    // ⭐ 2026-08-27 (לוח-תווים אבסולוטי — תופים): כמו buildDrumsSectionNotes — progressionDegrees
+    // כבר הדרגות-הנכונות-לבר (בורד-אבסולוטי כש-flag דלוק, chordProgression הישן אחרת), אבל
+    // בלי ה-flag אסור להזין אותו ישירות ל-drums (זה ישנה את ה-pitch-הקבוע הישן) — [0] קבוע
+    // שקול בדיוק להתנהגות הישנה.
+    const drumsProgressionDegrees = config.absoluteNoteBoard ? progressionDegrees : [0];
     const stepTicks = TICKS_PER_BAR / drumsPattern.stepsPerBar;
     const hitDurationTicks = Math.max(
       ticksPerGridUnit(config.gridSubdivision),
       quantizeToGrid(stepTicks * 0.6, config.gridSubdivision),
     );
     for (let barOffset = 0; barOffset < lengthBars; barOffset += 1) {
+      const pitch = scaleDegreeToMidiPitch(
+        root,
+        mode,
+        at(drumsProgressionDegrees, barOffset % drumsProgressionDegrees.length) +
+          DRUMS_DEGREE_OFFSET,
+      );
       const energyRamp = 0.5 + 0.5 * ((barOffset + 1) / lengthBars);
       const barStartTick = (startBar + barOffset) * TICKS_PER_BAR;
       for (let stepIndex = 0; stepIndex < drumsPattern.stepsPerBar; stepIndex += 1) {
@@ -1045,14 +1171,19 @@ export function composeMusicalScore(
   rawConfig: CompositionConfig,
 ): MusicalScore {
   const random = createSeededRandom(intent.seed);
-  const rootPitchClass = Math.floor(random() * 12);
+  // ⭐ 2026-08-27 (לוח-תווים אבסולוטי): עם absoluteNoteBoard, שורש+מוד קבועים לסגנון (לא
+  // אקראיים-לפי-seed/לא נבחרים לפי חדות-הצורה) — כדי שאותה שורה בלוח תמיד תייצג אותו תו,
+  // בכל ציור. ראה CompositionConfig.absoluteNoteBoard.
+  const rootPitchClass = rawConfig.absoluteNoteBoard
+    ? ABSOLUTE_BOARD_ROOT_PITCH_CLASS
+    : Math.floor(random() * 12);
 
   const tempoBpm = rawConfig.tempoRange
     ? Math.round(
         lerp(rawConfig.tempoRange.min, rawConfig.tempoRange.max, intent.rhythmicDensityHint),
       )
     : rawConfig.tempoBpm;
-  const mode = selectMode(rawConfig, intent);
+  const mode = rawConfig.absoluteNoteBoard ? rawConfig.mode : selectMode(rawConfig, intent);
   const chordProgression = selectChordProgression(rawConfig, intent, random);
   const rhythmPatterns = selectRhythmPatterns(rawConfig, intent);
 
@@ -1091,10 +1222,12 @@ export function composeMusicalScore(
   // restart מ-index 0 בכל section בנפרד) — מסלק אי-רציפות הרמונית בגבולות intro/build/
   // outro↔loop. progressionDegrees (המשמש את pad/bass-loop/skank/build) נשאר "פרוסת ה-loop"
   // מתוך הרצף המלא, לא מ-index 0 שרירותי — כך שהוא ממשיך את מה שקרה לפניו ב-intro.
-  const fullProgressionDegrees = getHarmonicProgressionDegrees(
-    totalDurationBars,
-    config.chordProgression,
-  );
+  // ⭐ 2026-08-27 (לוח-תווים אבסולוטי — שלב 2): עם absoluteNoteBoard, ההרמוניה (בס/פאד/
+  // build) גם היא נגזרת ישירות ממיקום הצורה על הלוח לכל בר — לא ממחזור chordProgression
+  // קבוע. ראה buildAbsoluteBoardProgressionDegrees למעלה.
+  const fullProgressionDegrees = rawConfig.absoluteNoteBoard
+    ? buildAbsoluteBoardProgressionDegrees(intent, totalDurationBars)
+    : getHarmonicProgressionDegrees(totalDurationBars, config.chordProgression);
   const progressionDegrees = fullProgressionDegrees.slice(loopStartBar, loopStartBar + loopBars);
 
   // ⭐ 2026-08-24: lead/bass מקבלים את כל הסקשנים (לא רק loop+shift אחר-כך) — מייצרים תוכן
@@ -1136,6 +1269,9 @@ export function composeMusicalScore(
   // המיוחד שלו למטה, buildBuildSectionNotes) — לא רק ה-loop. ראה buildDrumsSectionNotes.
   let drumsTrack: Track | null = null;
   if (drumsPattern) {
+    // ⭐ 2026-08-27 (לוח-תווים אבסולוטי — תופים): עם absoluteNoteBoard, ה-pitch לכל בר נגזר
+    // מאותה fullProgressionDegrees שכבר קובעת בס/פאד. אחרת (flag כבוי) — [0] קבוע, שדרך
+    // degree+DRUMS_DEGREE_OFFSET ב-buildDrumsSectionNotes יוצא בדיוק כמו הקבוע הישן.
     const drumsNotes = sections
       .filter((section) => section.name !== 'build')
       .flatMap((section) =>
@@ -1145,6 +1281,9 @@ export function composeMusicalScore(
           root,
           mode,
           section,
+          config.absoluteNoteBoard
+            ? fullProgressionDegrees.slice(section.startBar, section.startBar + section.lengthBars)
+            : [0],
           config,
           random,
         ),

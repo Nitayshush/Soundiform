@@ -99,8 +99,41 @@ const FAT_OSCILLATOR_TYPE: Record<OscillatorType, `fat${OscillatorType}`> = {
   sawtooth: 'fatsawtooth',
   square: 'fatsquare',
 };
-const FAT_UNISON_COUNT = 3;
-const FAT_UNISON_SPREAD_CENTS = 18;
+// ⭐ 2026-08-28 (שדרוג-תשתית, לפי בקשה חיה: "חירחורים בנייד עם כמה צלילים נבחרים"): 3→2 —
+// כל שכבה שלא מגדירה unison מפורש (רוב הפריסטים בפועל כן מגדירים, ראה genres/src/packs)
+// מריצה בפועל FAT_UNISON_COUNT אוסצילטורים אמיתיים במקביל לכל תו — מכפיל-CPU נסתר שחל
+// לפני שבכלל מגיעים ל"כמה צלילים נבחרו". 2 עדיין נותן "עובי" (יותר מגל בודד) בעלות נמוכה יותר.
+//
+// ⭐ 2026-08-28 (סבב הרינדור-מראש): מיוצאים עכשיו — apps/web's genreAdapter.ts חייב לחשב את
+// *אותו* מספר-אוסצילטורים בדיוק כדי לאכוף תקציב-קולות (ראה applyOscillatorBudget שם). זה
+// היה יכול להיות מספר-קסם משוכפל שיסטה בשקט מהמימוש כאן; ייצוא = מקור-אמת יחיד.
+export const DEFAULT_UNISON_COUNT = 2;
+export const DEFAULT_UNISON_SPREAD_CENTS = 18;
+const FAT_UNISON_COUNT = DEFAULT_UNISON_COUNT;
+const FAT_UNISON_SPREAD_CENTS = DEFAULT_UNISON_SPREAD_CENTS;
+
+/**
+ * ⭐ 2026-08-28: תקרת-קולות ל-PolySynth (pad/skank). ברירת המחדל של Tone.js היא 32 — תקרה
+ * מסוכנת: כל "קול" הוא Synth שלם עם unison משלו, אז 32 קולות × unison רחב = פיצוץ-CPU
+ * במקרה פתולוגי (אקורדים חופפים עם release ארוך). 8 מאפשר בנוחות אקורד בן 4 תווים *ועוד*
+ * אקורד יוצא שעדיין בשלב ה-release (החפיפה האמיתית שקורית בפועל), בלי לגנוב קולות באמצע
+ * אקורד — גניבת-קול נשמעת כתו שנחתך, ולכן לא מקטינים מתחת לזה.
+ */
+const MAX_POLYPHONY = 8;
+
+/**
+ * ⚠️ מרווח-הזמן המזערי בין שתי התקפות על אותו קול **מונופוני**. תו שמגיע קרוב מזה לקודמו
+ * פשוט **מדולג** (ראה shouldSkipMonophonicNote) — לא נדחף קדימה.
+ *
+ * למה דילוג ולא דחיפה: קול מונופוני לא יכול פיזית להשמיע שני תווים בו-זמנית — השני רק
+ * "חוטף" את הקול מהראשון, כלומר התוצאה הנשמעת כמעט זהה לדילוג. ניסיתי קודם לדחוף קדימה,
+ * וזה נכשל משתי סיבות שנמדדו: (א) `GT(a,b)` של Tone הוא `a > b + 1e-6`, אז דחיפה של 1e-6
+ * בדיוק עדיין לא נחשבת "גדול ממש"; (ב) חשוב יותר — `Source.start` מהדק (clamp) את הזמן
+ * ל-context.currentTime, ובזמן רינדור-אופליין שתי דחיפות בתוך אותו בלוק-עיבוד (128 דגימות
+ * ≈ 4ms ב-32kHz) מתקבעות לאותו זמן בדיוק וממילא מתנגשות. דחיפה שתעבוד באמת חייבת להיות
+ * ~20ms — וזה כבר איחור נשמע לתופים, שגם מצטבר. דילוג נקי מכל זה.
+ */
+const MONOPHONIC_MIN_SEPARATION_SECONDS = 0.001;
 
 /** פריסט חד-שכבתי (הרוב) הופך ל"שכבה אחת מרומזת" — נתיב-קוד יחיד ל-createVoice/playNote/dispose. */
 function resolveLayers(preset: SynthPresetConfig): SynthLayerConfig[] {
@@ -129,7 +162,14 @@ function createToneVoice(layer: SynthLayerConfig, polyphonic: boolean): ToneVoic
     envelope: layer.envelope,
     detune: (layer.detuneSemitones ?? 0) * 100, // Tone.js detune הוא בסנטים, לא בחצאי-טונים.
   };
-  return polyphonic ? new PolySynth(Synth, voiceOptions) : new Synth(voiceOptions);
+  if (!polyphonic) {
+    return new Synth(voiceOptions);
+  }
+  const polySynth = new PolySynth(Synth, voiceOptions);
+  // maxPolyphony הוא property ציבורי ב-Tone.PolySynth (לא חלק מאובייקט-האפשרויות של הבנאי
+  // כשקוראים לו בצורת (voice, options) — ראה PolySynth.d.ts), לכן נקבע מיד אחרי הבנייה.
+  polySynth.maxPolyphony = MAX_POLYPHONY;
+  return polySynth;
 }
 
 interface LayerVoice {
@@ -161,6 +201,8 @@ export class SynthProvider implements InstrumentProvider {
   private readonly outputGain: Gain;
   private layerVoices: LayerVoice[] = [];
   private presetFilterNode: Filter | null = null;
+  /** ⚠️ ראה nextMonophonicTime — שומר על סדר-זמנים עולה-ממש בקולות מונופוניים. */
+  private lastScheduledTime: number | null = null;
 
   constructor(role: TrackRole, tempoBpm: number, preset: SynthPresetConfig = DEFAULT_SYNTH_PRESET) {
     this.role = role;
@@ -228,11 +270,42 @@ export class SynthProvider implements InstrumentProvider {
     if (this.layerVoices.length === 0) {
       throw new Error(`SynthProvider(${this.role}): playNote נקרא לפני load()`);
     }
+    if (this.shouldSkipMonophonicNote(time)) {
+      return;
+    }
     const frequencyHz = midiToHz(note.pitch);
     const durationSeconds = ticksToSeconds(note.durationTicks, this.tempoBpm);
     for (const layerVoice of this.layerVoices) {
       layerVoice.voice.triggerAttackRelease(frequencyHz, durationSeconds, time, note.velocity);
     }
+  }
+
+  /**
+   * ⚠️ 2026-08-29 (תיקון קריסה אמיתית שנתפסה בסטודיו: Tone זרק "Start time must be strictly
+   * greater than previous start time"): קול **מונופוני** ב-Tone.js מחזיק ציר-זמן יחיד, ושני
+   * תווים שמתוזמנים לאותו רגע (או קרוב מדי) מפילים אותו. זה קורה בפועל: תבנית-התופים
+   * ופגיעות-הפינות (harmonyEngine.ts) יכולות ליפול על אותו step, ו-humanizeTiming יכול לקרב
+   * שני תווים עד כדי זהות.
+   *
+   * ⭐ למה זה קריטי דווקא עכשיו: כשהניגון היה סינתזה-בזמן-אמת זו הייתה שגיאה בקונסולה
+   * שהפילה תו בודד. מאז המעבר לרינדור-מראש (offlineRenderer.ts), חריגה באמצע התזמון מפילה
+   * את **כל** הרינדור — כלומר "אין צליל בכלל".
+   *
+   * חל רק על קולות מונופוניים: PolySynth מקצה קול נפרד לכל תו, ואקורד *אמור* להישמע
+   * בו-זמנית — שם לא נוגעים בכלום. ראה MONOPHONIC_MIN_SEPARATION_SECONDS למה דילוג ולא דחיפה.
+   */
+  private shouldSkipMonophonicNote(time: number): boolean {
+    if (this.preset.polyphonic) {
+      return false;
+    }
+    if (
+      this.lastScheduledTime !== null &&
+      time < this.lastScheduledTime + MONOPHONIC_MIN_SEPARATION_SECONDS
+    ) {
+      return true;
+    }
+    this.lastScheduledTime = time;
+    return false;
   }
 
   dispose(): void {

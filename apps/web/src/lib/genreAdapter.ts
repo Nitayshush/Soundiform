@@ -11,6 +11,10 @@
 
 import type { CompositionConfig, RhythmStepPattern, TrackRole } from '@soundiform/core';
 import type { GenreAudioConfig, SynthLayerConfig, SynthPresetConfig } from '@soundiform/audio';
+// ⚠️ ייבוא-ערך (לא type) מ-'@soundiform/audio' — בטוח כאן: api/render/route.ts כבר עושה
+// בדיוק את זה (VIDEO_ASPECT_RATIOS) ורץ בפרודקשן. חייב להיות מקור-אמת יחיד עם SynthProvider,
+// אחרת חישוב-התקציב למטה יסטה בשקט מכמות האוסצילטורים שנוצרת בפועל.
+import { DEFAULT_UNISON_COUNT, DEFAULT_UNISON_SPREAD_CENTS } from '@soundiform/audio';
 import type { GenrePack } from '@soundiform/genres';
 
 /**
@@ -78,6 +82,7 @@ export function toCompositionConfig(pack: GenrePack): CompositionConfig {
     }),
     ...(rhythmPatterns && { rhythmPatterns }),
     ...(rhythmPatternOptions && { rhythmPatternOptions }),
+    ...(pack.absoluteNoteBoard && { absoluteNoteBoard: true }),
   };
 }
 
@@ -141,10 +146,71 @@ function mergeSynthPresets(presets: readonly SynthPresetConfig[]): SynthPresetCo
   if (rest.length === 0) {
     return base;
   }
-  return {
+  return applyOscillatorBudget({
     ...base,
     polyphonic: presets.some((preset) => preset.polyphonic),
     layers: presets.flatMap(presetToLayers),
+  });
+}
+
+/**
+ * ⭐ 2026-08-28 (הסבב המבני לסאונד בנייד): כמה אוסצילטורים *אמיתיים* שכבה מריצה לכל תו —
+ * חייב להתאים בדיוק ל-createToneVoice ב-SynthProvider.ts (משם מיובאת ברירת המחדל).
+ */
+function layerOscillatorCount(layer: SynthLayerConfig): number {
+  return layer.unison?.count ?? DEFAULT_UNISON_COUNT;
+}
+
+/**
+ * הנחת-עבודה לכמות התווים שנשמעים בו-זמנית בפריסט פוליפוני (pad/skank מנגנים אקורדים).
+ * זה מה שהופך פאד ליקר פי-4 מ-lead באותו מספר-אוסצילטורים-להצהרה — ובלי המשקל הזה
+ * התקציב היה "מתמחר" פאד בזול ולא נוגע בדיוק בתפקיד היקר ביותר (מדידה: הפאד לבדו היה
+ * 80 מתוך 136 האוסצילטורים בתרחיש של 4 צלילים לכל תפקיד).
+ */
+const ASSUMED_CHORD_VOICES = 4;
+
+/**
+ * ⭐ 2026-08-28 — תקציב-אוסצילטורים לכל תפקיד, אחרי איחוד כמה צלילים נבחרים.
+ *
+ * הרקע (מדידות אמיתיות על מנוע הרינדור): העלות בפועל היא כמעט-לינארית במספר האוסצילטורים
+ * הכולל. צליל אחד לכל תפקיד ≈ 45 אוסצילטורים ומתנגן סביר; 4 צלילים לכל תפקיד ≈ 136 — פי 6.5
+ * יקר יותר, ומעבר ליכולת של נייד. **כל הצלילים שנבחרו ממשיכים להתנגן יחד בכל תו** (דרישת
+ * השילוב ההרמוני) — רק ה"עובי" (unison) של כל שכבה מצטמצם יחסית, עם רצפה של אוסצילטור אחד,
+ * כך ששום צליל נבחר לא נעלם לגמרי.
+ *
+ * בחירה **בודדת** לא מושפעת בכלל — mergeSynthPresets מחזיר את הפריסט היחיד כמו-שהוא לפני
+ * שמגיעים לכאן — כך שהתקציב נוגע *רק* בערימות של 2 צלילים ומעלה.
+ *
+ * הערך 24 נמדד: על אותה יצירה ואותם 4 צלילים לכל תפקיד, זמן-הרינדור הוא 0.45x מהזמן-אמת
+ * לפני הסבב הזה, 1.01x בתקציב 32, ו-1.41x בתקציב 24. מתחת ל-24 התשואה יורדת (16 נותן רק
+ * 1.77x) תמורת פגיעה גדולה יותר בעובי-הצליל. זו נקודת-הכיוונון המרכזית אם המדידה בנייד
+ * (AudioDebugHUD, ?debug=audio) תראה שזמן-הרינדור עדיין ארוך מדי.
+ */
+const OSCILLATOR_BUDGET_PER_ROLE = 24;
+
+function applyOscillatorBudget(preset: SynthPresetConfig): SynthPresetConfig {
+  const layers = preset.layers;
+  if (!layers || layers.length === 0) {
+    return preset;
+  }
+  const voiceMultiplier = preset.polyphonic ? ASSUMED_CHORD_VOICES : 1;
+  const declaredOscillators = layers.reduce((sum, layer) => sum + layerOscillatorCount(layer), 0);
+  const effectiveOscillators = declaredOscillators * voiceMultiplier;
+  if (effectiveOscillators <= OSCILLATOR_BUDGET_PER_ROLE) {
+    return preset;
+  }
+  const scale = OSCILLATOR_BUDGET_PER_ROLE / effectiveOscillators;
+  return {
+    ...preset,
+    layers: layers.map((layer) => ({
+      ...layer,
+      unison: {
+        // ⚠️ רצפה של 1 (לא 0) — שכבה עם 0 אוסצילטורים היא צליל שנבחר ופשוט נעלם, וזה בדיוק
+        // מה שהמשתמש ביקש שלא יקרה. גם התקרה 9 של synthUnisonSchema נשמרת מאליה (רק מקטינים).
+        count: Math.max(1, Math.round(layerOscillatorCount(layer) * scale)),
+        spreadCents: layer.unison?.spreadCents ?? DEFAULT_UNISON_SPREAD_CENTS,
+      },
+    })),
   };
 }
 

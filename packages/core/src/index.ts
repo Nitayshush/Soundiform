@@ -20,6 +20,7 @@ export * from './theory/chords';
 export * from './theory/voiceLeading';
 export * from './theory/rules';
 export * from './theory/harmonyEngine';
+export * from './theory/noteBoard';
 export * from './groove/quantize';
 export * from './groove/humanize';
 
