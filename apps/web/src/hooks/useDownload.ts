@@ -159,10 +159,11 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
         });
 
         if (!hasVideo) {
-          // ⚠️ לא שגיאה: היצירה נשמרה ומשותפת, רק בלי קובץ וידאו. מכשירים/דפדפנים ללא
-          // WebCodecs (נתפס בפועל ב-Firefox בדסקטופ) — ראה lib/video/webcodecsSupport.ts.
+          // ⚠️ לא שגיאה: היצירה נשמרה בגלריה וניתנת לשיתוף — רק בלי קובץ mp4. קורה כשאין
+          // WebCodecs בכלל, או כשהקידוד נכשל בדפדפן הזה (בפועל: Firefox). ההודעה חייבת
+          // לומר את שני הדברים שהמשתמש צריך לדעת: שהיצירה **לא אבדה**, ואיפה להוריד.
           setUnsupportedNotice(
-            "Your creation was saved and plays here on the site. This browser can't create video files at all — open Soundiform in Chrome to download the video.",
+            "Your video was saved to your gallery. This browser can't create the video file — open Soundiform in Chrome to download it.",
           );
         } else if (limitedCompatibility) {
           // ⚠️⚠️ נתפס בבדיקה חיה: הדפדפן הזה (בפועל Firefox, שלא מקודד AAC) מייצר MP4 עם
@@ -170,7 +171,7 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
           // **לא נפתח** ב-Windows Media Player ובחלק מהאפליקציות. לכן במקרה הזה במכוון
           // *לא* מפעילים הורדה אוטומטית: עדיף להסביר מאשר להוריד קובץ שלא ייפתח.
           setUnsupportedNotice(
-            'Your creation was saved and plays here on the site. To download a video file that opens everywhere, open Soundiform in Chrome — this browser can only produce an audio format that many players reject.',
+            'Your video was saved to your gallery. This browser could only use an audio format that many players reject, so open Soundiform in Chrome to download a file that plays everywhere.',
           );
         } else if (downgradedTo) {
           // ⚠️ פחות ממה שהמנוי מזכה בו — אומרים את זה במפורש ולא "משתיקים" את ההבדל.

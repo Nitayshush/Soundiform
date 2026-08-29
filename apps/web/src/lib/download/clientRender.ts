@@ -49,6 +49,11 @@ export interface ClientRenderResult {
    * ולא בכל הרשתות. הקורא חייב לומר את זה למשתמש ולא להשאיר אותו עם קובץ שלא נפתח.
    */
   limitedCompatibility?: boolean;
+  /**
+   * ⚠️ מוגדר כשקידוד הווידאו נכשל בדפדפן הזה (בפועל: Firefox). היצירה **כן** נשמרה
+   * ומשותפת — פשוט בלי קובץ mp4. הטקסט עצמו לאבחון בלבד, לא להצגה למשתמש.
+   */
+  videoFailureReason?: string;
 }
 
 interface StartResponse {
@@ -220,6 +225,8 @@ export async function runClientRender(input: ClientRenderInput): Promise<ClientR
   );
   let hasVideo = false;
   let downgradedTo: string | null = null;
+  /** סיבת הכשל בקידוד, לאבחון — לא מוצגת למשתמש. ראה ה-catch למטה. */
+  let videoFailureReason: string | null = null;
 
   const { drawVideoFrame } = await import('@soundiform/video');
   const posterCanvas = document.createElement('canvas');
@@ -250,23 +257,37 @@ export async function runClientRender(input: ClientRenderInput): Promise<ClientR
     if (videoDimensions.downgraded) {
       downgradedTo = `${String(videoDimensions.height)}p`;
     }
-    const { encodeVideoInBrowser } = await import('@/lib/video/encodeVideoInBrowser');
-    const mp4 = await encodeVideoInBrowser({
-      score: start.score,
-      shapeData: start.shapeData,
-      audio: videoAudio,
-      durationSeconds,
-      dimensions: { width: videoDimensions.width, height: videoDimensions.height },
-      watermark: start.video.watermark,
-      audioCodec: videoDimensions.audioCodec,
-      onProgress: (ratio) => {
-        onProgress?.({ stage: 'video', ratio });
-      },
-    });
-    const videoUpload = start.uploads.video;
-    if (videoUpload) {
-      uploads.push(putToR2(videoUpload.url, mp4, 'video/mp4'));
-      hasVideo = true;
+    // ⚠️⚠️ 2026-08-29 (נתפס באתר החי): כשל בקידוד הווידאו הוא **לא** כשל של ההורדה כולה.
+    // בפיירפוקס הקידוד זורק (למשל "Timestamps must be monotonically increasing" — המקודד
+    // מסדר פריימים מחדש למרות latencyMode:'realtime'), וקודם לכן זה התפשט החוצה: המשתמש
+    // ראה שגיאה טכנית גולמית **והיצירה שלו אבדה** כי client/complete מעולם לא נקרא.
+    //
+    // עכשיו: בולעים את הכשל, ממשיכים להעלות אודיו+פוסטר ולרשום את היצירה — כך שהיא נשמרת
+    // בגלריה וניתנת לשיתוף — והקורא מציג הודעה מובנת ("שמרנו, הורד דרך Chrome").
+    // זה גם עמיד בפני כל תקלת-מקודד עתידית בכל דפדפן, במקום לרדוף אחרי כל אחת בנפרד.
+    try {
+      const { encodeVideoInBrowser } = await import('@/lib/video/encodeVideoInBrowser');
+      const mp4 = await encodeVideoInBrowser({
+        score: start.score,
+        shapeData: start.shapeData,
+        audio: videoAudio,
+        durationSeconds,
+        dimensions: { width: videoDimensions.width, height: videoDimensions.height },
+        watermark: start.video.watermark,
+        audioCodec: videoDimensions.audioCodec,
+        onProgress: (ratio) => {
+          onProgress?.({ stage: 'video', ratio });
+        },
+      });
+      const videoUpload = start.uploads.video;
+      if (videoUpload) {
+        uploads.push(putToR2(videoUpload.url, mp4, 'video/mp4'));
+        hasVideo = true;
+      }
+    } catch (caughtError) {
+      // נשמר לאבחון בלבד — למשתמש מוצגת הודעה מובנת, לא הטקסט הזה.
+      videoFailureReason = caughtError instanceof Error ? caughtError.message : String(caughtError);
+      console.warn('Video encoding failed on this browser; saving without video.', caughtError);
     }
   }
 
@@ -292,6 +313,7 @@ export async function runClientRender(input: ClientRenderInput): Promise<ClientR
     renderId: complete.renderId,
     hasVideo: complete.hasVideo ?? hasVideo,
     ...(downgradedTo !== null && { downgradedTo }),
+    ...(videoFailureReason !== null && { videoFailureReason }),
     ...(videoDimensions && videoDimensions.audioCodec !== 'mp4a.40.2'
       ? { limitedCompatibility: true }
       : {}),
