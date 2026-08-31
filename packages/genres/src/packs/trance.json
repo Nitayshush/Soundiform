@@ -1,8 +1,18 @@
 {
   "id": "trance",
-  "displayName": { "he": "טראנס", "en": "Trance" },
-  "tempo": { "min": 130, "max": 145, "default": 138 },
-  "grid": { "subdivision": 16, "swingAmount": 0 },
+  "displayName": {
+    "he": "טראנס",
+    "en": "Trance"
+  },
+  "tempo": {
+    "min": 130,
+    "max": 145,
+    "default": 138
+  },
+  "grid": {
+    "subdivision": 16,
+    "swingAmount": 0
+  },
   "allowedModes": ["aeolian", "dorian"],
   "defaultMode": "aeolian",
   "harmonicTendency": "modal",
@@ -76,44 +86,99 @@
   "synthMap": {
     "bass": {
       "oscillatorType": "sawtooth",
-      "envelope": { "attack": 0.01, "decay": 0.1, "sustain": 0.8, "release": 0.1 },
+      "envelope": {
+        "attack": 0.01,
+        "decay": 0.1,
+        "sustain": 0.8,
+        "release": 0.1
+      },
       "polyphonic": false,
-      "filter": { "type": "lowpass", "frequencyHz": 800, "resonance": 1 },
-      "unison": { "count": 1, "spreadCents": 0 },
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 800,
+        "resonance": 1
+      },
+      "unison": {
+        "count": 1,
+        "spreadCents": 0
+      },
       "layers": [
         {
           "oscillatorType": "sine",
-          "envelope": { "attack": 0.005, "decay": 0.12, "sustain": 0.85, "release": 0.1 },
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.12,
+            "sustain": 0.85,
+            "release": 0.1
+          },
           "gain": 1,
           "detuneSemitones": 0
         },
         {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.01, "decay": 0.1, "sustain": 0.7, "release": 0.1 },
+          "envelope": {
+            "attack": 0.01,
+            "decay": 0.1,
+            "sustain": 0.7,
+            "release": 0.1
+          },
           "gain": 0.4,
           "detuneSemitones": 0,
-          "filter": { "type": "lowpass", "frequencyHz": 800, "resonance": 1.2 },
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 800,
+            "resonance": 1.2
+          },
           "driveAmount": 0.3
         }
       ]
     },
     "lead": {
       "oscillatorType": "sawtooth",
-      "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.7, "release": 0.15 },
+      "envelope": {
+        "attack": 0.005,
+        "decay": 0.1,
+        "sustain": 0.7,
+        "release": 0.15
+      },
       "polyphonic": false,
-      "filter": { "type": "lowpass", "frequencyHz": 6500, "resonance": 2.2 },
-      "unison": { "count": 9, "spreadCents": 38 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 6500,
+        "resonance": 2.2
+      },
+      "unison": {
+        "count": 9,
+        "spreadCents": 38
+      }
     },
     "pad": {
       "oscillatorType": "sawtooth",
-      "envelope": { "attack": 0.3, "decay": 0.2, "sustain": 0.8, "release": 0.8 },
+      "envelope": {
+        "attack": 0.3,
+        "decay": 0.2,
+        "sustain": 0.8,
+        "release": 0.8
+      },
       "polyphonic": true,
-      "filter": { "type": "lowpass", "frequencyHz": 2500, "resonance": 1 },
-      "unison": { "count": 5, "spreadCents": 20 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 2500,
+        "resonance": 1
+      },
+      "unison": {
+        "count": 5,
+        "spreadCents": 20
+      }
     },
     "drums": {
       "oscillatorType": "triangle",
-      "envelope": { "attack": 0.001, "decay": 0.15, "sustain": 0, "release": 0.05 },
+      "envelope": {
+        "attack": 0.001,
+        "decay": 0.15,
+        "sustain": 0,
+        "release": 0.05
+      },
       "polyphonic": false
     }
   },
@@ -121,26 +186,55 @@
     "bass": [
       {
         "id": "layered-sub",
-        "displayName": { "he": "בס שכבות", "en": "Layered Sub" },
+        "displayName": {
+          "he": "בס שכבות",
+          "en": "Layered Sub"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.01, "decay": 0.1, "sustain": 0.8, "release": 0.1 },
+          "envelope": {
+            "attack": 0.01,
+            "decay": 0.1,
+            "sustain": 0.8,
+            "release": 0.1
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 800, "resonance": 1 },
-          "unison": { "count": 1, "spreadCents": 0 },
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 800,
+            "resonance": 1
+          },
+          "unison": {
+            "count": 1,
+            "spreadCents": 0
+          },
           "layers": [
             {
               "oscillatorType": "sine",
-              "envelope": { "attack": 0.005, "decay": 0.12, "sustain": 0.85, "release": 0.1 },
+              "envelope": {
+                "attack": 0.005,
+                "decay": 0.12,
+                "sustain": 0.85,
+                "release": 0.1
+              },
               "gain": 1,
               "detuneSemitones": 0
             },
             {
               "oscillatorType": "sawtooth",
-              "envelope": { "attack": 0.01, "decay": 0.1, "sustain": 0.7, "release": 0.1 },
+              "envelope": {
+                "attack": 0.01,
+                "decay": 0.1,
+                "sustain": 0.7,
+                "release": 0.1
+              },
               "gain": 0.4,
               "detuneSemitones": 0,
-              "filter": { "type": "lowpass", "frequencyHz": 800, "resonance": 1.2 },
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 800,
+                "resonance": 1.2
+              },
               "driveAmount": 0.3
             }
           ]
@@ -148,100 +242,212 @@
       },
       {
         "id": "reese",
-        "displayName": { "he": "ריס (Reese)", "en": "Reese Bass" },
+        "displayName": {
+          "he": "ריס (Reese)",
+          "en": "Reese Bass"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.01, "decay": 0.1, "sustain": 0.8, "release": 0.15 },
+          "envelope": {
+            "attack": 0.01,
+            "decay": 0.1,
+            "sustain": 0.8,
+            "release": 0.15
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 650, "resonance": 1.3 },
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 650,
+            "resonance": 1.3
+          },
           "layers": [
             {
               "oscillatorType": "sine",
-              "envelope": { "attack": 0.005, "decay": 0.12, "sustain": 0.8, "release": 0.1 },
+              "envelope": {
+                "attack": 0.005,
+                "decay": 0.12,
+                "sustain": 0.8,
+                "release": 0.1
+              },
               "gain": 0.7,
               "detuneSemitones": 0
             },
             {
               "oscillatorType": "sawtooth",
-              "envelope": { "attack": 0.01, "decay": 0.1, "sustain": 0.75, "release": 0.15 },
+              "envelope": {
+                "attack": 0.01,
+                "decay": 0.1,
+                "sustain": 0.75,
+                "release": 0.15
+              },
               "gain": 0.55,
               "detuneSemitones": -0.12,
-              "filter": { "type": "lowpass", "frequencyHz": 650, "resonance": 1.3 }
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 650,
+                "resonance": 1.3
+              }
             },
             {
               "oscillatorType": "sawtooth",
-              "envelope": { "attack": 0.01, "decay": 0.1, "sustain": 0.75, "release": 0.15 },
+              "envelope": {
+                "attack": 0.01,
+                "decay": 0.1,
+                "sustain": 0.75,
+                "release": 0.15
+              },
               "gain": 0.55,
               "detuneSemitones": 0.12,
-              "filter": { "type": "lowpass", "frequencyHz": 650, "resonance": 1.3 }
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 650,
+                "resonance": 1.3
+              }
             }
           ]
         }
       },
       {
         "id": "clean-sub",
-        "displayName": { "he": "סאב נקי", "en": "Clean Sub" },
+        "displayName": {
+          "he": "סאב נקי",
+          "en": "Clean Sub"
+        },
         "preset": {
           "oscillatorType": "sine",
-          "envelope": { "attack": 0.005, "decay": 0.12, "sustain": 0.85, "release": 0.1 },
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.12,
+            "sustain": 0.85,
+            "release": 0.1
+          },
           "polyphonic": false
         }
       },
       {
         "id": "rolling-bass",
-        "displayName": { "he": "בס מתגלגל", "en": "Rolling Bass" },
+        "displayName": {
+          "he": "בס מתגלגל",
+          "en": "Rolling Bass"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.005, "decay": 0.08, "sustain": 0.75, "release": 0.12 },
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.08,
+            "sustain": 0.75,
+            "release": 0.12
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 1000, "resonance": 2.5 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 1000,
+            "resonance": 2.5
+          }
         }
       },
       {
         "id": "off-bass",
-        "displayName": { "he": "אוף-בס", "en": "Off-Bass" },
+        "displayName": {
+          "he": "אוף-בס",
+          "en": "Off-Bass"
+        },
         "preset": {
           "oscillatorType": "square",
-          "envelope": { "attack": 0.001, "decay": 0.06, "sustain": 0.1, "release": 0.05 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.06,
+            "sustain": 0.1,
+            "release": 0.05
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 1200, "resonance": 3 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 1200,
+            "resonance": 3
+          }
         }
       },
       {
         "id": "psy-bass",
-        "displayName": { "he": "בס פסיי", "en": "Psy Bass" },
+        "displayName": {
+          "he": "בס פסיי",
+          "en": "Psy Bass"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.001, "decay": 0.09, "sustain": 0.15, "release": 0.05 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.09,
+            "sustain": 0.15,
+            "release": 0.05
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 550, "resonance": 4 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 550,
+            "resonance": 4
+          }
         }
       },
       {
         "id": "acid-bass",
-        "displayName": { "he": "בס אסיד", "en": "Acid Bass" },
+        "displayName": {
+          "he": "בס אסיד",
+          "en": "Acid Bass"
+        },
         "preset": {
           "oscillatorType": "square",
-          "envelope": { "attack": 0.001, "decay": 0.12, "sustain": 0.3, "release": 0.08 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.12,
+            "sustain": 0.3,
+            "release": 0.08
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 700, "resonance": 6 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 700,
+            "resonance": 6
+          }
         }
       },
       {
         "id": "hard-bass",
-        "displayName": { "he": "בס עיוות קשה", "en": "Hard Distortion Bass" },
+        "displayName": {
+          "he": "בס עיוות קשה",
+          "en": "Hard Distortion Bass"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.75, "release": 0.1 },
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.1,
+            "sustain": 0.75,
+            "release": 0.1
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 900, "resonance": 2 },
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 900,
+            "resonance": 2
+          },
           "layers": [
             {
               "oscillatorType": "sawtooth",
-              "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.75, "release": 0.1 },
+              "envelope": {
+                "attack": 0.005,
+                "decay": 0.1,
+                "sustain": 0.75,
+                "release": 0.1
+              },
               "gain": 1,
               "detuneSemitones": 0,
-              "filter": { "type": "lowpass", "frequencyHz": 900, "resonance": 2 },
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 900,
+                "resonance": 2
+              },
               "driveAmount": 0.7
             }
           ]
@@ -249,409 +455,1036 @@
       },
       {
         "id": "prog-bass",
-        "displayName": { "he": "בס פרוגרסיב", "en": "Progressive Bass" },
+        "displayName": {
+          "he": "בס פרוגרסיב",
+          "en": "Progressive Bass"
+        },
         "preset": {
           "oscillatorType": "sine",
-          "envelope": { "attack": 0.02, "decay": 0.15, "sustain": 0.8, "release": 0.3 },
+          "envelope": {
+            "attack": 0.02,
+            "decay": 0.15,
+            "sustain": 0.8,
+            "release": 0.3
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 500, "resonance": 0.7 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 500,
+            "resonance": 0.7
+          }
         }
       }
     ],
     "lead": [
       {
         "id": "classic-supersaw",
-        "displayName": { "he": "סופרסאו קלאסי", "en": "Classic Supersaw" },
+        "displayName": {
+          "he": "סופרסאו קלאסי",
+          "en": "Classic Supersaw"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.7, "release": 0.15 },
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.1,
+            "sustain": 0.7,
+            "release": 0.15
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 6500, "resonance": 2.2 },
-          "unison": { "count": 9, "spreadCents": 38 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 6500,
+            "resonance": 2.2
+          },
+          "unison": {
+            "count": 9,
+            "spreadCents": 38
+          }
         }
       },
       {
         "id": "sharp-pluck",
-        "displayName": { "he": "פריט חד", "en": "Sharp Pluck" },
+        "displayName": {
+          "he": "פריט חד",
+          "en": "Sharp Pluck"
+        },
         "preset": {
           "oscillatorType": "triangle",
-          "envelope": { "attack": 0.001, "decay": 0.15, "sustain": 0.2, "release": 0.1 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.15,
+            "sustain": 0.2,
+            "release": 0.1
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 5000, "resonance": 1.5 },
-          "unison": { "count": 3, "spreadCents": 12 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 5000,
+            "resonance": 1.5
+          },
+          "unison": {
+            "count": 3,
+            "spreadCents": 12
+          }
         }
       },
       {
         "id": "square-stab",
-        "displayName": { "he": "סטאב מרובע", "en": "Square Stab" },
+        "displayName": {
+          "he": "סטאב מרובע",
+          "en": "Square Stab"
+        },
         "preset": {
           "oscillatorType": "square",
-          "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.5, "release": 0.12 },
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.1,
+            "sustain": 0.5,
+            "release": 0.12
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 4000, "resonance": 2 },
-          "unison": { "count": 5, "spreadCents": 20 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 4000,
+            "resonance": 2
+          },
+          "unison": {
+            "count": 5,
+            "spreadCents": 20
+          }
         }
       },
       {
         "id": "anthem-lead",
-        "displayName": { "he": "ליד אנתמי", "en": "Anthem Lead" },
+        "displayName": {
+          "he": "ליד אנתמי",
+          "en": "Anthem Lead"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.05, "decay": 0.15, "sustain": 0.85, "release": 0.6 },
+          "envelope": {
+            "attack": 0.05,
+            "decay": 0.15,
+            "sustain": 0.85,
+            "release": 0.6
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 5500, "resonance": 1.5 },
-          "unison": { "count": 9, "spreadCents": 30 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 5500,
+            "resonance": 1.5
+          },
+          "unison": {
+            "count": 9,
+            "spreadCents": 30
+          }
         }
       },
       {
         "id": "pluck-arp",
-        "displayName": { "he": "ארפג'יו קטוע", "en": "Pluck Arp" },
+        "displayName": {
+          "he": "ארפג'יו קטוע",
+          "en": "Pluck Arp"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.001, "decay": 0.08, "sustain": 0.05, "release": 0.06 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.08,
+            "sustain": 0.05,
+            "release": 0.06
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 5000, "resonance": 2.5 },
-          "unison": { "count": 3, "spreadCents": 15 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 5000,
+            "resonance": 2.5
+          },
+          "unison": {
+            "count": 3,
+            "spreadCents": 15
+          }
         }
       },
       {
         "id": "psy-pluck",
-        "displayName": { "he": "פריט פסיי", "en": "Psy Pluck" },
+        "displayName": {
+          "he": "פריט פסיי",
+          "en": "Psy Pluck"
+        },
         "preset": {
           "oscillatorType": "square",
-          "envelope": { "attack": 0.001, "decay": 0.06, "sustain": 0.02, "release": 0.04 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.06,
+            "sustain": 0.02,
+            "release": 0.04
+          },
           "polyphonic": false,
-          "filter": { "type": "highpass", "frequencyHz": 800, "resonance": 1.5 },
-          "unison": { "count": 3, "spreadCents": 10 }
+          "filter": {
+            "type": "highpass",
+            "frequencyHz": 800,
+            "resonance": 1.5
+          },
+          "unison": {
+            "count": 3,
+            "spreadCents": 10
+          }
         }
       },
       {
         "id": "prog-lead",
-        "displayName": { "he": "ליד פרוגרסיב", "en": "Progressive Lead" },
+        "displayName": {
+          "he": "ליד פרוגרסיב",
+          "en": "Progressive Lead"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.15, "decay": 0.2, "sustain": 0.75, "release": 0.8 },
+          "envelope": {
+            "attack": 0.15,
+            "decay": 0.2,
+            "sustain": 0.75,
+            "release": 0.8
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 4000, "resonance": 1.2 },
-          "unison": { "count": 7, "spreadCents": 20 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 4000,
+            "resonance": 1.2
+          },
+          "unison": {
+            "count": 7,
+            "spreadCents": 20
+          }
         }
       },
       {
         "id": "tech-stab",
-        "displayName": { "he": "סטאב טק", "en": "Tech Stab" },
+        "displayName": {
+          "he": "סטאב טק",
+          "en": "Tech Stab"
+        },
         "preset": {
           "oscillatorType": "square",
-          "envelope": { "attack": 0.005, "decay": 0.08, "sustain": 0.3, "release": 0.1 },
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.08,
+            "sustain": 0.3,
+            "release": 0.1
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 3000, "resonance": 5 },
-          "unison": { "count": 3, "spreadCents": 8 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 3000,
+            "resonance": 5
+          },
+          "unison": {
+            "count": 3,
+            "spreadCents": 8
+          }
         }
       },
       {
         "id": "hard-lead",
-        "displayName": { "he": "ליד עיוות קשה", "en": "Hard Distortion Lead" },
+        "displayName": {
+          "he": "ליד עיוות קשה",
+          "en": "Hard Distortion Lead"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.7, "release": 0.15 },
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.1,
+            "sustain": 0.7,
+            "release": 0.15
+          },
           "polyphonic": false,
-          "filter": { "type": "lowpass", "frequencyHz": 7000, "resonance": 2.5 },
-          "unison": { "count": 9, "spreadCents": 45 },
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 7000,
+            "resonance": 2.5
+          },
+          "unison": {
+            "count": 9,
+            "spreadCents": 45
+          },
           "layers": [
             {
               "oscillatorType": "sawtooth",
-              "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.7, "release": 0.15 },
+              "envelope": {
+                "attack": 0.005,
+                "decay": 0.1,
+                "sustain": 0.7,
+                "release": 0.15
+              },
               "gain": 1,
               "detuneSemitones": 0,
-              "unison": { "count": 9, "spreadCents": 45 },
+              "unison": {
+                "count": 9,
+                "spreadCents": 45
+              },
               "driveAmount": 0.5
             }
           ]
+        }
+      },
+      {
+        "id": "glockenspiel",
+        "displayName": {
+          "he": "פעמוני מתכת",
+          "en": "Glockenspiel"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "glockenspiel",
+          "notes": ["G4", "C5", "G5", "C6"],
+          "extension": "mp3",
+          "release": 0.8
+        }
+      },
+      {
+        "id": "concert-harp",
+        "displayName": {
+          "he": "נבל",
+          "en": "Concert Harp"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "concert-harp",
+          "notes": ["G3", "D4", "A4", "E5", "B5"],
+          "extension": "mp3",
+          "release": 0.7
         }
       }
     ],
     "pad": [
       {
         "id": "warm-pad",
-        "displayName": { "he": "פאד חם", "en": "Warm Pad" },
+        "displayName": {
+          "he": "פאד חם",
+          "en": "Warm Pad"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.3, "decay": 0.2, "sustain": 0.8, "release": 0.8 },
+          "envelope": {
+            "attack": 0.3,
+            "decay": 0.2,
+            "sustain": 0.8,
+            "release": 0.8
+          },
           "polyphonic": true,
-          "filter": { "type": "lowpass", "frequencyHz": 2500, "resonance": 1 },
-          "unison": { "count": 5, "spreadCents": 20 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 2500,
+            "resonance": 1
+          },
+          "unison": {
+            "count": 5,
+            "spreadCents": 20
+          }
         }
       },
       {
         "id": "airy-pad",
-        "displayName": { "he": "פאד אוורירי", "en": "Airy Pad" },
+        "displayName": {
+          "he": "פאד אוורירי",
+          "en": "Airy Pad"
+        },
         "preset": {
           "oscillatorType": "sine",
-          "envelope": { "attack": 1, "decay": 0.3, "sustain": 0.7, "release": 1.2 },
+          "envelope": {
+            "attack": 1,
+            "decay": 0.3,
+            "sustain": 0.7,
+            "release": 1.2
+          },
           "polyphonic": true,
-          "filter": { "type": "lowpass", "frequencyHz": 4000, "resonance": 0.7 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 4000,
+            "resonance": 0.7
+          }
         }
       },
       {
         "id": "strings-pad",
-        "displayName": { "he": "פאד מיתרים", "en": "Strings Pad" },
+        "displayName": {
+          "he": "פאד מיתרים",
+          "en": "Strings Pad"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.15, "decay": 0.2, "sustain": 0.85, "release": 0.9 },
+          "envelope": {
+            "attack": 0.15,
+            "decay": 0.2,
+            "sustain": 0.85,
+            "release": 0.9
+          },
           "polyphonic": true,
-          "filter": { "type": "lowpass", "frequencyHz": 3200, "resonance": 1 },
-          "unison": { "count": 3, "spreadCents": 12 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 3200,
+            "resonance": 1
+          },
+          "unison": {
+            "count": 3,
+            "spreadCents": 12
+          }
         }
       },
       {
         "id": "choir-pad",
-        "displayName": { "he": "פאד מקהלה", "en": "Choir Pad" },
+        "displayName": {
+          "he": "פאד מקהלה",
+          "en": "Choir Pad"
+        },
         "preset": {
           "oscillatorType": "sine",
-          "envelope": { "attack": 1.2, "decay": 0.3, "sustain": 0.8, "release": 1.5 },
+          "envelope": {
+            "attack": 1.2,
+            "decay": 0.3,
+            "sustain": 0.8,
+            "release": 1.5
+          },
           "polyphonic": true,
-          "filter": { "type": "lowpass", "frequencyHz": 3000, "resonance": 0.6 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 3000,
+            "resonance": 0.6
+          }
         }
       },
       {
         "id": "psy-drone",
-        "displayName": { "he": "דרון פסיי", "en": "Psy Drone" },
+        "displayName": {
+          "he": "דרון פסיי",
+          "en": "Psy Drone"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.6, "decay": 0.3, "sustain": 0.9, "release": 1 },
+          "envelope": {
+            "attack": 0.6,
+            "decay": 0.3,
+            "sustain": 0.9,
+            "release": 1
+          },
           "polyphonic": true,
-          "filter": { "type": "lowpass", "frequencyHz": 1800, "resonance": 2 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 1800,
+            "resonance": 2
+          }
         }
       },
       {
         "id": "prog-swell",
-        "displayName": { "he": "פאד פרוגרסיב", "en": "Progressive Swell" },
+        "displayName": {
+          "he": "פאד פרוגרסיב",
+          "en": "Progressive Swell"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 2, "decay": 0.4, "sustain": 0.85, "release": 2 },
+          "envelope": {
+            "attack": 2,
+            "decay": 0.4,
+            "sustain": 0.85,
+            "release": 2
+          },
           "polyphonic": true,
-          "filter": { "type": "lowpass", "frequencyHz": 3600, "resonance": 0.8 },
-          "unison": { "count": 5, "spreadCents": 15 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 3600,
+            "resonance": 0.8
+          },
+          "unison": {
+            "count": 5,
+            "spreadCents": 15
+          }
         }
       },
       {
         "id": "crystal-pad",
-        "displayName": { "he": "פאד קריסטל", "en": "Crystal Pad" },
+        "displayName": {
+          "he": "פאד קריסטל",
+          "en": "Crystal Pad"
+        },
         "preset": {
           "oscillatorType": "triangle",
-          "envelope": { "attack": 0.8, "decay": 0.25, "sustain": 0.7, "release": 1.3 },
+          "envelope": {
+            "attack": 0.8,
+            "decay": 0.25,
+            "sustain": 0.7,
+            "release": 1.3
+          },
           "polyphonic": true,
-          "filter": { "type": "highpass", "frequencyHz": 400, "resonance": 0.5 }
+          "filter": {
+            "type": "highpass",
+            "frequencyHz": 400,
+            "resonance": 0.5
+          }
         }
       },
       {
         "id": "detuned-pad",
-        "displayName": { "he": "פאד מוסט", "en": "Detuned Pad" },
+        "displayName": {
+          "he": "פאד מוסט",
+          "en": "Detuned Pad"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.4, "decay": 0.25, "sustain": 0.8, "release": 1 },
+          "envelope": {
+            "attack": 0.4,
+            "decay": 0.25,
+            "sustain": 0.8,
+            "release": 1
+          },
           "polyphonic": true,
-          "filter": { "type": "lowpass", "frequencyHz": 2800, "resonance": 1 },
-          "unison": { "count": 7, "spreadCents": 35 }
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 2800,
+            "resonance": 1
+          },
+          "unison": {
+            "count": 7,
+            "spreadCents": 35
+          }
+        }
+      },
+      {
+        "id": "violin-section",
+        "displayName": {
+          "he": "תזמורת כינורות",
+          "en": "Violin Section"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "violin-section",
+          "notes": ["D4", "A4", "E5", "B5"],
+          "extension": "mp3",
+          "release": 1.2
         }
       }
     ],
     "drums": [
       {
         "id": "classic-click",
-        "displayName": { "he": "פגיעה קלאסית", "en": "Classic Click" },
+        "displayName": {
+          "he": "פגיעה קלאסית",
+          "en": "Classic Click"
+        },
         "preset": {
           "oscillatorType": "triangle",
-          "envelope": { "attack": 0.001, "decay": 0.15, "sustain": 0, "release": 0.05 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.15,
+            "sustain": 0,
+            "release": 0.05
+          },
           "polyphonic": false,
           "layers": [
             {
               "oscillatorType": "triangle",
-              "envelope": { "attack": 0.001, "decay": 0.15, "sustain": 0, "release": 0.05 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.15,
+                "sustain": 0,
+                "release": 0.05
+              },
               "gain": 1,
               "detuneSemitones": 0,
-              "filter": { "type": "lowpass", "frequencyHz": 2500, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 2500,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             },
             {
               "oscillatorType": "square",
-              "envelope": { "attack": 0.001, "decay": 0.04, "sustain": 0, "release": 0.02 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.04,
+                "sustain": 0,
+                "release": 0.02
+              },
               "gain": 0.6,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 900, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "highpass",
+                "frequencyHz": 900,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             }
           ]
         }
       },
       {
         "id": "tight-click",
-        "displayName": { "he": "קליק הדוק", "en": "Tight Click" },
+        "displayName": {
+          "he": "קליק הדוק",
+          "en": "Tight Click"
+        },
         "preset": {
           "oscillatorType": "square",
-          "envelope": { "attack": 0.001, "decay": 0.09, "sustain": 0, "release": 0.03 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.09,
+            "sustain": 0,
+            "release": 0.03
+          },
           "polyphonic": false,
           "layers": [
             {
               "oscillatorType": "square",
-              "envelope": { "attack": 0.001, "decay": 0.09, "sustain": 0, "release": 0.03 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.09,
+                "sustain": 0,
+                "release": 0.03
+              },
               "gain": 1,
               "detuneSemitones": 0,
-              "filter": { "type": "lowpass", "frequencyHz": 3500, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 3500,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             },
             {
               "oscillatorType": "triangle",
-              "envelope": { "attack": 0.001, "decay": 0.03, "sustain": 0, "release": 0.015 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.03,
+                "sustain": 0,
+                "release": 0.015
+              },
               "gain": 0.5,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 1200, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "highpass",
+                "frequencyHz": 1200,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             }
           ]
         }
       },
       {
         "id": "deep-kick",
-        "displayName": { "he": "קיק עמוק", "en": "Deep Kick" },
+        "displayName": {
+          "he": "קיק עמוק",
+          "en": "Deep Kick"
+        },
         "preset": {
           "oscillatorType": "sine",
-          "envelope": { "attack": 0.001, "decay": 0.25, "sustain": 0, "release": 0.1 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.25,
+            "sustain": 0,
+            "release": 0.1
+          },
           "polyphonic": false,
           "layers": [
             {
               "oscillatorType": "sine",
-              "envelope": { "attack": 0.001, "decay": 0.25, "sustain": 0, "release": 0.1 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.25,
+                "sustain": 0,
+                "release": 0.1
+              },
               "gain": 1,
               "detuneSemitones": -5,
-              "filter": { "type": "lowpass", "frequencyHz": 400, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 400,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             },
             {
               "oscillatorType": "triangle",
-              "envelope": { "attack": 0.001, "decay": 0.03, "sustain": 0, "release": 0.02 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.03,
+                "sustain": 0,
+                "release": 0.02
+              },
               "gain": 0.7,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 700, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "highpass",
+                "frequencyHz": 700,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             }
           ]
         }
       },
       {
         "id": "sub-boom",
-        "displayName": { "he": "בום סאב", "en": "Sub Boom" },
+        "displayName": {
+          "he": "בום סאב",
+          "en": "Sub Boom"
+        },
         "preset": {
           "oscillatorType": "sine",
-          "envelope": { "attack": 0.001, "decay": 0.18, "sustain": 0, "release": 0.08 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.18,
+            "sustain": 0,
+            "release": 0.08
+          },
           "polyphonic": false,
           "layers": [
             {
               "oscillatorType": "sine",
-              "envelope": { "attack": 0.001, "decay": 0.18, "sustain": 0, "release": 0.08 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.18,
+                "sustain": 0,
+                "release": 0.08
+              },
               "gain": 1,
               "detuneSemitones": -7,
-              "filter": { "type": "lowpass", "frequencyHz": 220, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 220,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             },
             {
               "oscillatorType": "triangle",
-              "envelope": { "attack": 0.001, "decay": 0.03, "sustain": 0, "release": 0.02 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.03,
+                "sustain": 0,
+                "release": 0.02
+              },
               "gain": 0.75,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 800, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "highpass",
+                "frequencyHz": 800,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             }
           ]
         }
       },
       {
         "id": "hard-punch",
-        "displayName": { "he": "אגרוף קשה", "en": "Hard Punch" },
+        "displayName": {
+          "he": "אגרוף קשה",
+          "en": "Hard Punch"
+        },
         "preset": {
           "oscillatorType": "sine",
-          "envelope": { "attack": 0.001, "decay": 0.12, "sustain": 0, "release": 0.05 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.12,
+            "sustain": 0,
+            "release": 0.05
+          },
           "polyphonic": false,
           "layers": [
             {
               "oscillatorType": "sine",
-              "envelope": { "attack": 0.001, "decay": 0.12, "sustain": 0, "release": 0.05 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.12,
+                "sustain": 0,
+                "release": 0.05
+              },
               "gain": 1,
               "detuneSemitones": -7,
-              "filter": { "type": "lowpass", "frequencyHz": 280, "resonance": 1.2 },
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 280,
+                "resonance": 1.2
+              },
               "driveAmount": 0.4,
-              "unison": { "count": 1, "spreadCents": 0 }
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             },
             {
               "oscillatorType": "square",
-              "envelope": { "attack": 0.001, "decay": 0.02, "sustain": 0, "release": 0.01 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.02,
+                "sustain": 0,
+                "release": 0.01
+              },
               "gain": 0.8,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 900, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "highpass",
+                "frequencyHz": 900,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             }
           ]
         }
       },
       {
         "id": "distorted-kick",
-        "displayName": { "he": "קיק מעוות", "en": "Distorted Kick" },
+        "displayName": {
+          "he": "קיק מעוות",
+          "en": "Distorted Kick"
+        },
         "preset": {
           "oscillatorType": "sawtooth",
-          "envelope": { "attack": 0.001, "decay": 0.14, "sustain": 0, "release": 0.06 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.14,
+            "sustain": 0,
+            "release": 0.06
+          },
           "polyphonic": false,
           "layers": [
             {
               "oscillatorType": "sawtooth",
-              "envelope": { "attack": 0.001, "decay": 0.14, "sustain": 0, "release": 0.06 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.14,
+                "sustain": 0,
+                "release": 0.06
+              },
               "gain": 1,
               "detuneSemitones": -5,
-              "filter": { "type": "lowpass", "frequencyHz": 350, "resonance": 1.5 },
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 350,
+                "resonance": 1.5
+              },
               "driveAmount": 0.8,
-              "unison": { "count": 1, "spreadCents": 0 }
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             },
             {
               "oscillatorType": "square",
-              "envelope": { "attack": 0.001, "decay": 0.02, "sustain": 0, "release": 0.01 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.02,
+                "sustain": 0,
+                "release": 0.01
+              },
               "gain": 0.6,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 1000, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "highpass",
+                "frequencyHz": 1000,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             }
           ]
         }
       },
       {
         "id": "808-kick",
-        "displayName": { "he": "קיק 808", "en": "808-Style Kick" },
+        "displayName": {
+          "he": "קיק 808",
+          "en": "808-Style Kick"
+        },
         "preset": {
           "oscillatorType": "sine",
-          "envelope": { "attack": 0.001, "decay": 0.4, "sustain": 0, "release": 0.2 },
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.4,
+            "sustain": 0,
+            "release": 0.2
+          },
           "polyphonic": false,
           "layers": [
             {
               "oscillatorType": "sine",
-              "envelope": { "attack": 0.001, "decay": 0.4, "sustain": 0, "release": 0.2 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.4,
+                "sustain": 0,
+                "release": 0.2
+              },
               "gain": 1,
               "detuneSemitones": -3,
-              "filter": { "type": "lowpass", "frequencyHz": 180, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 180,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             },
             {
               "oscillatorType": "triangle",
-              "envelope": { "attack": 0.001, "decay": 0.04, "sustain": 0, "release": 0.02 },
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.04,
+                "sustain": 0,
+                "release": 0.02
+              },
               "gain": 0.65,
               "detuneSemitones": 0,
-              "filter": { "type": "highpass", "frequencyHz": 700, "resonance": 1 },
-              "unison": { "count": 1, "spreadCents": 0 }
+              "filter": {
+                "type": "highpass",
+                "frequencyHz": 700,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 1,
+                "spreadCents": 0
+              }
             }
           ]
+        }
+      },
+      {
+        "id": "electronic-kit",
+        "displayName": {
+          "he": "ערכה אלקטרונית",
+          "en": "Electronic Kit"
+        },
+        "preset": {
+          "kind": "drumkit",
+          "instrumentId": "electronic-kit",
+          "pieces": ["kick", "tom", "snare", "clap", "hihat-closed", "hihat-open", "crash"],
+          "extension": "mp3",
+          "gain": 1
+        }
+      },
+      {
+        "id": "acoustic-kit",
+        "displayName": {
+          "he": "ערכה אקוסטית",
+          "en": "Acoustic Kit"
+        },
+        "preset": {
+          "kind": "drumkit",
+          "instrumentId": "acoustic-kit",
+          "pieces": ["kick", "tom", "snare", "clap", "hihat-closed", "hihat-open", "crash"],
+          "extension": "mp3",
+          "gain": 1
         }
       }
     ]
   },
-  "mixChain": { "reverbDecaySeconds": 1.5, "delayTime": "8n", "delayFeedback": 0.3 },
-  "arrangement": { "sectionOrder": ["intro", "loop", "build", "outro"] },
+  "mixChain": {
+    "reverbDecaySeconds": 1.5,
+    "delayTime": "8n",
+    "delayFeedback": 0.3
+  },
+  "arrangement": {
+    "sectionOrder": ["intro", "loop", "build", "outro"]
+  },
   "sidechainEnabled": true,
   "requiresSamples": false,
-  "absoluteNoteBoard": true
+  "absoluteNoteBoard": true,
+  "beatAccents": [1, 0.84, 0.96, 0.86],
+  "allowedSubdivisions": [16, 32],
+  "beatPatterns": [
+    {
+      "id": "four-on-floor",
+      "displayName": {
+        "he": "ארבע על הרצפה",
+        "en": "Four on the Floor"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        "hihat-open": [0, 0, 0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, 0],
+        "clap": [0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0]
+      }
+    },
+    {
+      "id": "rolling",
+      "displayName": {
+        "he": "רולינג",
+        "en": "Rolling"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        "hihat-closed": [
+          0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45,
+          0.45
+        ],
+        "hihat-open": [0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0],
+        "clap": [0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0]
+      }
+    },
+    {
+      "id": "driving",
+      "displayName": {
+        "he": "דוחף",
+        "en": "Driving"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0],
+        "hihat-open": [0, 0, 0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, 0],
+        "hihat-closed": [0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4, 0, 0.4],
+        "snare": [0, 0, 0, 0, 0.85, 0, 0, 0, 0, 0, 0, 0, 0.85, 0, 0, 0]
+      }
+    },
+    {
+      "id": "uplifting",
+      "displayName": {
+        "he": "מרומם",
+        "en": "Uplifting"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        "hihat-open": [0, 0, 0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, 0, 0, 0, 0.9, 0],
+        "clap": [0, 0, 0, 0, 0.95, 0, 0, 0, 0, 0, 0, 0, 0.95, 0, 0, 0],
+        "crash": [0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "tom": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0.7]
+      }
+    }
+  ],
+  "sidechainDepth": 0.18
 }

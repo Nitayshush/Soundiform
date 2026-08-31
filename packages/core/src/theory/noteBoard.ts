@@ -17,9 +17,12 @@ import { scaleDegreeToMidiPitch } from './scales';
 export const COLUMNS_PER_BAR = 16;
 
 /**
- * שורש-הלוח הקבוע (pitch class, 0=C) לסגנונות עם absoluteNoteBoard. תואם את הדוגמאות
- * שכבר הוצגו ואושרו (טראנס/האוס, שורש C). לא per-genre כרגע — אם ירצו שורש שונה לסגנון
- * מסוים בעתיד, זה המקום להפוך לשדה ב-GenrePack.
+ * שורש-הלוח **כברירת מחדל** (pitch class, 0=C). תואם את הדוגמאות שכבר הוצגו ואושרו
+ * (טראנס/האוס, שורש C).
+ *
+ * ⭐ 2026-08-30: מאז הרחבת הלוח לשאר הסגנונות, סגנון יכול לקבוע שורש משלו דרך
+ * `CompositionConfig.noteBoardRootPitchClass` (ומשם `GenrePack`). הקבוע נשאר כברירת-המחדל
+ * כדי שטראנס/האוס לא ישתנו כלל — בדיוק כפי שההערה הקודמת כאן צפתה.
  */
 export const ABSOLUTE_BOARD_ROOT_PITCH_CLASS = 0;
 
@@ -38,12 +41,31 @@ export const MELODY_DEGREE_OFFSET = 7;
 export const ABSOLUTE_BOARD_ROW_COUNT = 15;
 
 /**
- * בונה את רשימת-התווים הקבועה של הלוח (MIDI, מהנמוך לגבוה) — בדיוק אותם 15 תווים שכבר
- * הוצגו בדיאגרמת-האישור (שורש עצמו = השורה התחתונה), לפי שורש+מוד נתונים.
+ * ⚠️ 2026-08-30: גבולות שפיות למספר-שורות שמגיע מקונפיג-סגנון. מתחת ל-8 הלוח צר מדי מכדי
+ * לבטא צורה, ומעל 24 כל שורה נעשית דקה מכדי לפגוע בה באצבע בנייד. הסכימה (GenrePack)
+ * אוכפת את אותם גבולות — כאן זו הגנה שנייה, כי הקונפיג מגיע מה-DB ולא רק מהקבצים.
  */
-export function buildNoteBoardRows(root: number, mode: Mode): number[] {
+export const MIN_BOARD_ROW_COUNT = 8;
+export const MAX_BOARD_ROW_COUNT = 24;
+
+/** מהדק מספר-שורות שהגיע מקונפיג לטווח שפוי, ונופל לברירת-המחדל כשלא סופק. */
+export function resolveBoardRowCount(rowCount?: number): number {
+  if (rowCount === undefined) {
+    return ABSOLUTE_BOARD_ROW_COUNT;
+  }
+  return Math.min(MAX_BOARD_ROW_COUNT, Math.max(MIN_BOARD_ROW_COUNT, Math.round(rowCount)));
+}
+
+/**
+ * בונה את רשימת-התווים הקבועה של הלוח (MIDI, מהנמוך לגבוה) — השורש עצמו הוא השורה
+ * התחתונה — לפי שורש+מוד נתונים.
+ * @param rowCount ברירת מחדל ABSOLUTE_BOARD_ROW_COUNT; סגנון יכול לקבוע אחרת (ראה
+ *                 CompositionConfig.noteBoardRowCount).
+ */
+export function buildNoteBoardRows(root: number, mode: Mode, rowCount?: number): number[] {
+  const resolvedRowCount = resolveBoardRowCount(rowCount);
   const rows: number[] = [];
-  for (let degree = 0; degree < ABSOLUTE_BOARD_ROW_COUNT; degree += 1) {
+  for (let degree = 0; degree < resolvedRowCount; degree += 1) {
     rows.push(scaleDegreeToMidiPitch(root, mode, degree));
   }
   return rows;

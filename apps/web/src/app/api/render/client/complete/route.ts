@@ -20,7 +20,7 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { trackRoleSchema } from '@soundiform/core';
+import { creationSettingsSchema } from '@/lib/creationSettingsSchema';
 import { getDb, renders } from '@soundiform/db';
 import { createR2ProviderFromEnv, type StorageProvider } from '@soundiform/storage';
 import { computeDurationSeconds } from '@soundiform/audio';
@@ -39,7 +39,7 @@ const completeRequestSchema = z.object({
   // ביטול-בחירה של הצליל האחרון לתפקיד משאיר מערך ריק (soundSelectionStore.ts), וזה מצב
   // חוקי לגמרי — resolveSynthPresets כבר מפרש אותו כ"אין בחירה, קח ברירת מחדל". הסכימה
   // היא זו שדחתה, וכך נשברה כל ההורדה אחרי ביטול-בחירה.
-  soundSelections: z.partialRecord(trackRoleSchema, z.array(z.string().min(1))).optional(),
+  creationSettings: creationSettingsSchema.optional(),
 });
 
 /** מחזיר את המפתח רק אם האובייקט באמת קיים ב-R2 ובגודל סביר. */
@@ -69,8 +69,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { projectId, genreId, soundSelections } = parsed.data;
-  const resolved = await resolveClientRender(user.id, projectId, genreId, soundSelections);
+  const { projectId, genreId, creationSettings } = parsed.data;
+  const resolved = await resolveClientRender(user.id, projectId, genreId, creationSettings);
   if (isResolveFailure(resolved)) {
     return NextResponse.json({ error: resolved.error }, { status: resolved.status });
   }

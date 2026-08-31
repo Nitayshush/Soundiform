@@ -37,6 +37,7 @@ import {
   type Plan,
 } from '@soundiform/db';
 import { toCompositionConfig, toGenreAudioConfig } from '@/lib/genreAdapter';
+import { creationSettingsSchema } from '@/lib/creationSettingsSchema';
 import { enqueueRenderJob } from '@/lib/renderQueue';
 import { createClient } from '@/lib/supabase/server';
 
@@ -117,11 +118,27 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const intent = geometryToMusic(project.shapeData, project.shapeHash);
-  const score = composeMusicalScore(intent, toCompositionConfig(genrePack));
+  // ⚠️ אותו כלל כמו ב-clientRenderContract: ההגדרות השמורות הן קלט חיצוני ולכן מאומתות.
+  const storedSettings = creationSettingsSchema.safeParse(project.creationSettings ?? {});
+  const projectSettings = storedSettings.success ? storedSettings.data : {};
+  const score = composeMusicalScore(
+    intent,
+    toCompositionConfig(genrePack, {
+      ...(projectSettings.beatPatternId !== undefined && {
+        beatPatternId: projectSettings.beatPatternId,
+      }),
+      ...(projectSettings.key !== undefined && { key: projectSettings.key }),
+    }),
+  );
   // ⭐ 2026-08-24 (Area 1): toGenreAudioConfig עצמו כבר מאמת כל id מול genrePack.soundOptions
   // (genreAdapter.ts's resolveSynthPresets) — id לא-קיים נופל בשקט ל-synthMap הרגיל, אף פעם
   // לא נכשל/נזרק. אין כאן עוד ולידציה נדרשת מעבר לזו שכבר ב-renderRequestSchema (טיפוס התפקיד).
-  const audioConfig = toGenreAudioConfig(genrePack, intent.seed, soundSelections);
+  const audioConfig = toGenreAudioConfig(
+    genrePack,
+    intent.seed,
+    soundSelections,
+    projectSettings.beatPatternId,
+  );
 
   const jobId = await enqueueRenderJob({
     projectId,

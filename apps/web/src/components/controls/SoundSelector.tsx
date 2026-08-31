@@ -40,9 +40,12 @@
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
- * ⭐ "בחר כלי" (chill/cinematic/reggae, דגימות אמיתיות) הוא הרחבה עתידית נפרדת (Area 1
- * ב-plan, gate על בדיקת-דטרמיניזם) — לא בהיקף הקומפוננטה הזו, שמכסה רק soundOptions
- * מסוג synth (טראנס/האוס).
+ * ⭐ 2026-08-30 (סבב הדגימות): ההערה הקודמת כאן אמרה ש"בחר כלי" (דגימות אמיתיות) הוא הרחבה
+ * עתידית מחוץ להיקף הקומפוננטה — זה כבר לא נכון. הקומפוננטה מציגה היום גם אופציות מסוג
+ * `kind: 'sampler'` בדיוק כמו אופציות סינת', בלי שום ענף-קוד נפרד: `option.preset` עובר
+ * כמו-שהוא ל-usePreviewSound, וההבדל היחיד בממשק הוא **נקודה** לפני השם + מקרא בתחתית
+ * הפאנל. הסימון נחוץ כי לתפקיד יש עכשיו 3-4 אופציות מעורבות, והמשתמש צריך לדעת מה מוקלט
+ * מכלי אמיתי — וגם *למה* דווקא אלה עשויות להתעכב רגע בלחיצה הראשונה (הורדת הדגימה).
  */
 
 'use client';
@@ -57,6 +60,7 @@ import { useSoundSelectionStore } from '@/stores/soundSelectionStore';
 import { usePreviewSound } from '@/hooks/usePreviewSound';
 import { MUTED_SOUND_OPTION_ID } from '@/lib/genreAdapter';
 import { Button } from '@/components/ui/button';
+import { BeatAndKeyRows } from '@/components/controls/BeatAndKeyRows';
 
 const ROLE_LABEL: Record<TrackRole, string> = {
   bass: 'Bass',
@@ -147,6 +151,9 @@ export function SoundSelector() {
     : [];
 
   const currentSelections = selectionsByGenre[genreId] ?? {};
+  const hasSampledOption = rolesWithChoices.some(([, options]) =>
+    options.some((option) => 'kind' in option.preset && option.preset.kind === 'sampler'),
+  );
 
   const toggleOpen = (): void => {
     if (!isOpen && triggerRef.current) {
@@ -180,7 +187,13 @@ export function SoundSelector() {
     setIsPositioned(true);
   }, [isOpen, panelPosition]);
 
-  if (rolesWithChoices.length === 0) {
+  // ⚠️ 2026-08-31: התנאי היה "יש בחירות-צליל" בלבד. מאז נוספו בורר-מקצב ובורר-סולם, וסגנון
+  // יכול להציע אותם בלי אף בחירת-צליל — במקרה כזה הפאנל כולו היה נעלם והבוררים החדשים לא
+  // היו נגישים בכלל. הלוח האבסולוטי הוא התנאי לבורר-הסולם, בדיוק כמו ב-useNoteBoardGrid.
+  const hasBeatOrKeyChoices = Boolean(
+    pack && (pack.beatPatterns?.length || pack.absoluteNoteBoard),
+  );
+  if (rolesWithChoices.length === 0 && !hasBeatOrKeyChoices) {
     return null;
   }
 
@@ -244,6 +257,11 @@ export function SoundSelector() {
                     >
                       {options.map((option) => {
                         const isSelected = selectedOptionIds.includes(option.id);
+                        // ⭐ בוליאני בלבד, לא type-predicate: כאן רק *מציגים* סימון, לא בונים
+                        // provider — אין צורך בצמצום-טיפוס של הפריסט (השוו usePreviewSound.ts,
+                        // שם הצמצום הכרחי כי הבנאי של כל provider מקבל ענף אחר של האיחוד).
+                        const isSampled =
+                          'kind' in option.preset && option.preset.kind === 'sampler';
                         return (
                           <Button
                             key={option.id}
@@ -257,7 +275,17 @@ export function SoundSelector() {
                               void previewSound(role, option.preset);
                             }}
                           >
+                            {isSampled ? (
+                              <span
+                                aria-hidden="true"
+                                className="mr-1.5 inline-block size-1.5 shrink-0 rounded-full bg-current opacity-70"
+                              />
+                            ) : null}
                             {option.displayName.en}
+                            {/* הנקודה לבדה חסרת-משמעות לקורא-מסך — הטקסט הזה נושא אותה. */}
+                            {isSampled ? (
+                              <span className="sr-only"> (recorded instrument)</span>
+                            ) : null}
                           </Button>
                         );
                       })}
@@ -280,7 +308,19 @@ export function SoundSelector() {
                   </div>
                 );
               })}
+              {pack ? <BeatAndKeyRows pack={pack} /> : null}
             </div>
+            {/* מקרא — מחוץ לאזור-הגלילה, כמו הכותרת, כדי שהוא לא ייעלם בגלילה בתוך הפאנל.
+                מוצג רק כשבאמת יש מה להסביר: בטראנס/האוס עם סינת' בלבד הוא לא רלוונטי. */}
+            {hasSampledOption ? (
+              <div className="flex shrink-0 items-center gap-1.5 border-t border-border/60 px-3 py-2 text-xs text-muted-foreground">
+                <span
+                  aria-hidden="true"
+                  className="inline-block size-1.5 shrink-0 rounded-full bg-current opacity-70"
+                />
+                Recorded from a real instrument
+              </div>
+            ) : null}
           </div>,
           document.body,
         )}

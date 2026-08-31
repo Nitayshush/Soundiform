@@ -20,6 +20,7 @@ import { useGenreStore } from '@/stores/genreStore';
 import { useGenrePacksStore } from '@/stores/genrePacksStore';
 import { useSoundSelectionStore } from '@/stores/soundSelectionStore';
 import { toCompositionConfig, toGenreAudioConfig } from '@/lib/genreAdapter';
+import { useCompositionOverrides } from '@/hooks/useCompositionOverrides';
 import { getRenderSecondsPerAudioSecond, recordRenderSpeed } from '@/lib/renderSpeedMemory';
 
 export interface UseAudioEngineResult {
@@ -57,6 +58,9 @@ export function useAudioEngine(): UseAudioEngineResult {
   const paths = useShapeStore((state) => state.paths);
   const shapeHash = useShapeStore((state) => state.shapeHash);
   const genreId = useGenreStore((state) => state.genreId);
+  // ⚠️ חייב להשתתף בתלויות של play/useEffect: שינוי סולם או מקצב מייצר score אחר לגמרי,
+  // ולכן renderer שנבנה לפני השינוי כבר לא תקף — בדיוק כמו שינוי צורה או סגנון.
+  const overrides = useCompositionOverrides();
   // ⭐ 2026-08-24 (Area 1): נבחר-רה-אקטיבית לפי genreId — משתנה זהות בכל selectSound,
   // ולכן משתתף בתלויות ה-useEffect למטה בדיוק כמו shapeHash/genreId (renderer ישן שייך
   // לבחירת-צליל הקודמת, לא ניתן להמשיך להשתמש בו).
@@ -139,7 +143,7 @@ export function useAudioEngine(): UseAudioEngineResult {
       setDurationSeconds(0);
       setError(null);
     };
-  }, [shapeHash, genreId, soundSelections, stopPositionLoop]);
+  }, [shapeHash, genreId, soundSelections, overrides, stopPositionLoop]);
 
   // פונקציה בשם (function tick) ולא arrow — כדי שהקריאה הרקורסיבית תפנה לזהות המקומית של
   // עצמה (tick), לא לבינדינג runPositionLoop-של-הרינדור-הזה (שESLint מסמן כבעייתי לגישה).
@@ -207,10 +211,15 @@ export function useAudioEngine(): UseAudioEngineResult {
         }
         const shape = toShapeData(paths);
         const intent = geometryToMusic(shape, shapeHash);
-        const score = composeMusicalScore(intent, toCompositionConfig(genrePack));
+        const score = composeMusicalScore(intent, toCompositionConfig(genrePack, overrides));
         const { createBrowserRenderer, computeDurationSeconds, getRendererDiagnostics } =
           await import('@soundiform/audio');
-        const audioConfig = toGenreAudioConfig(genrePack, intent.seed, soundSelections);
+        const audioConfig = toGenreAudioConfig(
+          genrePack,
+          intent.seed,
+          soundSelections,
+          overrides.beatPatternId,
+        );
 
         // ⭐ 2026-08-29: מעריכים כמה זמן הרינדור-מראש ייקח *לפני* שמתחילים, מתוך מהירות
         // המכשיר שנמדדה בפעם הקודמת — כך שהמשתמש רואה התקדמות אמיתית ולא רק מספר עולה.
@@ -253,6 +262,7 @@ export function useAudioEngine(): UseAudioEngineResult {
     shapeHash,
     genreId,
     soundSelections,
+    overrides,
     runPositionLoop,
     startRenderTimer,
     stopRenderTimer,

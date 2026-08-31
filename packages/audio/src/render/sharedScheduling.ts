@@ -22,6 +22,9 @@ import {
   SynthProvider,
   type SynthPresetConfig,
 } from '../providers/SynthProvider';
+import { SamplerProvider, type SamplerPresetConfig } from '../providers/SamplerProvider';
+import { DrumKitProvider, type DrumKitPresetConfig } from '../providers/DrumKitProvider';
+import type { InstrumentProvider } from '../providers/InstrumentProvider';
 import {
   buildMixChain,
   DEFAULT_MIX_CHARACTER,
@@ -45,6 +48,17 @@ import { ticksToSeconds } from '../internal/audioUtils';
  */
 export interface GenreAudioConfig {
   synthPresets: Partial<Record<TrackRole, SynthPresetConfig>>;
+  /**
+   * ⭐ 2026-08-30: כלים דגומים לתפקיד — מנוגנים **לצד** הסינת', לא במקומו, כך שמשתמש יכול
+   * לערבב פסנתר אמיתי עם פאד סינתטי באותו תפקיד. ⚠️ הדגימות חייבות להיות מפוענחות מראש
+   * (preloadSampledInstrument) לפני הרינדור — ראה providers/sampleLoader.ts.
+   */
+  samplerPresets?: Partial<Record<TrackRole, SamplerPresetConfig[]>>;
+  /**
+   * ⭐ 2026-08-31: ערכת תופים לתפקיד — אחת לכל היותר. ⚠️ בניגוד ל-samplerPresets, ערכה
+   * **מחליפה** את הסינת' של התפקיד ולא מתנגנת לצידו: שתי ערכות-מקבילות היו מכפילות כל מכה.
+   */
+  drumKitPresets?: Partial<Record<TrackRole, DrumKitPresetConfig>>;
   mixCharacter: MixCharacterConfig;
   /** ⭐ 2026-08-22: trance/house — ראה sidechain.ts. undefined/false = בלי pumping. */
   sidechainEnabled?: boolean;
@@ -72,7 +86,12 @@ export interface ScheduledNoteEvent {
 }
 
 export interface TrackRuntime {
-  provider: SynthProvider;
+  /**
+   * ⭐ 2026-08-30: **רשימה** ולא provider יחיד — טראק יכול לנגן סינת' וכלים דגומים יחד.
+   * ⚠️ החוק של §4.7 נשמר: הקוד כאן לא יודע מי מהם מה — כולם `InstrumentProvider`, וכולם
+   * מקבלים את אותו playNote מאותו Part.
+   */
+  providers: InstrumentProvider[];
   mixChain: MixChainHandle;
   part: Part<ScheduledNoteEvent>;
 }
@@ -109,8 +128,23 @@ export async function createTrackRuntime(
   delayBus: InputNode | undefined,
   sidechainDuck?: Gain,
 ): Promise<TrackRuntime> {
-  const preset = audioConfig.synthPresets[track.role] ?? DEFAULT_SYNTH_PRESET;
-  const provider = new SynthProvider(track.role, tempoBpm, preset);
+  const samplerPresets = audioConfig.samplerPresets?.[track.role] ?? [];
+  const drumKitPreset = audioConfig.drumKitPresets?.[track.role];
+  const synthPreset = audioConfig.synthPresets[track.role];
+
+  // ⚠️ ברירת המחדל (DEFAULT_SYNTH_PRESET) מוחלת רק כשאין **שום** כלי לתפקיד. כשנבחרו רק
+  // כלים דגומים, הוספת סינת' ברירת-מחדל הייתה משמיעה צליל שהמשתמש לא ביקש.
+  const providers: InstrumentProvider[] = [];
+  if (synthPreset || (samplerPresets.length === 0 && !drumKitPreset)) {
+    providers.push(new SynthProvider(track.role, tempoBpm, synthPreset ?? DEFAULT_SYNTH_PRESET));
+  }
+  for (const samplerPreset of samplerPresets) {
+    providers.push(new SamplerProvider(track.role, tempoBpm, samplerPreset));
+  }
+  if (drumKitPreset) {
+    providers.push(new DrumKitProvider(track.role, drumKitPreset));
+  }
+
   const mixChain = await buildMixChain(
     track.mixSettings,
     destination,
@@ -119,21 +153,27 @@ export async function createTrackRuntime(
     sidechainDuck,
     audioConfig.trackEq?.[track.role],
   );
-  await provider.load(track.instrumentId);
-  // connect() (הפונקציה, לא המתודה) מטפלת נכון באיחוד OutputNode/InputNode של Tone.js —
-  // .connect() כמתודה על טיפוס OutputNode לא נבחר תמיד ל-overload הנכון (ראה DECISIONS.md).
-  connect(provider.output, mixChain.input);
+
+  for (const provider of providers) {
+    await provider.load(track.instrumentId);
+    // connect() (הפונקציה, לא המתודה) מטפלת נכון באיחוד OutputNode/InputNode של Tone.js —
+    // .connect() כמתודה על טיפוס OutputNode לא נבחר תמיד ל-overload הנכון (ראה DECISIONS.md).
+    connect(provider.output, mixChain.input);
+  }
 
   const events: ScheduledNoteEvent[] = track.notes.map((note) => ({
     time: ticksToSeconds(note.startTick, tempoBpm),
     note,
   }));
   const part = new Part<ScheduledNoteEvent>((time, event) => {
-    provider.playNote(event.note, time);
+    // ⚠️ אותו תו נשלח לכל ה-providers של הטראק — זה מה שגורם לסינת' ולדגימה להישמע יחד.
+    for (const provider of providers) {
+      provider.playNote(event.note, time);
+    }
   }, events);
   part.start(0);
 
-  return { provider, mixChain, part };
+  return { providers, mixChain, part };
 }
 
 export interface TrackRuntimeSet {
@@ -168,16 +208,35 @@ function createSharedDelayBus(
  * נבנה רק אם יש בכלל טראק פעיל ששולח משהו אליו (אחרת בזבוז-CPU נטו על אפקט שאף אחד לא
  * שומע). ראה mixChain.ts/sharedReverb.ts לפירוט המלא.
  */
+/**
+ * ⚠️ **הסיידצ'יין נורה על הקיק בלבד, לא על כל מכה.** עד סבב ערכת-התופים טראק ה-drums היה
+ * דליל ו"פגיעה" הייתה בעיקר קיק, ולכן "כל התווים" היה קירוב סביר. מאז יש בטראק גם היי-האט,
+ * סנר, מחיאה, טום וקראש — 8-15 מכות בבר — וכל אחת מהן יצרה דחיקה. התוצאה: הדחיקה **לא
+ * מספיקה להשתחרר בין מכות**, הפאמפינג מתמרח לרעש רציף, והקיק מאבד בדיוק את הבליטה שהוא
+ * אמור לקבל. זו הסיבה שהתופים נשמעו חלשים דווקא בטראנס ובהאוס.
+ *
+ * ⚠️ נפילה-לאחור לכל התווים כשאין `drumPiece` בכלל: ציונים שנשמרו לפני 2026-08-31
+ * (renders.score) חייבים להמשיך להישמע בדיוק כמו שנשמרו.
+ */
+export function sidechainTriggerNotes(drumNotes: readonly Note[]): readonly Note[] {
+  const kicks = drumNotes.filter((note) => note.drumPiece === 'kick');
+  if (kicks.length > 0) {
+    return kicks;
+  }
+  return drumNotes.some((note) => note.drumPiece !== undefined) ? [] : drumNotes;
+}
+
 export async function createAllTrackRuntimes(
   score: MusicalScore,
   destination: InputNode,
   audioConfig: GenreAudioConfig,
 ): Promise<TrackRuntimeSet> {
   const drumsTrack = score.tracks.find((track) => track.role === 'drums');
+  const duckTriggerNotes = drumsTrack ? sidechainTriggerNotes(drumsTrack.notes) : [];
   const sidechainDuck: SidechainDuck | null =
-    audioConfig.sidechainEnabled && drumsTrack
+    audioConfig.sidechainEnabled && duckTriggerNotes.length > 0
       ? createSidechainDuck(
-          drumsTrack.notes,
+          duckTriggerNotes,
           score.tempo,
           audioConfig.sidechainDepth ?? DEFAULT_DUCK_DEPTH,
           audioConfig.sidechainReleaseSeconds ?? DEFAULT_DUCK_RELEASE_SECONDS,
@@ -222,9 +281,11 @@ export async function createAllTrackRuntimes(
 }
 
 export function disposeTrackRuntimes(trackRuntimes: readonly TrackRuntime[]): void {
-  trackRuntimes.forEach(({ provider, mixChain, part }) => {
+  trackRuntimes.forEach(({ providers, mixChain, part }) => {
     part.dispose();
-    provider.dispose();
+    for (const provider of providers) {
+      provider.dispose();
+    }
     mixChain.dispose();
   });
 }

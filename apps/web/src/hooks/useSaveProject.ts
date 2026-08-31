@@ -26,6 +26,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toShapeData, useShapeStore } from '@/stores/shapeStore';
 import { useSupabaseUser } from './useSupabaseUser';
+import { useGenreStore } from '@/stores/genreStore';
+import { useSoundSelectionStore } from '@/stores/soundSelectionStore';
+import { readCreationSettings } from '@/stores/creationSettingsStore';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Save failed';
@@ -49,6 +52,8 @@ export function useSaveProject(): UseSaveProjectResult {
   const shapeHash = useShapeStore((state) => state.shapeHash);
   const sourceType = useShapeStore((state) => state.sourceType);
   const uploadKey = useShapeStore((state) => state.uploadKey);
+  const genreId = useGenreStore((state) => state.genreId);
+  const soundSelections = useSoundSelectionStore((state) => state.selectionsByGenre[genreId]);
   const { user, isLoading: isUserLoading } = useSupabaseUser();
 
   const [isSaving, setIsSaving] = useState(false);
@@ -73,6 +78,12 @@ export function useSaveProject(): UseSaveProjectResult {
           sourceType,
           ...(uploadKey && { uploadKey }),
           ...(remixOf && { remixOf }),
+          // ⚠️ בלי זה היצירה נשמרת כציור בלבד, וכשהיא נפתחת במכשיר אחר היא מתנגנת
+          // בסולם ובצלילים אחרים — כלומר יצירה אחרת. ההגדרות הן חלק מהיצירה.
+          creationSettings: {
+            ...readCreationSettings(genreId),
+            ...(soundSelections && { soundSelections }),
+          },
         }),
       });
       const responseBody: unknown = await response.json();
@@ -86,7 +97,7 @@ export function useSaveProject(): UseSaveProjectResult {
     } finally {
       setIsSaving(false);
     }
-  }, [paths, shapeHash, sourceType, uploadKey, searchParams]);
+  }, [paths, shapeHash, sourceType, uploadKey, searchParams, genreId, soundSelections]);
 
   const requestSave = useCallback(
     (extraNextParams?: string) => {

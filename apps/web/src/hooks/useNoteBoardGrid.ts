@@ -21,6 +21,7 @@ import {
 } from '@soundiform/core';
 import { useGenreStore } from '@/stores/genreStore';
 import { useGenrePacksStore } from '@/stores/genrePacksStore';
+import { useCompositionOverrides } from '@/hooks/useCompositionOverrides';
 
 const CHROMATIC_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
 const ROOT_OCTAVE_BASE_MIDI = 48;
@@ -43,16 +44,33 @@ export function useNoteBoardGrid(): NoteBoardGrid | undefined {
     state.packs.find((candidate) => candidate.id === genreId),
   );
 
+  const overrides = useCompositionOverrides();
+
   return useMemo(() => {
     if (!pack?.absoluteNoteBoard) {
       return undefined;
     }
-    const root = ROOT_OCTAVE_BASE_MIDI + ABSOLUTE_BOARD_ROOT_PITCH_CLASS;
-    const rowsHighToLow = buildNoteBoardRows(root, pack.defaultMode).slice().reverse();
+    // ⚠️ 2026-08-30: חייב להישאר זהה לחישוב ב-composeMusicalScore (harmonyEngine.ts) —
+    // אותו שורש, אותו מוד ואותו מספר-שורות. אם השניים ייפרדו, המשתמש יצייר על לוח שמראה
+    // תווים אחרים מאלה שבאמת ינוגנו. שניהם נגזרים מאותם שדות ב-GenrePack בדיוק.
+    // ⭐ 2026-08-31 (סבב א'): הסולם שהמשתמש בחר גובר. `overrides` מגיע מאותו hook שמזין את
+    // toCompositionConfig בניגון וברינדור — מקור אחד, ולכן הלוח לא יכול להיפרד מהצליל.
+    const root =
+      ROOT_OCTAVE_BASE_MIDI +
+      (overrides.key?.rootPitchClass ??
+        pack.noteBoardRootPitchClass ??
+        ABSOLUTE_BOARD_ROOT_PITCH_CLASS);
+    const rowsHighToLow = buildNoteBoardRows(
+      root,
+      overrides.key?.mode ?? pack.defaultMode,
+      pack.noteBoardRowCount,
+    )
+      .slice()
+      .reverse();
     return {
       rows: rowsHighToLow.length,
       columns: COLUMNS_PER_BAR,
       rowLabels: rowsHighToLow.map(noteName),
     };
-  }, [pack]);
+  }, [pack, overrides]);
 }

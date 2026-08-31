@@ -38,6 +38,8 @@ import { Offline } from 'tone';
 import type { MusicalScore } from '@soundiform/core';
 import { createMasterBus } from '../mixing/loudness';
 import { withGlobalContextLock } from './globalContextLock';
+import { preloadSampledInstrument } from '../providers/sampleLoader';
+import { drumKitToSampleSpec } from '../providers/DrumKitProvider';
 import {
   computeDurationSeconds,
   createAllTrackRuntimes,
@@ -56,6 +58,21 @@ import {
 export const PREVIEW_SAMPLE_RATE = 32000;
 
 const CHANNEL_COUNT = 2;
+
+/**
+ * מפענח מראש את כל הכלים הדגומים שהקונפיג מזכיר. בטוח לקרוא בכל רינדור — טעינה בפועל
+ * קורית פעם אחת לכל כלי (מטמון ב-sampleLoader.ts).
+ */
+async function preloadAudioConfigSamples(audioConfig: GenreAudioConfig): Promise<void> {
+  // ⚠️ ערכת תופים ממופה לאותו SampledInstrumentSpec: 'pieces' הם המפתחות (שמות קבצים),
+  // בדיוק כמו ש-'notes' הם המפתחות לכלי מתוח-גובה. כך אותו טוען משרת את שניהם.
+  const kitSpecs = Object.values(audioConfig.drumKitPresets ?? {}).map(drumKitToSampleSpec);
+  const specs = [...Object.values(audioConfig.samplerPresets ?? {}).flat(), ...kitSpecs];
+  if (specs.length === 0) {
+    return;
+  }
+  await Promise.all(specs.map((spec) => preloadSampledInstrument(spec)));
+}
 
 export interface OfflineRenderResult {
   /** באפר מוכן-לניגון (AudioBuffer של Web Audio), באורך computeDurationSeconds. */
@@ -78,6 +95,11 @@ export async function renderScoreToAudioBuffer(
   sampleRate: number = PREVIEW_SAMPLE_RATE,
 ): Promise<OfflineRenderResult> {
   const durationSeconds = computeDurationSeconds(score, audioConfig);
+
+  // ⚠️⚠️ קריטי — **לפני** withGlobalContextLock/Tone.Offline: ההקשר האופליין מתחיל לרנדר
+  // מיד אחרי ה-callback, ולכן טעינת-רשת בתוכו לא הייתה מספיקה והדגימות היו יוצאות שקטות.
+  // כאן הן מפוענחות על ה-context החי, ומשם הן במטמון לכל רינדור עתידי. ראה sampleLoader.ts.
+  await preloadAudioConfigSamples(audioConfig);
 
   return withGlobalContextLock(async () => {
     const startedAtMs = Date.now();
@@ -126,12 +148,21 @@ const MAX_CACHED_RENDERS = 2;
 const renderCache = new Map<string, OfflineRenderResult>();
 
 /**
- * מפתח-מטמון דטרמיניסטי. (seed, genreId) קובעים את ה-score במלואו — הצורה נכנסת דרך ה-seed
- * וה-score נגזר ממנה דטרמיניסטית (§1) — ו-audioConfig קובע את בחירות-הצליל/המיקס. ⚠️ שגיאה
- * במפתח היא לכל היותר החטאה (רינדור מחדש), לא צליל שגוי — אין כאן סיכון לנכונות.
+ * מפתח-מטמון דטרמיניסטי, נגזר מ**תוכן ה-score עצמו**.
+ *
+ * ⚠️ **תיקון 2026-08-31, אחרי כשל בבדיקה חיה.** המפתח היה `(seed, genreId, audioConfig)`,
+ * וההערה כאן טענה ש"(seed, genreId) קובעים את ה-score במלואו" ושכשל-מפתח הוא "לכל היותר
+ * החטאה, לא צליל שגוי". שתי הטענות היו נכונות ביום שנכתבו — ובסבב א' שתיהן הפכו לשקר:
+ * הסולם, המוד והמקצב הידני משנים את ה-score **בלי** לשנות את ה-seed. התוצאה בפועל: המשתמש
+ * החליף סולם, הלוח התעדכן, והמטמון החזיר את הבאפר הישן — כלומר **צליל שגוי**, גם בניגון
+ * וגם בקובץ שהורד (clientRender.ts משתמש באותו מטמון).
+ *
+ * ⚠️ לכן המפתח לא מונה עוד "השדות שקובעים את ה-score" — הוא **התוכן**. הנחה כזו נשברת בשקט
+ * בכל פעם שמוסיפים קלט חדש שמשפיע על היצירה, וזה בדיוק מה שקרה. `JSON.stringify` על ציון
+ * הוא זניח מול זמן הרינדור עצמו (מאות תווים, פעם אחת לכל ניגון).
  */
 function cacheKey(score: MusicalScore, audioConfig: GenreAudioConfig, sampleRate: number): string {
-  return `${score.seed}|${score.genreId}|${String(sampleRate)}|${JSON.stringify(audioConfig)}`;
+  return `${String(sampleRate)}|${JSON.stringify(score)}|${JSON.stringify(audioConfig)}`;
 }
 
 /**

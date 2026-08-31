@@ -1,8 +1,18 @@
 {
   "id": "chill",
-  "displayName": { "he": "צ'יל", "en": "Chill" },
-  "tempo": { "min": 75, "max": 90, "default": 82 },
-  "grid": { "subdivision": 16, "swingAmount": 0.12 },
+  "displayName": {
+    "he": "צ'יל",
+    "en": "Chill"
+  },
+  "tempo": {
+    "min": 75,
+    "max": 90,
+    "default": 82
+  },
+  "grid": {
+    "subdivision": 16,
+    "swingAmount": 0.12
+  },
   "allowedModes": ["lydian", "ionian"],
   "defaultMode": "lydian",
   "harmonicTendency": "extended",
@@ -41,30 +51,292 @@
   "synthMap": {
     "bass": {
       "oscillatorType": "sine",
-      "envelope": { "attack": 0.05, "decay": 0.2, "sustain": 0.7, "release": 0.4 },
+      "envelope": {
+        "attack": 0.05,
+        "decay": 0.2,
+        "sustain": 0.7,
+        "release": 0.4
+      },
       "polyphonic": false,
-      "filter": { "type": "lowpass", "frequencyHz": 700, "resonance": 0.7 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 700,
+        "resonance": 0.7
+      }
     },
     "lead": {
       "oscillatorType": "triangle",
-      "envelope": { "attack": 0.08, "decay": 0.15, "sustain": 0.6, "release": 0.5 },
+      "envelope": {
+        "attack": 0.08,
+        "decay": 0.15,
+        "sustain": 0.6,
+        "release": 0.5
+      },
       "polyphonic": false,
-      "filter": { "type": "lowpass", "frequencyHz": 2200, "resonance": 0.7 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 2200,
+        "resonance": 0.7
+      }
     },
     "pad": {
       "oscillatorType": "sine",
-      "envelope": { "attack": 0.6, "decay": 0.3, "sustain": 0.85, "release": 1.5 },
+      "envelope": {
+        "attack": 0.6,
+        "decay": 0.3,
+        "sustain": 0.85,
+        "release": 1.5
+      },
       "polyphonic": true,
-      "filter": { "type": "lowpass", "frequencyHz": 1800, "resonance": 0.6 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 1800,
+        "resonance": 0.6
+      }
     },
     "drums": {
       "oscillatorType": "sine",
-      "envelope": { "attack": 0.001, "decay": 0.2, "sustain": 0, "release": 0.1 },
+      "envelope": {
+        "attack": 0.001,
+        "decay": 0.2,
+        "sustain": 0,
+        "release": 0.1
+      },
       "polyphonic": false
     }
   },
-  "mixChain": { "reverbDecaySeconds": 4, "delayTime": "4n", "delayFeedback": 0.4 },
-  "arrangement": { "sectionOrder": ["intro", "loop", "outro"] },
+  "mixChain": {
+    "reverbDecaySeconds": 4,
+    "delayTime": "4n",
+    "delayFeedback": 0.4
+  },
+  "arrangement": {
+    "sectionOrder": ["intro", "loop", "outro"]
+  },
   "sidechainEnabled": false,
-  "requiresSamples": false
+  "requiresSamples": false,
+  "absoluteNoteBoard": true,
+  "noteBoardRootPitchClass": 5,
+  "noteBoardRowCount": 15,
+  "beatAccents": [1, 0.78, 0.9, 0.84],
+  "soundOptions": {
+    "lead": [
+      {
+        "id": "soft-keys",
+        "displayName": {
+          "he": "קלידים רכים",
+          "en": "Soft Keys"
+        },
+        "preset": {
+          "oscillatorType": "triangle",
+          "envelope": {
+            "attack": 0.08,
+            "decay": 0.15,
+            "sustain": 0.6,
+            "release": 0.5
+          },
+          "polyphonic": false,
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 2200,
+            "resonance": 0.7
+          }
+        }
+      },
+      {
+        "id": "upright-piano",
+        "displayName": {
+          "he": "פסנתר אמיתי",
+          "en": "Upright Piano"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "upright-piano",
+          "notes": ["C3", "G3", "G4", "C5", "G5", "C6"],
+          "extension": "mp3",
+          "release": 0.6
+        }
+      },
+      {
+        "id": "flute",
+        "displayName": {
+          "he": "חליל",
+          "en": "Flute"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "flute",
+          "notes": ["C4", "A4", "E5", "C6"],
+          "extension": "mp3",
+          "release": 0.8
+        }
+      },
+      {
+        "id": "marimba",
+        "displayName": {
+          "he": "מרימבה",
+          "en": "Marimba"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "marimba",
+          "notes": ["G3", "F4", "C5", "G5"],
+          "extension": "mp3",
+          "release": 0.5
+        }
+      }
+    ],
+    "pad": [
+      {
+        "id": "warm-pad",
+        "displayName": {
+          "he": "פאד חמים",
+          "en": "Warm Pad"
+        },
+        "preset": {
+          "oscillatorType": "sine",
+          "envelope": {
+            "attack": 0.6,
+            "decay": 0.3,
+            "sustain": 0.85,
+            "release": 1.5
+          },
+          "polyphonic": true,
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 1800,
+            "resonance": 0.6
+          }
+        }
+      },
+      {
+        "id": "viola-section",
+        "displayName": {
+          "he": "ויולות אמיתיות",
+          "en": "Viola Section"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "viola-section",
+          "notes": ["G3", "D4", "A4", "E5"],
+          "extension": "mp3",
+          "release": 0.8
+        }
+      },
+      {
+        "id": "cello-section",
+        "displayName": {
+          "he": "צ'לי",
+          "en": "Cello Section"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "cello-section",
+          "notes": ["G2", "D3", "A3", "E4", "B4"],
+          "extension": "mp3",
+          "release": 1.2
+        }
+      }
+    ],
+    "bass": [
+      {
+        "id": "sub-bass",
+        "displayName": {
+          "he": "סאב",
+          "en": "Sub Bass"
+        },
+        "preset": {
+          "oscillatorType": "sine",
+          "envelope": {
+            "attack": 0.05,
+            "decay": 0.2,
+            "sustain": 0.7,
+            "release": 0.4
+          },
+          "polyphonic": false,
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 700,
+            "resonance": 0.7
+          }
+        }
+      },
+      {
+        "id": "contrabass-pizz",
+        "displayName": {
+          "he": "קונטרבס אמיתי",
+          "en": "Upright Bass"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "contrabass-pizz",
+          "notes": ["A#1", "E2", "A2", "G#3"],
+          "extension": "mp3",
+          "release": 0.3
+        }
+      }
+    ],
+    "drums": [
+      {
+        "id": "synth-drums",
+        "displayName": {
+          "he": "תופי סינת׳",
+          "en": "Synth Drums"
+        },
+        "preset": {
+          "oscillatorType": "sine",
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.2,
+            "sustain": 0,
+            "release": 0.1
+          },
+          "polyphonic": false
+        }
+      },
+      {
+        "id": "acoustic-kit",
+        "displayName": {
+          "he": "ערכה אקוסטית",
+          "en": "Acoustic Kit"
+        },
+        "preset": {
+          "kind": "drumkit",
+          "instrumentId": "acoustic-kit",
+          "pieces": ["kick", "tom", "snare", "clap", "hihat-closed", "hihat-open", "crash"],
+          "extension": "mp3",
+          "gain": 1
+        }
+      }
+    ]
+  },
+  "allowedSubdivisions": [8, 16],
+  "beatPatterns": [
+    {
+      "id": "lofi",
+      "displayName": {
+        "he": "לואו-פיי",
+        "en": "Lo-Fi"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        "snare": [0, 0, 0, 0, 0.75, 0, 0, 0, 0, 0, 0, 0, 0.75, 0, 0, 0],
+        "hihat-closed": [0.35, 0, 0.3, 0, 0.35, 0, 0.3, 0, 0.35, 0, 0.3, 0, 0.35, 0, 0.3, 0]
+      }
+    },
+    {
+      "id": "boom-bap",
+      "displayName": {
+        "he": "בום-באפ",
+        "en": "Boom Bap"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0, 0, 0, 0.7, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        "snare": [0, 0, 0, 0, 0.85, 0, 0, 0, 0, 0, 0, 0, 0.85, 0, 0, 0],
+        "hihat-closed": [0, 0, 0.35, 0, 0, 0, 0.35, 0, 0, 0, 0.35, 0, 0, 0, 0.35, 0]
+      }
+    }
+  ]
 }

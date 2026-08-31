@@ -102,10 +102,59 @@ export const trackEqConfigSchema = z.object({
  * כמו ש-InstrumentProvider.ts כבר מתעד "V1: SynthProvider בלבד. V2: SamplerProvider נכנס
  * בלי לגעת ב-core".
  */
+/**
+ * ⭐ 2026-08-30: אופציית-צליל מבוססת **דגימות אמיתיות**. הקבצים יושבים תחת
+ * `apps/web/public/samples/<instrumentId>/<note>.<extension>` — ראה docs/SAMPLES.md
+ * למקורות ולרישיונות (כל דגימה חייבת רישיון מתועד, §7).
+ *
+ * ⚠️ `notes` הם התווים ש**באמת קיימים כקבצים**, לא הטווח שהכלי מנגן. Tone.Sampler מסיט
+ * גובה מהתו הקרוב, ולכן מעט דגימות פרוסות נכון מספיקות — וזה מה ששומר על משקל ההורדה נמוך.
+ */
+export const samplerPresetSchema = z.object({
+  kind: z.literal('sampler'),
+  instrumentId: z.string().min(1),
+  notes: z.array(z.string().min(1)).min(1),
+  extension: z.enum(['mp3', 'ogg', 'wav']).default('mp3'),
+  gain: z.number().min(0).max(1).optional(),
+  release: z.number().min(0).optional(),
+});
+
+/**
+ * ⭐ 2026-08-31: **ערכת תופים** — קרובה לדגימה רגילה אך שונה במהות אחת: המפתחות אינם תווים
+ * אלא **חלקי ערכה** (`kick`, `snare`, …, ראה DRUM_PIECES ב-@soundiform/core), והקבצים הם
+ * `apps/web/public/samples/<instrumentId>/<piece>.<extension>`.
+ *
+ * ⚠️ סוג נפרד ולא דגל על samplerPreset, כי ההשמעה שונה מהותית: דוגם רגיל **מותח גובה** כדי
+ * לכסות תווים חסרים, וזו התנהגות הרסנית לערכה (קיק מתוח לא נשמע כמו קיק). ראה
+ * DrumKitProvider.ts.
+ */
+export const drumKitPresetSchema = z.object({
+  kind: z.literal('drumkit'),
+  instrumentId: z.string().min(1),
+  /** חלקי הערכה שקיימים כקבצים בפועל. ערכה חלקית מותרת — ההשמעה נופלת לחלק קיים. */
+  pieces: z.array(z.string().min(1)).min(1),
+  extension: z.enum(['mp3', 'ogg', 'wav']).default('mp3'),
+  gain: z.number().min(0).max(1).optional(),
+});
+
+/**
+ * ⚠️ הסדר באיחוד חשוב, והוא מה ששומר על תאימות-לאחור: פריסטים קיימים (טראנס/האוס) נכתבו
+ * **בלי** שדה `kind`, ולכן הם נופלים לענף הסינת' בדיוק כמו קודם. רק פריסט שמצהיר
+ * `kind: 'sampler'` נקרא כדגימה, ורק `kind: 'drumkit'` כערכה. שום קובץ קיים לא צריך להשתנות.
+ */
+export const soundPresetSchema = z.union([
+  samplerPresetSchema,
+  drumKitPresetSchema,
+  synthPresetSchema,
+]);
+export type SamplerPreset = z.infer<typeof samplerPresetSchema>;
+export type DrumKitPreset = z.infer<typeof drumKitPresetSchema>;
+export type SoundPreset = z.infer<typeof soundPresetSchema>;
+
 export const soundOptionSchema = z.object({
   id: z.string().min(1),
   displayName: z.object({ he: z.string().min(1), en: z.string().min(1) }),
-  preset: synthPresetSchema,
+  preset: soundPresetSchema,
 });
 export type SoundOption = z.infer<typeof soundOptionSchema>;
 
@@ -182,6 +231,52 @@ export const genrePackSchema = z.object({
    * house בשלב זה; סגנונות אחרים ממתינים לסבב הרחבה נפרד.
    */
   absoluteNoteBoard: z.boolean().optional(),
+  /**
+   * ⭐ 2026-08-30 (הרחבת הלוח לשאר הסגנונות): שורש-הלוח ומספר-השורות לסגנון זה. משפיעים
+   * **רק** כש-absoluteNoteBoard=true. undefined = ברירות-המחדל ב-packages/core/src/theory/
+   * noteBoard.ts (שורש C, 15 שורות) — ולכן טראנס/האוס לא משתנים כלל.
+   *
+   * ⚠️ הגבולות כאן חייבים להישאר תואמים ל-MIN/MAX_BOARD_ROW_COUNT שם: מתחת ל-8 הלוח צר
+   * מדי לבטא צורה, ומעל 24 כל שורה דקה מכדי לפגוע בה באצבע בנייד.
+   */
+  noteBoardRootPitchClass: z.number().int().min(0).max(11).optional(),
+  noteBoardRowCount: z.number().int().min(8).max(24).optional(),
+  /**
+   * ⭐ 2026-08-31: מכפיל-עוצמה לכל פעימה בבר (4 ערכים ל-4/4) — הדרך שבה הסגנון "לובש" את
+   * הציור בזמן, לצד הגריד והסווינג.
+   *
+   * ⚠️ זו **לא** תבנית-קצב. היא לא קובעת מה מנגן ומה שותק — זה נגזר מהציור בלבד — אלא רק
+   * כמה חזק נשמע מה שכבר נבחר. ההבחנה הזו היא הסיבה שהיא מותרת: קצב קבוע היה מחזיר את
+   * הבעיה שכל היצירות נשמעות אותו דבר.
+   */
+  beatAccents: z.array(z.number().min(0).max(1)).min(1).max(16).optional(),
+  /**
+   * ⭐ 2026-08-31 (מנגנון קצב, שכבה ד'): גרידי-הקוונטיזציה שהסגנון מרשה. הציור בוחר מתוכם
+   * לפי צפיפות האירועים שלו — ציור דליל נוחת על שמיניות, צפוף על 32.
+   * ⚠️ **לא** משנה את רזולוציית לוח-התווים שהמשתמש מצייר עליו, רק את הצמדת-הזמן.
+   */
+  allowedSubdivisions: z
+    .array(z.union([z.literal(8), z.literal(16), z.literal(32)]))
+    .min(1)
+    .optional(),
+  /**
+   * ⭐ 2026-08-31 (סבב א'): מקצבי תופים שהמשתמש בוחר ידנית, בלתי-תלויים בציור.
+   *
+   * ⚠️ מבנה נפרד מ-rhythmPatterns ולא הרחבה שלו: זה שומר **עוצמה לכל חלק-ערכה לכל צעד**,
+   * ולכן מסוגל לבטא מקצב אמיתי. rhythmPatterns הישן שומר עוצמה בלבד בלי זהות כלי, ולכן
+   * אינו מסוגל לכך כלל. ראה theory/beatPattern.ts.
+   */
+  beatPatterns: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        displayName: z.object({ he: z.string().min(1), en: z.string().min(1) }),
+        stepsPerBar: z.union([z.literal(8), z.literal(16), z.literal(32)]),
+        /** מפתח = חלק בערכה (DRUM_PIECES ב-@soundiform/core). */
+        pieces: z.record(z.string(), z.array(z.number().min(0).max(1))),
+      }),
+    )
+    .optional(),
 });
 
 export type GenrePack = z.infer<typeof genrePackSchema>;

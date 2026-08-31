@@ -28,6 +28,7 @@ import { musicalScoreSchema } from '../score/scoreSchema';
 import type { RawMusicalIntent, SymmetryTransform } from '../mapping/geometryToMusic';
 import { scaleDegreeToMidiPitch, snapToScale } from './scales';
 import { buildChord } from './chords';
+import { applyCadences, degreeAtBar, progressionDegreesFromRaster } from './progression';
 import { chooseSmoothVoicing, smoothMelodicLine } from './voiceLeading';
 import {
   applySwing,
@@ -39,14 +40,30 @@ import {
 import { humanizeTiming, humanizeVelocity } from '../groove/humanize';
 import { createSeededRandom } from '../internal/seededRandom';
 import { at } from '../internal/arrayUtils';
+import { rasterizeShapeToBoard, type BoardRaster } from '../analysis/boardRaster';
+import { buildEventRaster } from '../analysis/onsetEvents';
+import {
+  applyPolicyWithFloor,
+  resolveRolePolicy,
+  DRUM_PIECE_POLICY,
+  type RhythmPolicy,
+} from './rolePolicy';
+import { ROLE_PITCH_RANGES } from './rules';
+import { DRUM_PIECE_GAIN, drumPieceForRow, type DrumPiece } from './drumKit';
+import {
+  beatHitsForBar,
+  DRUM_PIECE_DEGREE_OFFSET,
+  piecesOwnedByPattern,
+  type BeatPattern,
+} from './beatPattern';
 import {
   ABSOLUTE_BOARD_ROOT_PITCH_CLASS,
-  ABSOLUTE_BOARD_ROW_COUNT,
   buildNoteBoardRows,
   COLUMNS_PER_BAR,
   MELODY_DEGREE_OFFSET,
   MELODY_DEGREE_RANGE,
   quantizeYToRowIndex,
+  resolveBoardRowCount,
 } from './noteBoard';
 
 const SCORE_FORMAT_VERSION = '1.0.0';
@@ -223,6 +240,35 @@ export interface CompositionConfig {
    * ללא motifSize, ללא applySymmetryTransform. משפיע רק על lead; בס/פאד ללא שינוי.
    */
   absoluteNoteBoard?: boolean;
+  /**
+   * ⭐ 2026-08-30 (הרחבת הלוח לשאר הסגנונות): שורש-הלוח (pitch class, 0=C) ומספר-השורות,
+   * לסגנונות עם absoluteNoteBoard. undefined = ברירות-המחדל שב-noteBoard.ts, כך
+   * שטראנס/האוס לא משתנים כלל. משפיע **רק** כש-absoluteNoteBoard דלוק.
+   * ⚠️ מספר-השורות מהודק לטווח שפוי ע"י resolveBoardRowCount — ראה שם למה.
+   */
+  noteBoardRootPitchClass?: number;
+  noteBoardRowCount?: number;
+  /**
+   * ⭐ 2026-08-31: מכפיל-עוצמה לכל פעימה בבר — "הלבוש" של הסגנון בזמן.
+   *
+   * ⚠️ זו **לא** תבנית-קצב, וההבחנה הזו היא כל העניין: היא לא קובעת מה מנגן ומה שותק
+   * (זה נגזר מהציור בלבד), רק כמה חזק נשמע מה שכבר נבחר. כך האוס יכול להדגיש את ארבע
+   * הפעימות בלי לכפות four-on-the-floor על ציור שלא צויר כך. undefined = DEFAULT_BEAT_ACCENTS.
+   */
+  beatAccents?: readonly number[];
+  /**
+   * ⭐ 2026-08-31 (שכבה ד'): גרידי-קוונטיזציה שהסגנון מרשה. הציור בוחר מתוכם לפי צפיפות
+   * האירועים שלו. undefined = רק gridSubdivision הקבוע של הסגנון, כלומר בדיוק כמו קודם.
+   * ⚠️ **לא** משנה את רזולוציית הלוח (COLUMNS_PER_BAR) — ראה subdivisionFromEventDensity.
+   */
+  allowedSubdivisions?: readonly GridSubdivision[];
+  /** ⭐ 2026-08-31 (שכבה ב'): דריסות למדיניות-הקצב לפי תפקיד. ראה rolePolicy.ts. */
+  rolePolicies?: Partial<Record<TrackRole, Partial<RhythmPolicy>>>;
+  /**
+   * ⭐ 2026-08-31 (סבב א'): מקצב תופים ידני שהמשתמש בחר. undefined = התופים נגזרים מהציור
+   * בלבד, בדיוק כמו קודם. ראה beatPattern.ts להסבר על ההיברידיות.
+   */
+  beatPattern?: BeatPattern;
 }
 
 function midiToFrequencyHz(midiPitch: number): number {
@@ -319,9 +365,13 @@ function getHarmonicProgressionDegrees(
 function buildAbsoluteBoardProgressionDegrees(
   intent: RawMusicalIntent,
   barCount: number,
+  rowCount?: number,
 ): number[] {
+  // ⚠️ אותו מספר-שורות שהמלודיה משתמשת בו — אחרת ההרמוניה (בס/פאד) נגזרת מחלוקת-Y שונה
+  // מזו של הלוח שהמשתמש רואה ומצייר עליו, והשניים יוצאים מסונכרנים.
+  const resolvedRowCount = resolveBoardRowCount(rowCount);
   return sampleEvenly(intent.pitchContour, barCount).map(
-    (y) => quantizeYToRowIndex(y, ABSOLUTE_BOARD_ROW_COUNT) % 7,
+    (y) => quantizeYToRowIndex(y, resolvedRowCount) % 7,
   );
 }
 
@@ -663,7 +713,9 @@ function buildAbsoluteBoardMelody(
 ): number[] {
   const loopSection = sections.find((section) => section.name === 'loop');
   const totalColumns = Math.max(1, (loopSection?.lengthBars ?? 1) * COLUMNS_PER_BAR);
-  const noteBoardRows = buildNoteBoardRows(root, mode);
+  // ⭐ 2026-08-30: מספר-השורות מגיע מהסגנון (undefined = ברירת המחדל). הקוונטיזציה למטה
+  // כבר נגזרת מ-noteBoardRows.length, ולכן היא מסתגלת מאליה — אין כאן קבוע נוסף לעדכן.
+  const noteBoardRows = buildNoteBoardRows(root, mode, config.noteBoardRowCount);
   const allColumnPitches = sampleEvenly(intent.pitchContour, totalColumns).map((y) =>
     at(noteBoardRows, quantizeYToRowIndex(y, noteBoardRows.length)),
   );
@@ -676,9 +728,580 @@ function buildAbsoluteBoardMelody(
   );
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * ⭐ 2026-08-31 — "הסורק מנגן את התאים שהציור עובר עליהם"
+ *
+ * הנתיב הזה מחליף את buildAbsoluteBoardMelody לסגנונות עם absoluteNoteBoard: במקום ערך-Y
+ * יחיד לעמודה (שחייב מיצוע, ולכן קרס לתו בודד בכל צורה סגורה — ראה boardRaster.ts),
+ * הציור נצרב על הלוח וכל תא שנחצה מנוגן.
+ *
+ * §4.5 ("הסגנון קובע לבוש") נשמר, אבל הגבול זז: הציור קובע **אילו** תאים מנגנים ומתי;
+ * הסגנון קובע רק **איך הם יושבים בזמן** — קוונטיזציה לגריד, סווינג, והדגשת-עוצמה על
+ * הפעימות החזקות. אף תבנית-קצב לא נכפית יותר על הליד.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/** ⚠️ תקרת תווים בו-זמנית לעמודה. ראה limitVoices ב-boardRaster.ts. */
+const MAX_VOICES_PER_COLUMN = 3;
+/** לכל היותר כמה תווים באקורד-פאד של בר. */
+const MAX_PAD_VOICES_PER_BAR = 4;
+const COLUMNS_PER_BEAT = COLUMNS_PER_BAR / DEFAULT_TIME_SIGNATURE[0];
+
+/**
+ * הדגשת-עוצמה לפי פעימה בבר — "הלבוש" של הסגנון בזמן. ⚠️ זה **לא** מקצב: הוא לא קובע מה
+ * מנגן ומה שותק, רק כמה חזק נשמע מה שהציור כבר בחר. בלי זה, ציור שיוצא בדיוק על הגריד
+ * נשמע שטוח ומכני; איתו הוא "יושב" בתוך הסגנון בלי שנכפה עליו גרוב.
+ */
+const DEFAULT_BEAT_ACCENTS = [1, 0.82, 0.92, 0.86];
+
+/** רצף עמודות סמוכות שבהן אותה שורה נחצתה — קו אופקי הופך לתו מוחזק, לא ל-32 חזרות. */
+interface RasterRun {
+  row: number;
+  startColumn: number;
+  endColumn: number;
+}
+
+/**
+ * ⚠️ המיזוג הזה הוא מה שהופך את הרסטר למוזיקה ולא למקלע: קו ישר אופקי חוצה את אותה שורה
+ * בכל עמודה, ובלי מיזוג הוא היה מייצר תו-16 חוזר לכל אורך היצירה. עם מיזוג — תו אחד ארוך,
+ * בדיוק כמו קריאה של piano-roll. ממילא גם מוריד דרמטית את מספר התווים לרינדור.
+ */
+function extractRasterRuns(raster: BoardRaster): RasterRun[] {
+  const openRuns = new Map<number, number>();
+  const runs: RasterRun[] = [];
+
+  raster.forEach((rows, column) => {
+    const present = new Set(rows);
+    for (const [row, startColumn] of [...openRuns]) {
+      if (!present.has(row)) {
+        runs.push({ row, startColumn, endColumn: column - 1 });
+        openRuns.delete(row);
+      }
+    }
+    for (const row of rows) {
+      if (!openRuns.has(row)) {
+        openRuns.set(row, column);
+      }
+    }
+  });
+
+  const lastColumn = raster.length - 1;
+  for (const [row, startColumn] of openRuns) {
+    runs.push({ row, startColumn, endColumn: lastColumn });
+  }
+  return runs.sort((a, b) => a.startColumn - b.startColumn || a.row - b.row);
+}
+
+function beatAccentFor(config: CompositionConfig, column: number): number {
+  const accents = config.beatAccents ?? DEFAULT_BEAT_ACCENTS;
+  if (accents.length === 0) {
+    return 1;
+  }
+  const beatInBar = Math.floor((column % COLUMNS_PER_BAR) / COLUMNS_PER_BEAT);
+  return at(accents, beatInBar % accents.length);
+}
+
+/**
+ * עוצמה יחסית לפי הסקשן שהבר נמצא בו — intro נכנס רך, build עולה, outro דועך. הציור נקרא
+ * פעם אחת על פני כל היצירה, ולכן הדינמיקה של המבנה מגיעה מכאן ולא מחזרה על המוטיב.
+ */
+function sectionVelocityScale(sections: readonly Section[], barIndex: number): number {
+  const section = sections.find(
+    (candidate) =>
+      barIndex >= candidate.startBar && barIndex < candidate.startBar + candidate.lengthBars,
+  );
+  if (!section || section.name === 'loop') {
+    return 1;
+  }
+  const progress =
+    section.lengthBars <= 1 ? 1 : (barIndex - section.startBar) / (section.lengthBars - 1);
+  if (section.name === 'build') {
+    return BUILD_ENTRY_VELOCITY_SCALE + (1 - BUILD_ENTRY_VELOCITY_SCALE) * progress;
+  }
+  return section.name === 'intro' ? 0.62 + 0.28 * progress : 0.9 - 0.3 * progress;
+}
+
+/**
+ * ⚠️ נדידת-גובה שמעליה נפתח תו חדש (שכבה א', onsetEvents.ts). 2 שורות = בערך צליל שלם
+ * בסולם: מתחת לזה השינוי קטן מכדי להצדיק מכה חדשה, ומעליו החזקת התו הישן כבר משקרת
+ * לגבי מה שצויר.
+ */
+const ONSET_DRIFT_ROWS = 2;
+
+/** צורב את הציור על פני **כל** אורך היצירה — הציור נשמע פעם אחת, משמאל לימין. */
+function buildBoardRasterForScore(
+  intent: RawMusicalIntent,
+  config: CompositionConfig,
+  totalDurationBars: number,
+): BoardRaster | null {
+  if (!intent.shapePaths || intent.shapePaths.length === 0) {
+    return null;
+  }
+  return rasterizeShapeToBoard(intent.shapePaths, {
+    rowCount: resolveBoardRowCount(config.noteBoardRowCount),
+    columnCount: Math.max(1, totalDurationBars * COLUMNS_PER_BAR),
+    maxVoicesPerColumn: MAX_VOICES_PER_COLUMN,
+  });
+}
+
+/**
+ * ⭐ שכבה ג' — טמפו מהציור. `intent.rhythmicDensityHint` (vertexCount/64) נמדד ותפס רק
+ * 0.08–0.20 מהטווח שלו, ולכן הטמפו נחת על אותו ערך כמעט תמיד (2 ערכים שונים ב-120 ציורים).
+ * צפיפות-האירועים לבר היא אות שבאמת משתנה, ולכן היא מחליפה אותו כאן.
+ * ⚠️ ה-hint הישן **נשאר במקומו** — הוא עדיין מזין את בחירת-התבניות בנתיב הישן (רגאיי).
+ */
+const EVENTS_PER_BAR_AT_MIN_TEMPO = 2;
+const EVENTS_PER_BAR_AT_MAX_TEMPO = 14;
+
+function tempoFromEventDensity(
+  eventsPerBar: number,
+  tempoRange: { min: number; max: number },
+): number {
+  const span = EVENTS_PER_BAR_AT_MAX_TEMPO - EVENTS_PER_BAR_AT_MIN_TEMPO;
+  const normalized = Math.min(1, Math.max(0, (eventsPerBar - EVENTS_PER_BAR_AT_MIN_TEMPO) / span));
+  return Math.round(lerp(tempoRange.min, tempoRange.max, normalized));
+}
+
+/**
+ * ⭐ שכבה ד' — הציור בוחר את **גריד הקוונטיזציה**, לא את רזולוציית הלוח.
+ *
+ * ⚠️ ההבחנה הזו קריטית: הלוח שהמשתמש מצייר עליו נשאר תמיד COLUMNS_PER_BAR (16). אילו
+ * הציור היה קובע את מספר העמודות, הרשת שהוא ראה בזמן הציור כבר לא הייתה תואמת למה
+ * שמתנגן — וזו גם לולאה לוגית, כי הרשת מוצגת לפני שיש ציור. כאן משתנה רק **הצמדת הזמן**.
+ */
+function subdivisionFromEventDensity(
+  eventsPerBar: number,
+  allowed: readonly GridSubdivision[],
+): GridSubdivision {
+  const preferred: GridSubdivision = eventsPerBar < 3 ? 8 : eventsPerBar > 9 ? 32 : 16;
+  return allowed.includes(preferred) ? preferred : at(allowed, allowed.length - 1);
+}
+
+/**
+ * ⭐ שכבה ב' — מסננת את מכות-הציור דרך מדיניות התפקיד ומחזירה את מה ששרד, כולל עמודת-
+ * ההתחלה **אחרי** ההצמדה לגריד של אותו תפקיד.
+ *
+ * ⚠️ אין כאן שום יצירת-מכה: כל פלט נגזר מ-run שהציור ייצר. זה מה שמאפשר לבדיקה לאמת
+ * שהזמנים של כל תפקיד הם תת-קבוצה של אירועי הציור (ראה rolePolicy.ts).
+ */
+interface SelectedRun {
+  run: RasterRun;
+  startColumn: number;
+  strength: number;
+}
+
+function selectRunsByPolicy(
+  runs: readonly RasterRun[],
+  strengthByColumn: readonly number[],
+  policy: RhythmPolicy,
+  minimumHits: number,
+): SelectedRun[] {
+  const candidateByColumn = new Map<number, number>();
+  for (const run of runs) {
+    const strength = strengthByColumn[run.startColumn] ?? 0;
+    candidateByColumn.set(
+      run.startColumn,
+      Math.max(candidateByColumn.get(run.startColumn) ?? 0, strength),
+    );
+  }
+  const candidates = [...candidateByColumn.entries()].map(([column, strength]) => ({
+    column,
+    strength,
+  }));
+
+  const selections = applyPolicyWithFloor(candidates, policy, minimumHits);
+  const bySource = new Map(selections.map((selection) => [selection.sourceColumn, selection]));
+
+  const selected: SelectedRun[] = [];
+  for (const run of runs) {
+    const selection = bySource.get(run.startColumn);
+    if (!selection) {
+      continue;
+    }
+    selected.push({ run, startColumn: selection.column, strength: selection.strength });
+  }
+  return selected;
+}
+
+/**
+ * ⚠️ **הומניזציה אחת לכל עמודה, לא לכל תו.** כמה תווים שנפתחים באותה עמודה הם אקורד —
+ * מחווה אחת של היד — וריצוד עצמאי לכל אחד מהם היה מפזר אותם על פני מילישניות בודדות.
+ * זה גם נשמע רופף וגם מסוכן: קול מונופוני שמקבל שני תווים במרחק 1–4ms מתנגש אחרי הצמדת
+ * בלוק-העיבוד (ראה MONOPHONIC_MIN_SEPARATION_SECONDS ב-SynthProvider.ts). עם מטמון-לעמודה
+ * אקורד נוחת בזמן **זהה** בדיוק — מקרה שההגנה שם מטפלת בו נקי.
+ */
+type ColumnTimingCache = Map<number, number>;
+
+function runToNote(
+  run: RasterRun,
+  startColumn: number,
+  pitch: number,
+  baseVelocity: number,
+  sustainRatio: number,
+  sections: readonly Section[],
+  config: CompositionConfig,
+  random: () => number,
+  articulation: NonNullable<Note['articulation']>,
+  timingCache: ColumnTimingCache,
+): Note {
+  const columnTicks = TICKS_PER_BAR / COLUMNS_PER_BAR;
+  const rawStartTick = startColumn * columnTicks;
+  // ⚠️ המפתח הוא הטיק **אחרי** קוונטיזציה וסווינג, לא העמודה הגולמית: כשהגריד גס מהלוח
+  // (למשל קוונטיזציה לשמיניות מול 16 עמודות בבר) שתי עמודות שונות נופלות על אותו טיק,
+  // ואז מפתוח-לפי-עמודה היה נותן להן ריצוד שונה ומפזר אותן במילישניות בודדות — בדיוק
+  // ההתנגשות שהמטמון הזה נועד למנוע. נמדד: 84 זוגות כאלה בסינמטי לפני התיקון.
+  const quantizedStartTick = quantizeToGrid(rawStartTick, config.gridSubdivision);
+  const swungStartTick = applySwing(quantizedStartTick, config.gridSubdivision, config.swingAmount);
+  const cached = timingCache.get(swungStartTick);
+  let startTick: number;
+  if (cached !== undefined) {
+    startTick = cached;
+  } else {
+    startTick = humanizeTiming(swungStartTick, config.tempoBpm, random);
+    timingCache.set(swungStartTick, startTick);
+  }
+
+  const spannedColumns = run.endColumn - run.startColumn + 1;
+  const durationTicks = Math.max(
+    ticksPerGridUnit(config.gridSubdivision),
+    quantizeToGrid(spannedColumns * columnTicks * sustainRatio, config.gridSubdivision),
+  );
+
+  const barIndex = Math.floor(startColumn / COLUMNS_PER_BAR);
+  const scaled =
+    baseVelocity * beatAccentFor(config, startColumn) * sectionVelocityScale(sections, barIndex);
+  const velocity = humanizeVelocity(Math.min(1, Math.max(0.05, scaled)), random);
+
+  return { startTick, durationTicks, pitch, velocity, articulation };
+}
+
+/** ליד — אירועי הציור, אחרי מדיניות-הקצב של התפקיד. */
+function buildRasterLeadNotes(
+  raster: BoardRaster,
+  strengthByColumn: readonly number[],
+  boardRows: readonly number[],
+  sections: readonly Section[],
+  intent: RawMusicalIntent,
+  config: CompositionConfig,
+  random: () => number,
+): Note[] {
+  const isStaccato = intent.articulation === 'staccato';
+  const sustainRatio = isStaccato
+    ? lerp(0.3, 0.6, intent.durationHint)
+    : lerp(0.8, 0.98, intent.durationHint);
+  const baseVelocity = 0.45 + intent.velocityHint * 0.45;
+  const policy = resolveRolePolicy('lead', config.rolePolicies);
+  const timingCache: ColumnTimingCache = new Map();
+  const barCount = Math.max(1, Math.ceil(raster.length / COLUMNS_PER_BAR));
+
+  return selectRunsByPolicy(extractRasterRuns(raster), strengthByColumn, policy, barCount).map(
+    ({ run, startColumn, strength }) =>
+      runToNote(
+        run,
+        startColumn,
+        wrapPitchIntoRealisticRange(at(boardRows, run.row), LEAD_REALISTIC_RANGE),
+        baseVelocity * (0.75 + strength * 0.35),
+        sustainRatio,
+        sections,
+        config,
+        random,
+        intent.articulation,
+        timingCache,
+      ),
+  );
+}
+
+/**
+ * בס — השורה **הנמוכה ביותר** שנחצתה בכל עמודה, ממוזגת לרצפים. ⚠️ לא "תו בכל פעימה":
+ * גם הבס נגזר מהציור בלבד, ולכן קטע שהמשתמש לא צייר בו נשאר שקט גם בבס.
+ */
+function buildRasterBassNotes(
+  raster: BoardRaster,
+  strengthByColumn: readonly number[],
+  progressionDegrees: readonly number[],
+  root: number,
+  mode: Mode,
+  sections: readonly Section[],
+  intent: RawMusicalIntent,
+  config: CompositionConfig,
+  random: () => number,
+): Note[] {
+  const lowestPerColumn: BoardRaster = raster.map((rows) => (rows.length > 0 ? [at(rows, 0)] : []));
+  const policy = resolveRolePolicy('bass', config.rolePolicies);
+  const timingCache: ColumnTimingCache = new Map();
+  const barCount = Math.max(1, Math.ceil(raster.length / COLUMNS_PER_BAR));
+
+  return selectRunsByPolicy(
+    extractRasterRuns(lowestPerColumn),
+    strengthByColumn,
+    policy,
+    barCount,
+  ).map(({ run, startColumn }) =>
+    runToNote(
+      run,
+      startColumn,
+      // ⚠️ **הגובה מהאקורד, הקצב מהציור** (סבב ב'). קודם הבס ניגן את השורה הנמוכה שנחצתה —
+      // תו-סולם שרירותי שלא מגדיר שום הרמוניה. הבס הוא מה שקובע לאוזן *מהו* האקורד, ולכן
+      // הוא חייב לנגן את השורש שלו; בלי זה הפאד יכול לנגן אקורד תקין והאוזן עדיין לא תשמע
+      // פונקציה הרמונית. הקצב, לעומת זאת, נשאר נגזר-ציור לגמרי דרך מדיניות-הקצב למעלה —
+      // כך שהציור עדיין מוטבע בבס.
+      wrapPitchIntoRealisticRange(
+        scaleDegreeToMidiPitch(
+          root,
+          mode,
+          degreeAtBar(progressionDegrees, Math.floor(startColumn / COLUMNS_PER_BAR)),
+        ),
+        ROLE_PITCH_RANGES.bass ?? LEAD_REALISTIC_RANGE,
+      ),
+      0.62 + intent.velocityHint * 0.2,
+      0.92,
+      sections,
+      config,
+      random,
+      'legato',
+      timingCache,
+    ),
+  );
+}
+
+/**
+ * פאד — **אקורד אמיתי** לכל בר, על הדרגה שהציור נתן לאותו בר.
+ *
+ * ⚠️ **תיקון 2026-08-31 (סבב ב').** קודם הפאד ניגן פשוט את השורות שהציור חצה בבר, מדולל
+ * ל-4 קולות. נמדד בסינמטי: `C E F A` — כלומר F מול E, חצי טון. זה **צביר, לא אקורד**: אין
+ * בו פונקציה הרמונית, אין מתח ואין פתרון, ולעיתים הוא פשוט צורם. גרוע מזה — `buildChord`
+ * ו-`chooseSmoothVoicing` כבר היו קיימים בקוד, בדוקים, ובשימוש בנתיב הישן; נתיב הרסטר פשוט
+ * **עקף** אותם.
+ *
+ * ⚠️ העיקרון נשמר: **הדרגה מגיעה מהציור** (buildAbsoluteBoardProgressionDegrees), והאקורד
+ * הוא הלבוש התיאורטי שלה — אותה משפחה כמו קוונטיזציה והדגשות-פעימה. בר שהציור לא נגע בו
+ * נשאר שקט, בדיוק כמו קודם.
+ *
+ * ⚠️ `chooseSmoothVoicing` מקבל את האקורד הקודם ולכן מחבר ביניהם בתנועה מינימלית — זה מה
+ * שהופך רצף אקורדים ל"התקדמות" ולא לסדרת קפיצות.
+ */
+function buildRasterPadNotes(
+  raster: BoardRaster,
+  boardRows: readonly number[],
+  progressionDegrees: readonly number[],
+  root: number,
+  mode: Mode,
+  sections: readonly Section[],
+  extendedChords: boolean,
+): Note[] {
+  const notes: Note[] = [];
+  const padRange = ROLE_PITCH_RANGES.pad ?? LEAD_REALISTIC_RANGE;
+  const barCount = Math.ceil(raster.length / COLUMNS_PER_BAR);
+  let previousChord: number[] | null = null;
+
+  for (let barIndex = 0; barIndex < barCount; barIndex += 1) {
+    // "האם הציור נגע בבר הזה" נשאר התנאי לשקט — הפאד לא ממציא הרמוניה בקטע ריק.
+    let lowestRow: number | null = null;
+    for (let offset = 0; offset < COLUMNS_PER_BAR; offset += 1) {
+      const first = (raster[barIndex * COLUMNS_PER_BAR + offset] ?? [])[0];
+      if (first !== undefined && (lowestRow === null || first < lowestRow)) {
+        lowestRow = first;
+      }
+    }
+    if (lowestRow === null) {
+      continue;
+    }
+
+    const chord = buildChord(root, mode, degreeAtBar(progressionDegrees, barIndex), extendedChords);
+    const voiced = chooseSmoothVoicing(previousChord, chord);
+    previousChord = voiced;
+
+    // ⚠️ **הרגיסטר בא מהציור.** הדרגה מקופלת ב-`% 7`, ולכן שני ציורים במרחק אוקטבה מקבלים
+    // בצדק את אותה פונקציה הרמונית — אבל בלי העיגון הזה הם היו גם נשמעים זהים לחלוטין,
+    // כי גובה האקורד נקבע רק ע"י voice leading. כאן האקורד מוזז באוקטבות שלמות (השרשור
+    // ההרמוני נשמר; רק הגובה זז) כך שהוא יושב סביב הגובה שהמשתמש באמת צייר בבר הזה.
+    const anchorPitch = at(boardRows, Math.min(lowestRow, boardRows.length - 1));
+    const lowestVoiced = Math.min(...voiced);
+    const octaveShift = Math.round((anchorPitch - lowestVoiced) / 12) * 12;
+
+    const velocity = 0.5 * sectionVelocityScale(sections, barIndex);
+    for (const pitch of voiced.slice(0, MAX_PAD_VOICES_PER_BAR)) {
+      notes.push({
+        startTick: barIndex * TICKS_PER_BAR,
+        durationTicks: TICKS_PER_BAR,
+        pitch: wrapPitchIntoRealisticRange(pitch + octaveShift, padRange),
+        velocity: Math.min(1, Math.max(0.05, velocity)),
+        articulation: 'legato',
+      });
+    }
+  }
+  return notes;
+}
+
+/**
+ * תופים — אותם תאים בדיוק, אבל נקראים כ**כלי ערכה** לפי גובה (drumKit.ts) במקום כגובה-צליל.
+ *
+ * ⚠️ פגיעה רק ב**תחילת** רצף, לא בכל עמודה שלו: קו אופקי מוחזק הוא צליל אחד ארוך, ולכן
+ * גם מכה אחת — לא גלגול רצוף. כך זיגזג (הרבה רצפים קצרים) מייצר גרוב צפוף וקו חלק מייצר
+ * מכות בודדות, וזה בדיוק ההבדל שהמשתמש מצייר.
+ *
+ * ⚠️ ה-pitch נשאר נגזר-סולם מהשורה — ראה ההסבר ב-drumKit.ts למה לא GM.
+ */
+/**
+ * מקצב ידני → תווים. ⚠️ לא עובר דרך מדיניות-הקצב ולא דרך אירועי-הציור: זו כל הנקודה —
+ * המשתמש ביקש גרוב **קבוע** שנותן לסגנון את הזהות שלו, ולא עוד משהו שהציור מזיז.
+ * ההומניזציה והסווינג של הסגנון כן חלים, אחרת המקצב נשמע כמו מכונה ולא כמו נגן.
+ */
+function buildPatternDrumNotes(
+  pattern: BeatPattern,
+  root: number,
+  mode: Mode,
+  sections: readonly Section[],
+  totalDurationBars: number,
+  config: CompositionConfig,
+  random: () => number,
+): Note[] {
+  const notes: Note[] = [];
+  const stepTicks = TICKS_PER_BAR / pattern.stepsPerBar;
+  const hitDurationTicks = ticksPerGridUnit(config.gridSubdivision);
+  const barHits = beatHitsForBar(pattern);
+  // ⚠️ **אותו מטמון-תזמון כמו ב-runToNote, ומאותה סיבה בדיוק.** כשהגריד גס מהתבנית (מקצב
+  // בשש-עשרות בהאוס, שמרשה קוונטיזציה לשמיניות) שתי פגיעות סמוכות נופלות על אותו טיק —
+  // ובלי מטמון כל אחת מקבלת ריצוד-הומניזציה משלה ונוחתת מילישניות ספורות מהשנייה. זה מרחק
+  // שעובר את הגנת-הדילוג אבל נצמד לאותו בלוק-עיבוד, ואז `Tone.Source.start` זורק ומפיל את
+  // כל הרינדור. נמדד: 930 זוגות כאלה במקצב `jackin` לבדו.
+  const timingCache: ColumnTimingCache = new Map();
+
+  for (let barIndex = 0; barIndex < totalDurationBars; barIndex += 1) {
+    const barStartTick = barIndex * TICKS_PER_BAR;
+    const sectionScale = sectionVelocityScale(sections, barIndex);
+    for (const hit of barHits) {
+      const rawStartTick = barStartTick + hit.step * stepTicks;
+      const swungStartTick = applySwing(
+        quantizeToGrid(rawStartTick, config.gridSubdivision),
+        config.gridSubdivision,
+        config.swingAmount,
+      );
+      const cached = timingCache.get(swungStartTick);
+      const startTick = cached ?? humanizeTiming(swungStartTick, config.tempoBpm, random);
+      timingCache.set(swungStartTick, startTick);
+      const pitch = wrapPitchIntoRealisticRange(
+        scaleDegreeToMidiPitch(root, mode, DRUM_PIECE_DEGREE_OFFSET[hit.piece]),
+        ROLE_PITCH_RANGES.drums ?? LEAD_REALISTIC_RANGE,
+      );
+      const scaled = hit.velocity * DRUM_PIECE_GAIN[hit.piece] * sectionScale;
+      notes.push({
+        startTick,
+        durationTicks: hitDurationTicks,
+        pitch,
+        velocity: humanizeVelocity(Math.min(1, Math.max(0.05, scaled)), random),
+        articulation: 'staccato',
+        drumPiece: hit.piece,
+      });
+    }
+  }
+  return notes;
+}
+
+function buildRasterDrumNotes(
+  raster: BoardRaster,
+  strengthByColumn: readonly number[],
+  boardRows: readonly number[],
+  sections: readonly Section[],
+  intent: RawMusicalIntent,
+  config: CompositionConfig,
+  random: () => number,
+): Note[] {
+  const rowCount = boardRows.length;
+  const hitDurationTicks = ticksPerGridUnit(config.gridSubdivision);
+  const baseVelocity = 0.6 + intent.velocityHint * 0.3;
+  // ⚠️ החלקים שהמקצב הידני מחזיק **לא** נגזרים מהציור — אחרת היו נשמעות שתי גרסאות של
+  // אותו קיק זו על גבי זו. כל השאר (קראש/טום בדרך כלל) ממשיכים לבוא מהציור, וזה מה שהופך
+  // את המקצב להיברידי לפי מבנה ולא לפי מתג. ראה beatPattern.ts.
+  const ownedByPattern = config.beatPattern
+    ? piecesOwnedByPattern(config.beatPattern)
+    : new Set<DrumPiece>();
+
+  const runsByPiece = new Map<DrumPiece, RasterRun[]>();
+  for (const run of extractRasterRuns(raster)) {
+    const piece = drumPieceForRow(run.row, rowCount);
+    if (ownedByPattern.has(piece)) {
+      continue;
+    }
+    const existing = runsByPiece.get(piece);
+    if (existing) {
+      existing.push(run);
+    } else {
+      runsByPiece.set(piece, [run]);
+    }
+  }
+
+  const barCount = Math.max(1, Math.ceil(raster.length / COLUMNS_PER_BAR));
+  const timingCache: ColumnTimingCache = new Map();
+  const hits: Note[] = [];
+  for (const [piece, pieceRuns] of runsByPiece) {
+    const policy = at([DRUM_PIECE_POLICY[piece]], 0);
+    // רצפה נמוכה יותר לתופים: מכה אחת לכל שני ברים מספיקה כדי שחלק לא ייעלם לגמרי.
+    const selected = selectRunsByPolicy(
+      pieceRuns,
+      strengthByColumn,
+      policy,
+      Math.max(1, Math.floor(barCount / 2)),
+    );
+    for (const { run, startColumn, strength } of selected) {
+      const note = runToNote(
+        run,
+        startColumn,
+        wrapPitchIntoRealisticRange(
+          at(boardRows, run.row),
+          ROLE_PITCH_RANGES.drums ?? LEAD_REALISTIC_RANGE,
+        ),
+        baseVelocity * DRUM_PIECE_GAIN[piece] * (0.7 + strength * 0.4),
+        1,
+        sections,
+        config,
+        random,
+        'staccato',
+        timingCache,
+      );
+      // מכה היא אירוע נקודתי — אורך הרצף קובע *מתי* הבא מגיע, לא כמה זמן המכה נמשכת.
+      hits.push({ ...note, durationTicks: hitDurationTicks, drumPiece: piece });
+    }
+  }
+
+  return collapseSimultaneousDrumHits(hits);
+}
+
+/**
+ * ⚠️ **תיקון קריטי (2026-08-31, נתפס בבדיקה חיה).** אזור-ערכה משתרע על כמה שורות, ולכן שתי
+ * שורות שונות שנחצו באותה עמודה יכולות למפות לאותו כלי בדיוק — ואחרי humanizeTiming (שמעגל
+ * לטיק שלם) הן נוחתות באותו startTick. זו לא רק כפילות מיותרת: `Tone.Source.start` דורש
+ * זמן **גדול ממש** מהקודם כשהמקור כבר מנגן, ול-DrumKitProvider יש `Player` אחד לכל חלק —
+ * כלומר מכה כפולה **מפילה את כל הרינדור** עם "Start time must be strictly greater than
+ * previous start time". נמדד ב-11 מתוך 240 צורות אקראיות.
+ *
+ * הפתרון מאחד אותן למכה אחת בעוצמה החזקה מביניהן. זה גם נכון מוזיקלית: אי אפשר להכות
+ * באותו תוף פעמיים באותו רגע, ומקל שמכה חזק יותר הוא בדיוק מה שהאוזן שומעת.
+ */
+function collapseSimultaneousDrumHits(hits: readonly Note[]): Note[] {
+  const lastIndexByPiece = new Map<string, number>();
+  const collapsed: Note[] = [];
+
+  for (const hit of [...hits].sort((a, b) => a.startTick - b.startTick)) {
+    const piece = hit.drumPiece ?? 'unknown';
+    const previousIndex = lastIndexByPiece.get(piece);
+    const previous = previousIndex === undefined ? undefined : collapsed[previousIndex];
+    // "לא גדול ממש" — בדיוק התנאי ש-Tone אוכף, ולא סף-קרבה שרירותי משלנו.
+    if (previous && hit.startTick <= previous.startTick) {
+      previous.velocity = Math.max(previous.velocity, hit.velocity);
+      continue;
+    }
+    lastIndexByPiece.set(piece, collapsed.length);
+    collapsed.push({ ...hit });
+  }
+  return collapsed;
+}
+
 /**
  * ⭐ 2026-08-24: בונה את טראק ה-lead המלא — loop (buildLoopLeadNotes, ללא שינוי מהתנהגות
  * הישנה) + intro/build/outro (buildRampedLeadNotes, Area 4) — כל הסקשנים ביחד.
+ *
+ * ⚠️ 2026-08-31: נשאר בשימוש לסגנונות **ללא** absoluteNoteBoard (רגאיי) ולכל קלט בלי
+ * shapePaths. סגנון עם לוח אבסולוטי עובר דרך buildRasterLeadNotes למעלה.
  */
 function buildLeadTrack(
   intent: RawMusicalIntent,
@@ -1174,26 +1797,15 @@ export function composeMusicalScore(
   // ⭐ 2026-08-27 (לוח-תווים אבסולוטי): עם absoluteNoteBoard, שורש+מוד קבועים לסגנון (לא
   // אקראיים-לפי-seed/לא נבחרים לפי חדות-הצורה) — כדי שאותה שורה בלוח תמיד תייצג אותו תו,
   // בכל ציור. ראה CompositionConfig.absoluteNoteBoard.
+  // ⭐ 2026-08-30: השורש נלקח מהסגנון כשהוגדר (noteBoardRootPitchClass), אחרת ברירת-המחדל
+  // ההיסטורית — כך שטראנס/האוס ממשיכים לקבל בדיוק את אותו לוח.
   const rootPitchClass = rawConfig.absoluteNoteBoard
-    ? ABSOLUTE_BOARD_ROOT_PITCH_CLASS
+    ? (rawConfig.noteBoardRootPitchClass ?? ABSOLUTE_BOARD_ROOT_PITCH_CLASS)
     : Math.floor(random() * 12);
 
-  const tempoBpm = rawConfig.tempoRange
-    ? Math.round(
-        lerp(rawConfig.tempoRange.min, rawConfig.tempoRange.max, intent.rhythmicDensityHint),
-      )
-    : rawConfig.tempoBpm;
   const mode = rawConfig.absoluteNoteBoard ? rawConfig.mode : selectMode(rawConfig, intent);
   const chordProgression = selectChordProgression(rawConfig, intent, random);
   const rhythmPatterns = selectRhythmPatterns(rawConfig, intent);
-
-  const config: CompositionConfig = {
-    ...rawConfig,
-    tempoBpm,
-    mode,
-    chordProgression,
-    ...(rhythmPatterns && { rhythmPatterns }),
-  };
 
   const root = ROOT_OCTAVE_BASE_MIDI + rootPitchClass;
 
@@ -1212,11 +1824,49 @@ export function composeMusicalScore(
   // יש גם intro/build/outro, אבל אורך ה-loop עצמו תמיד נגזר מה-motif+size בלבד.
   const loopBars = hasSecondPhrase ? baseBars * 2 : baseBars;
 
-  const sections = buildSectionPlan(config.sectionOrder ?? DEFAULT_SECTION_ORDER, loopBars);
+  const sections = buildSectionPlan(rawConfig.sectionOrder ?? DEFAULT_SECTION_ORDER, loopBars);
   const loopSection = sections.find((section) => section.name === 'loop');
   const loopStartBar = loopSection?.startBar ?? 0;
   const loopStartTicks = loopStartBar * TICKS_PER_BAR;
   const totalDurationBars = sections.reduce((sum, section) => sum + section.lengthBars, 0);
+
+  // ⭐ 2026-08-31: כשיש לוח אבסולוטי **וגם** הצורה עצמה זמינה, ארבעת התפקידים נקראים
+  // מאותו רסטר — ארבעה מבטים על אותו ציור. אחרת (רגאיי, או intent ישן בלי shapePaths)
+  // הנתיב הישן ממשיך כרגיל, בלי שינוי התנהגות.
+  const rawBoardRaster =
+    rawConfig.absoluteNoteBoard === true
+      ? buildBoardRasterForScore(intent, rawConfig, totalDurationBars)
+      : null;
+  // ⭐ שכבה א': הגובה מוחזק בין אירועים — זה מה שהופך את הזרם הרציף לקצב.
+  const eventResult = rawBoardRaster
+    ? buildEventRaster(rawBoardRaster, { driftRows: ONSET_DRIFT_ROWS })
+    : null;
+  const eventsPerBar = eventResult ? eventResult.eventCount / Math.max(1, totalDurationBars) : 0;
+
+  // ⭐ שכבות ג'+ד': טמפו וגריד-הקוונטיזציה נגזרים מצפיפות-האירועים בפועל. בלי רסטר
+  // (רגאיי) נשמרת בדיוק הנוסחה הישנה, כולל ההינט הישן — אין שינוי התנהגות שם.
+  const tempoBpm = !rawConfig.tempoRange
+    ? rawConfig.tempoBpm
+    : eventResult
+      ? tempoFromEventDensity(eventsPerBar, rawConfig.tempoRange)
+      : Math.round(
+          lerp(rawConfig.tempoRange.min, rawConfig.tempoRange.max, intent.rhythmicDensityHint),
+        );
+  const gridSubdivision = eventResult
+    ? subdivisionFromEventDensity(
+        eventsPerBar,
+        rawConfig.allowedSubdivisions ?? [rawConfig.gridSubdivision],
+      )
+    : rawConfig.gridSubdivision;
+
+  const config: CompositionConfig = {
+    ...rawConfig,
+    tempoBpm,
+    gridSubdivision,
+    mode,
+    chordProgression,
+    ...(rhythmPatterns && { rhythmPatterns }),
+  };
 
   // ⭐ 2026-08-24 (Area 4, תיקון-אגב): התקדמות הרמונית אחת רציפה על פני כל היצירה (לא
   // restart מ-index 0 בכל section בנפרד) — מסלק אי-רציפות הרמונית בגבולות intro/build/
@@ -1225,23 +1875,72 @@ export function composeMusicalScore(
   // ⭐ 2026-08-27 (לוח-תווים אבסולוטי — שלב 2): עם absoluteNoteBoard, ההרמוניה (בס/פאד/
   // build) גם היא נגזרת ישירות ממיקום הצורה על הלוח לכל בר — לא ממחזור chordProgression
   // קבוע. ראה buildAbsoluteBoardProgressionDegrees למעלה.
-  const fullProgressionDegrees = rawConfig.absoluteNoteBoard
-    ? buildAbsoluteBoardProgressionDegrees(intent, totalDurationBars)
-    : getHarmonicProgressionDegrees(totalDurationBars, config.chordProgression);
+  // ⚠️ 2026-08-31 (סבב ב'): כשיש רסטר, הדרגות נגזרות **ממנו** ולא מ-intent.pitchContour.
+  // pitchContour הוא המתאר הממוצע, והוא קורס לקו ישר בכל צורה סגורה — הבאג שתוקן למנגינה
+  // נשאר חי בהרמוניה, ונתן לעיגול אקורד אחד לכל אורך היצירה. ראה progressionDegreesFromRaster.
+  const drawnProgressionDegrees = rawBoardRaster
+    ? progressionDegreesFromRaster(rawBoardRaster, COLUMNS_PER_BAR, totalDurationBars)
+    : rawConfig.absoluteNoteBoard
+      ? buildAbsoluteBoardProgressionDegrees(intent, totalDurationBars, rawConfig.noteBoardRowCount)
+      : getHarmonicProgressionDegrees(totalDurationBars, config.chordProgression);
+  // ⭐ סבב ב': קדנצה V→I בסוף כל סקשן — ההרמוניה מקבלת **כיוון**, לא רק גיוון. הדרגות
+  // עצמן עדיין מגיעות מהציור; רק שני הברים האחרונים של סקשן נצמדים כדי שהמשפט ייסגר.
+  // ⚠️ רק בנתיב הרסטר. הנתיב הישן (רגאיי) מקבל את הדרגות בדיוק כמו קודם, בלי שינוי התנהגות.
+  const fullProgressionDegrees = rawBoardRaster
+    ? applyCadences(drawnProgressionDegrees, sections)
+    : drawnProgressionDegrees;
   const progressionDegrees = fullProgressionDegrees.slice(loopStartBar, loopStartBar + loopBars);
+
+  // ⚠️ הפאד ממשיך לקרוא את הרסטר ה**גולמי** ולא את רסטר-האירועים: הוא מחזיק אקורד לכל בר,
+  // ולכן צריך את מלוא התוכן ההרמוני של הבר — לא רק את הגבהים שנפתחו בהם מכות.
+  const boardRaster = eventResult ? eventResult.raster : null;
+  const strengthByColumn = eventResult ? eventResult.strengthByColumn : [];
+  const boardRows = boardRaster ? buildNoteBoardRows(root, mode, config.noteBoardRowCount) : [];
 
   // ⭐ 2026-08-24: lead/bass מקבלים את כל הסקשנים (לא רק loop+shift אחר-כך) — מייצרים תוכן
   // בעצמם לכל אורך היצירה, כולל intro/build/outro (Area 4).
-  const leadTrack = buildLeadTrack(intent, root, mode, sections, config, random);
-  const bassTrack = buildBassTrack(
-    root,
-    mode,
-    sections,
-    fullProgressionDegrees,
-    config.rhythmPatterns?.bass,
-    config,
-    random,
-  );
+  const leadTrack = boardRaster
+    ? {
+        role: 'lead' as const,
+        instrumentId: 'default-lead',
+        notes: buildRasterLeadNotes(
+          boardRaster,
+          strengthByColumn,
+          boardRows,
+          sections,
+          intent,
+          config,
+          random,
+        ),
+        mixSettings: { volume: 0.52, pan: 0, reverbSend: 0.2, delaySend: 0.15 },
+      }
+    : buildLeadTrack(intent, root, mode, sections, config, random);
+  const bassTrack = boardRaster
+    ? {
+        role: 'bass' as const,
+        instrumentId: 'default-bass',
+        notes: buildRasterBassNotes(
+          boardRaster,
+          strengthByColumn,
+          fullProgressionDegrees,
+          root,
+          mode,
+          sections,
+          intent,
+          config,
+          random,
+        ),
+        mixSettings: { volume: 0.45, pan: 0, reverbSend: 0.1, delaySend: 0.05 },
+      }
+    : buildBassTrack(
+        root,
+        mode,
+        sections,
+        fullProgressionDegrees,
+        config.rhythmPatterns?.bass,
+        config,
+        random,
+      );
 
   const tracks: Track[] = [leadTrack, bassTrack];
 
@@ -1251,8 +1950,25 @@ export function composeMusicalScore(
   const shouldBuildPad = !config.rhythmPatterns || config.rhythmPatterns.pad !== undefined;
   let swellTrack: Track | null = null;
   if (shouldBuildPad) {
-    swellTrack = buildPadTrack(root, mode, progressionDegrees, config.extendedChords);
-    swellTrack.notes = shiftNotes(swellTrack.notes, loopStartTicks);
+    if (boardRaster) {
+      swellTrack = {
+        role: 'pad',
+        instrumentId: 'default-pad',
+        notes: buildRasterPadNotes(
+          rawBoardRaster ?? boardRaster,
+          boardRows,
+          fullProgressionDegrees,
+          root,
+          mode,
+          sections,
+          config.extendedChords,
+        ),
+        mixSettings: { volume: 0.26, pan: 0, reverbSend: 0.3, delaySend: 0.1 },
+      };
+    } else {
+      swellTrack = buildPadTrack(root, mode, progressionDegrees, config.extendedChords);
+      swellTrack.notes = shiftNotes(swellTrack.notes, loopStartTicks);
+    }
     tracks.push(swellTrack);
   }
 
@@ -1267,16 +1983,45 @@ export function composeMusicalScore(
 
   // ⭐ 2026-08-24 (Area 4, בדיקה שלישית): תופים על כל section חוץ מ-build (שמקבל את המילוי
   // המיוחד שלו למטה, buildBuildSectionNotes) — לא רק ה-loop. ראה buildDrumsSectionNotes.
-  let drumsTrack: Track | null = null;
-  if (drumsPattern) {
-    // ⭐ 2026-08-27 (לוח-תווים אבסולוטי — תופים): עם absoluteNoteBoard, ה-pitch לכל בר נגזר
-    // מאותה fullProgressionDegrees שכבר קובעת בס/פאד. אחרת (flag כבוי) — [0] קבוע, שדרך
-    // degree+DRUMS_DEGREE_OFFSET ב-buildDrumsSectionNotes יוצא בדיוק כמו הקבוע הישן.
-    const drumsNotes = sections
+  // ⭐ 2026-08-31: עם רסטר, גם התופים נגזרים מהציור — כל תא שנחצה הופך למכה, והכלי בערכה
+  // נקבע לפי גובה השורה (drumKit.ts). אין יותר תבנית-קצב קבועה שמכתיבה מה מנגן.
+  // ⭐ 2026-08-27 (לוח-תווים אבסולוטי — תופים): הנתיב הישן נשאר לרגאיי ולכל קלט בלי רסטר.
+  let drumsNotes: Note[] | null = null;
+  if (boardRaster) {
+    drumsNotes = buildRasterDrumNotes(
+      boardRaster,
+      strengthByColumn,
+      boardRows,
+      sections,
+      intent,
+      config,
+      random,
+    );
+    // ⭐ סבב א': המקצב הידני מתווסף לחלקים שהוא מחזיק. הציור כבר דילג עליהם למעלה
+    // (ownedByPattern), ולכן אין כאן שתי גרסאות של אותו קיק זו על גבי זו.
+    // ⚠️ collapse רץ שוב על האיחוד: הוא מה שמבטיח שאין שתי מכות של אותו חלק באותו רגע,
+    // וזו ההנחה ש-DrumKitProvider בנוי עליה (Tone.Source.start זורק אחרת ומפיל רינדור).
+    if (config.beatPattern) {
+      drumsNotes = collapseSimultaneousDrumHits([
+        ...drumsNotes,
+        ...buildPatternDrumNotes(
+          config.beatPattern,
+          root,
+          mode,
+          sections,
+          totalDurationBars,
+          config,
+          random,
+        ),
+      ]);
+    }
+  } else if (drumsPattern) {
+    const pattern = drumsPattern;
+    drumsNotes = sections
       .filter((section) => section.name !== 'build')
       .flatMap((section) =>
         buildDrumsSectionNotes(
-          drumsPattern,
+          pattern,
           drumsCornerProfile,
           root,
           mode,
@@ -1288,6 +2033,10 @@ export function composeMusicalScore(
           random,
         ),
       );
+  }
+
+  let drumsTrack: Track | null = null;
+  if (drumsNotes) {
     drumsTrack = {
       role: 'drums',
       instrumentId: 'default-drums',
@@ -1321,7 +2070,12 @@ export function composeMusicalScore(
   // ⭐ 2026-08-22: intro/build/outro אמיתיים — לא רק שם, אלא תוכן שונה בפועל (§11 item 4).
   // ⭐ 2026-08-24: lead/bass/drums כבר קיבלו תוכן משלהם לכל הסקשנים למעלה (Area 4) — כאן רק
   // pad/skank ("נשימה") + המילוי המיוחד/צפוף-יותר של תופים ב-build ספציפית (buildBuildSectionNotes).
-  for (const section of sections) {
+  //
+  // ⚠️ 2026-08-31: מדולג לגמרי בנתיב הרסטר. שם כל ארבעת התפקידים כבר נגזרים מהציור על פני
+  // **כל** הברים (הרסטר נפרס על totalDurationBars), והדינמיקה של המבנה מגיעה מ-
+  // sectionVelocityScale. בלי הדילוג הזה ה-pad וה-drums היו מקבלים שכבה שנייה כפולה
+  // ב-intro/build/outro — ובנוסף מכות-תופים בלי drumPiece, שדוגם-הערכה לא יודע לנגן.
+  for (const section of boardRaster ? [] : sections) {
     if (section.name === 'intro' && swellTrack) {
       const firstDegree = at(progressionDegrees, 0);
       swellTrack.notes.push(
@@ -1381,6 +2135,7 @@ export function composeMusicalScore(
     key: { root: rootPitchClass, mode },
     genreId: config.genreId,
     durationBars: totalDurationBars,
+    gridSubdivision: config.gridSubdivision,
     tracks,
     sections,
     metadata: {

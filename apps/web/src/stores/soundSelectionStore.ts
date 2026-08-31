@@ -40,6 +40,12 @@ type GenreSoundSelections = Partial<Record<TrackRole, string[]>>;
 interface SoundSelectionState {
   selectionsByGenre: Record<string, GenreSoundSelections>;
   toggleSound: (genreId: string, role: TrackRole, optionId: string) => void;
+  /**
+   * ⭐ 2026-08-31 (סבב א'): מחליף את כל הבחירות לסגנון בבת אחת — משמש בטעינת יצירה קיימת
+   * (רמיקס). ⚠️ החלפה ולא מיזוג: רמיקס אמור להתחיל **בדיוק** מאיפה שהמקור היה, ומיזוג עם
+   * בחירות מקומיות ישנות היה יוצר תערובת ששני הצדדים לא בחרו בה.
+   */
+  replaceSelections: (genreId: string, selections: GenreSoundSelections) => void;
 }
 
 export const useSoundSelectionStore = create<SoundSelectionState>()(
@@ -68,6 +74,11 @@ export const useSoundSelectionStore = create<SoundSelectionState>()(
             },
           };
         });
+      },
+      replaceSelections: (genreId, selections) => {
+        set((state) => ({
+          selectionsByGenre: { ...state.selectionsByGenre, [genreId]: selections },
+        }));
       },
     }),
     {

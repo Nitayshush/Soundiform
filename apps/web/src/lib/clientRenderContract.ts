@@ -19,6 +19,7 @@ import type { GenreAudioConfig, VideoQuality } from '@soundiform/audio';
 import type { ShapeData } from '@soundiform/shared';
 import { genrePacks, getDb, projects, resolveEffectivePlan, type Plan } from '@soundiform/db';
 import { toCompositionConfig, toGenreAudioConfig } from '@/lib/genreAdapter';
+import { creationSettingsSchema, type CreationSettingsInput } from '@/lib/creationSettingsSchema';
 
 /** ⚠️ חייב להישאר זהה ל-api/render/route.ts — אותה מדיניות, שני מסלולי רינדור. */
 export const PLAN_VIDEO_QUALITY: Record<Plan, VideoQuality> = {
@@ -51,7 +52,7 @@ export async function resolveClientRender(
   userId: string,
   projectId: string,
   genreId: string,
-  soundSelections: Parameters<typeof toGenreAudioConfig>[2],
+  settings: CreationSettingsInput | undefined,
 ): Promise<ResolvedClientRender | ResolveFailure> {
   const db = getDb();
 
@@ -71,12 +72,33 @@ export async function resolveClientRender(
 
   const { plan } = await resolveEffectivePlan(userId);
   const intent = geometryToMusic(project.shapeData, project.shapeHash);
-  const score = composeMusicalScore(intent, toCompositionConfig(genrePack));
+  // ⚠️ ההגדרות מהבקשה גוברות (הן מצב-העריכה הנוכחי), ואם לא נשלחו — נופלים למה שנשמר על
+  // הפרויקט. בלי הנפילה הזו, רינדור של יצירה ישנה היה מתעלם מהסולם שנבחר כשהיא נוצרה.
+  // ⚠️ ההגדרות השמורות עוברות ולידציה ולא הַמְרָה: הן נכתבו ע"י גרסה קודמת של הלקוח, והן
+  // קלט חיצוני לכל דבר (§0 כלל 3). רשומה ישנה או פגומה נופלת לברירות-המחדל של הסגנון
+  // במקום להפיל את הרינדור.
+  const storedSettings = creationSettingsSchema.safeParse(project.creationSettings ?? {});
+  const effectiveSettings: CreationSettingsInput =
+    settings ?? (storedSettings.success ? storedSettings.data : {});
+  const score = composeMusicalScore(
+    intent,
+    toCompositionConfig(genrePack, {
+      ...(effectiveSettings.beatPatternId !== undefined && {
+        beatPatternId: effectiveSettings.beatPatternId,
+      }),
+      ...(effectiveSettings.key !== undefined && { key: effectiveSettings.key }),
+    }),
+  );
 
   return {
     plan,
     score,
-    audioConfig: toGenreAudioConfig(genrePack, intent.seed, soundSelections),
+    audioConfig: toGenreAudioConfig(
+      genrePack,
+      intent.seed,
+      effectiveSettings.soundSelections,
+      effectiveSettings.beatPatternId,
+    ),
     shapeData: project.shapeData,
     shapeHash: project.shapeHash,
     keyPrefix: `renders/${score.seed}/${score.genreId}`,

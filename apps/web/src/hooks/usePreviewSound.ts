@@ -24,7 +24,8 @@
 
 import { useCallback, useRef } from 'react';
 import type { TrackRole } from '@soundiform/core';
-import type { SynthProvider as SynthProviderType, SynthPresetConfig } from '@soundiform/audio';
+import type { InstrumentProvider } from '@soundiform/audio';
+import type { SoundPreset } from '@soundiform/genres';
 
 /** רגיסטר נעים-לאוזן לפי תפקיד, לצורך תצוגה-מקדימה בלבד — לא קשור לצורה המצוירת. */
 const PREVIEW_PITCH: Record<TrackRole, number> = {
@@ -39,14 +40,33 @@ const PREVIEW_DURATION_SECONDS = 0.8;
 /** TICKS_PER_BEAT (480, ראה packages/core) — משוכפל כאן מכוון: preview לא צריך MusicalScore אמיתי. */
 const TICKS_PER_BEAT = 480;
 
+/**
+ * ⚠️ נבואת-טיפוס (ולא רק בוליאני): TypeScript מצמצם את `preset` לענף הנכון רק דרך
+ * predicate כזה, ובלעדיו הבנאי של כל provider מקבל את האיחוד המלא ולא מתקמפל.
+ */
+function isSamplerPreset(preset: SoundPreset): preset is Extract<SoundPreset, { kind: 'sampler' }> {
+  return 'kind' in preset && preset.kind === 'sampler';
+}
+
+/** ⭐ 2026-08-31: ערכת תופים — נבנית ע"י provider אחר, ולכן צריכה נבואת-טיפוס משלה. */
+function isDrumKitPreset(preset: SoundPreset): preset is Extract<SoundPreset, { kind: 'drumkit' }> {
+  return 'kind' in preset && preset.kind === 'drumkit';
+}
+
+/**
+ * ⚠️ תצוגה-מקדימה של ערכה לא יכולה לנגן "תו" — היא חייבת לבחור חלק. קיק הוא הזיהוי המיידי
+ * ביותר של ערכה; אם הוא חסר בערכה חלקית, DrumKitProvider נופל לחלק קיים.
+ */
+const PREVIEW_DRUM_PIECE = 'kick';
+
 export function usePreviewSound() {
-  const previewProviderRef = useRef<SynthProviderType | null>(null);
+  const previewProviderRef = useRef<InstrumentProvider | null>(null);
   const disposeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ⭐ ראה הערת-הקובץ — עולה בכל קריאה; משמש לזהות אם הקריאה-הזו עדיין "העדכנית ביותר"
   // אחרי כל await, לפני שהיא נוגעת ב-refs המשותפים.
   const generationRef = useRef(0);
 
-  const previewSound = useCallback(async (role: TrackRole, preset: SynthPresetConfig) => {
+  const previewSound = useCallback(async (role: TrackRole, preset: SoundPreset) => {
     const myGeneration = (generationRef.current += 1);
     // ⭐ השתקה מיידית (סינכרונית) של תצוגה-קודמת בלחיצה חדשה — לא ממתינים ל-async, כדי
     // שהתגובתיות תישאר מיידית. בטוח לעשות תמיד, בלי תלות בהגנת-הדור: מדובר במה שכבר-פעיל
@@ -59,10 +79,31 @@ export function usePreviewSound() {
     previewProviderRef.current = null;
 
     const { connect, start, getDestination, now } = await import('tone');
-    const { SynthProvider, withGlobalContextLock } = await import('@soundiform/audio');
+    const {
+      SynthProvider,
+      SamplerProvider,
+      DrumKitProvider,
+      drumKitToSampleSpec,
+      preloadSampledInstrument,
+      withGlobalContextLock,
+    } = await import('@soundiform/audio');
     await start();
     if (generationRef.current !== myGeneration) {
       return; // קריאה חדשה-יותר כבר התחילה — שום דבר לא נוצר עדיין, פשוט לוותר.
+    }
+
+    // ⚠️ הדגימות מפוענחות **לפני** הנעילה: זו פעולת-רשת שיכולה לקחת זמן, ואין שום סיבה
+    // שהיא תחסום רינדור או תצוגה-מקדימה אחרת. אחרי זה הבנייה עצמה מיידית ומהמטמון.
+    if (isSamplerPreset(preset)) {
+      await preloadSampledInstrument(preset);
+      if (generationRef.current !== myGeneration) {
+        return;
+      }
+    } else if (isDrumKitPreset(preset)) {
+      await preloadSampledInstrument(drumKitToSampleSpec(preset));
+      if (generationRef.current !== myGeneration) {
+        return;
+      }
     }
 
     // ⭐ 2026-08-28 (הסבב המבני לסאונד בנייד): נעילה מול רינדור-אופליין. createBrowserRenderer
@@ -70,7 +111,14 @@ export function usePreviewSound() {
     // תצוגה-מקדימה שנוצר *בדיוק* אז היה נתפס ל-context האופליין ופשוט לא נשמע, בלי שגיאה.
     // ראה packages/audio/src/render/globalContextLock.ts.
     const provider = await withGlobalContextLock(async () => {
-      const created = new SynthProvider(role, PREVIEW_TEMPO_BPM, preset);
+      let created: InstrumentProvider;
+      if (isSamplerPreset(preset)) {
+        created = new SamplerProvider(role, PREVIEW_TEMPO_BPM, preset);
+      } else if (isDrumKitPreset(preset)) {
+        created = new DrumKitProvider(role, preset);
+      } else {
+        created = new SynthProvider(role, PREVIEW_TEMPO_BPM, preset);
+      }
       await created.load('preview');
       return created;
     });
@@ -89,7 +137,13 @@ export function usePreviewSound() {
       PREVIEW_DURATION_SECONDS * (PREVIEW_TEMPO_BPM / 60) * TICKS_PER_BEAT,
     );
     provider.playNote(
-      { startTick: 0, durationTicks, pitch: PREVIEW_PITCH[role], velocity: 0.8 },
+      {
+        startTick: 0,
+        durationTicks,
+        pitch: PREVIEW_PITCH[role],
+        velocity: 0.8,
+        ...(isDrumKitPreset(preset) && { drumPiece: PREVIEW_DRUM_PIECE }),
+      },
       now(),
     );
 

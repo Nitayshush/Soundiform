@@ -24,6 +24,7 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { creationSettingsSchema } from '@/lib/creationSettingsSchema';
 import { shapeDataSchema } from '@soundiform/shared';
 import {
   checkSaveQuota,
@@ -45,6 +46,7 @@ const createProjectSchema = z.object({
   uploadKey: z.string().min(1).optional(),
   title: z.string().min(1).max(200).optional(),
   remixOf: z.uuid().optional(),
+  creationSettings: creationSettingsSchema.optional(),
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -79,7 +81,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { shape, shapeHash, sourceType, uploadKey, title, remixOf } = parsed.data;
+  const { shape, shapeHash, sourceType, uploadKey, title, remixOf, creationSettings } = parsed.data;
   const [project] = await db
     .insert(projects)
     .values({
@@ -89,6 +91,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       sourceType,
       ...(uploadKey !== undefined && { uploadKey }),
       ...(title !== undefined && { title }),
+      ...(creationSettings !== undefined && { creationSettings }),
     })
     .returning();
   if (!project) {

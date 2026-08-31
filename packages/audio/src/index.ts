@@ -20,6 +20,10 @@
 
 export * from './providers/InstrumentProvider';
 export * from './providers/SynthProvider';
+// ⭐ 2026-08-30: דגימות אמיתיות — ראה §4.7 (V2) ו-docs/SAMPLES.md לרישיונות.
+export * from './providers/SamplerProvider';
+export * from './providers/DrumKitProvider';
+export * from './providers/sampleLoader';
 export * from './mixing/mixChain';
 export * from './mixing/loudness';
 // ⭐ 2026-08-29: מקודדי הקבצים חסינים-סביבה (Uint8Array, בלי Buffer) — גם ה-worker וגם

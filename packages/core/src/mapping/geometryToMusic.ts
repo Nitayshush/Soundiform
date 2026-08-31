@@ -80,6 +80,25 @@ export const rawMusicalIntentSchema = z.object({
    * harmonyEngine.ts דוגם אותה לתוך תזמון-הפגיעות בפועל של טראק התופים.
    */
   cornerHint: z.array(z.number().min(0).max(1)).min(1),
+  /**
+   * ⭐ 2026-08-31 (הסורק מנגן את מה שהציור עובר עליו): הצורה עצמה, כדי ש-harmonyEngine
+   * יוכל לצרוב אותה על לוח-התווים ברזולוציה שלו (boardRaster.ts).
+   *
+   * ⚠️ למה גאומטריה גולמית ולא עוד hint מעובד: מספר העמודות של הרסטר נגזר מאורך היצירה
+   * בפועל, שנקבע רק בתוך composeMusicalScore (motifSize+sizeHint). כל עיבוד-מראש כאן היה
+   * מקבע רזולוציה שרירותית ואז נמתח/נדגם מחדש — בדיוק המקום שבו תאים נעלמים.
+   *
+   * ⚠️ אופציונלי בכוונה: intent נבנה גם בבדיקות ובקוד ישן בלי השדה הזה, ואז המנוע נופל
+   * חזרה לנתיב pitchContour. לא נשלח ברשת — geometryToMusic רץ תמיד מקומית מול shapeData.
+   */
+  shapePaths: z
+    .array(
+      z.object({
+        points: z.array(z.object({ x: z.number(), y: z.number() })),
+        closed: z.boolean(),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -203,6 +222,12 @@ export function geometryToMusic(shape: ShapeData, shapeHash: string): RawMusical
     motifSize: computeTotalMotifSize(shape, primaryPath, features, symmetry),
     sizeHint: computeSizeHint(shape),
     pitchContour: resampleByX(resamplePaths, RESAMPLE_COUNT),
+    // ⚠️ אותם resamplePaths בדיוק שמזינים את pitchContour — כולל קידום ל-closed דרך
+    // isNearlyClosed — כדי ששני הנתיבים (הישן והרסטר) יראו את אותה צורה בדיוק.
+    shapePaths: resamplePaths.map((path) => ({
+      points: path.points.map((point) => ({ x: point.x, y: point.y })),
+      closed: path.closed,
+    })),
     symmetryTransform: toSymmetryTransform(symmetry),
     rotationalOrder: symmetry.rotationalOrder,
     articulation: computeArticulation(features),

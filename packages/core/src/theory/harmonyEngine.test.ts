@@ -481,33 +481,506 @@ describe('composeMusicalScore — לוח-תווים אבסולוטי (absoluteNo
     }
   });
 
-  it('אין דגימת-motifSize/שיקוף-סימטריה: בלי rhythmPatterns.lead, מספר התווים ב-loop הוא בדיוק lengthBars×16', () => {
-    // ריבוע = symmetryTransform!=='none' — בנתיב הישן זה היה מכפיל ב-2 את motifSize;
-    // בנתיב האבסולוטי אמור להיות תלוי רק ב-lengthBars×COLUMNS_PER_BAR (16), לא ב-motifSize כלל.
-    // ⚠️ ABSOLUTE_CONFIG לא מגדיר rhythmPatterns.lead — זה בדיוק ה-fallback הבטוח (16/בר
-    // ללא סינון). ראה הבדיקה הבאה לסינון-לפי-תבנית (תיקון-החירחורים).
+  // ⚠️ 2026-08-31 — שתי הבדיקות הבאות נכתבו מחדש. הן בדקו את מנגנון-הצפיפות הישן
+  // ("תו לכל עמודה, מסונן לפי rhythmPatterns.lead"), שהוחלף ברסטר: המנגינה נגזרת עכשיו
+  // מהתאים שהציור עובר עליהם, ורצף עמודות עם אותה שורה ממוזג לתו מוחזק אחד. הספירות
+  // המדויקות שהן אכפו כבר לא נכונות **בכוונה** — אבל הכוונה שמאחוריהן נשמרה כאן: אין
+  // דגימת-motifSize, ויש תקרת-צפיפות שמגנה על הרינדור.
+  it('אין דגימת-motifSize/שיקוף-סימטריה: המנגינה נפרסת על כל היצירה ולא נגזרת מגודל המוטיב', () => {
+    // ריבוע = symmetryTransform!=='none' — בנתיב הישן זה היה מכפיל ב-2 את motifSize.
     const symmetricIntent = geometryToMusic(makeSquareShapeData(), 'seed-absolute-symmetric');
     const score = composeMusicalScore(symmetricIntent, ABSOLUTE_CONFIG);
     const lead = score.tracks.find((track) => track.role === 'lead');
-    const loopSection = score.sections.find((section) => section.name === 'loop');
-    expect(loopSection).toBeDefined();
-    expect(lead?.notes.length).toBe((loopSection?.lengthBars ?? 0) * 16);
+    const notes = lead?.notes ?? [];
+    expect(notes.length).toBeGreaterThan(0);
+
+    // התוכן נפרס על פני כל היצירה, לא על motifSize תווים שנדחסו לסקשן.
+    const totalTicks = score.durationBars * 4 * 480;
+    const lastStart = Math.max(...notes.map((note) => note.startTick));
+    expect(lastStart).toBeGreaterThan(totalTicks * 0.5);
   });
 
-  it('תיקון-חירחורים: עם rhythmPatterns.lead דליל, מספר התווים ב-loop = פגיעות-התבנית × lengthBars (לא 16×)', () => {
-    const sparseLeadConfig: CompositionConfig = {
-      ...ABSOLUTE_CONFIG,
-      rhythmPatterns: {
-        lead: { stepsPerBar: 16, hits: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] }, // 4/בר
-      },
+  it('תקרת-צפיפות: אף רגע-התחלה לא נושא יותר מ-3 תווי-ליד (שומר-הביצועים החדש)', () => {
+    // ⚠️ זו הכוונה המקורית של בדיקת "תיקון-החירחורים": להגן על הרינדור מפני התפוצצות
+    // קולות. המנגנון השתנה — במקום סינון לפי תבנית-קצב, יש תקרת-קולות לעמודה ברסטר
+    // (MAX_VOICES_PER_COLUMN). קו אנכי הוא המקרה הגרוע ביותר: הוא חוצה את *כל* השורות.
+    const verticalLine: ShapeData = {
+      version: '1.0.0',
+      paths: [
+        {
+          points: Array.from({ length: 32 }, (_, index) => ({ x: 0.5, y: index / 31 })),
+          closed: false,
+        },
+      ],
     };
-    const intent = geometryToMusic(makeSquareShapeData(), 'seed-lead-density-fix');
-    const score = composeMusicalScore(intent, sparseLeadConfig);
+    const score = composeMusicalScore(
+      geometryToMusic(verticalLine, 'seed-lead-density-ceiling'),
+      ABSOLUTE_CONFIG,
+    );
     const lead = score.tracks.find((track) => track.role === 'lead');
-    const loopSection = score.sections.find((section) => section.name === 'loop');
-    expect(loopSection).toBeDefined();
-    expect(lead?.notes.length).toBe((loopSection?.lengthBars ?? 0) * 4);
+    const byStartTick = new Map<number, number>();
+    for (const note of lead?.notes ?? []) {
+      byStartTick.set(note.startTick, (byStartTick.get(note.startTick) ?? 0) + 1);
+    }
+    expect(byStartTick.size).toBeGreaterThan(0);
+    expect(Math.max(...byStartTick.values())).toBeLessThanOrEqual(3);
     expect(validateConstitution(score)).toHaveLength(0);
+  });
+
+  // ⭐ 2026-08-31 — הבדיקות שהיו תופסות את הבאג המרכזי. עד לתיקון, resampleByX מיצע את כל
+  // חיתוכי-ה-Y באותו X: לצורה סגורה זה תמיד קו-האמצע, ולצורה סימטרית אנכית קו ישר מושלם.
+  // התוצאה בפועל הייתה **תו בודד שחוזר על עצמו** לאורך כל היצירה, בכל עיגול וכל ריבוע —
+  // ולכן כל הציורים נשמעו כמו אותה "מנגינת בסיס".
+  describe('רגרסיה: קריסת מתאר-הגובה', () => {
+    function closedCircle(centerY: number, radius: number): ShapeData {
+      return {
+        version: '1.0.0',
+        paths: [
+          {
+            points: Array.from({ length: 48 }, (_, index) => {
+              const angle = (2 * Math.PI * index) / 48;
+              return { x: 0.5 + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) };
+            }),
+            closed: true,
+          },
+        ],
+      };
+    }
+
+    it('עיגול מייצר יותר מגובה אחד — לא תו בודד חוזר', () => {
+      const score = composeMusicalScore(
+        geometryToMusic(closedCircle(0.5, 0.4), 'seed-circle-not-flat'),
+        ABSOLUTE_CONFIG,
+      );
+      const lead = score.tracks.find((track) => track.role === 'lead');
+      const distinctPitches = new Set((lead?.notes ?? []).map((note) => note.pitch));
+      expect(distinctPitches.size).toBeGreaterThan(1);
+    });
+
+    it('שתי משיכות נפרדות נשמעות שתיהן — לא מתבטלות לתו האמצעי', () => {
+      const line = (y: number) => Array.from({ length: 24 }, (_, index) => ({ x: index / 23, y }));
+      const bothStrokes: ShapeData = {
+        version: '1.0.0',
+        paths: [
+          { points: line(0.2), closed: false },
+          { points: line(0.8), closed: false },
+        ],
+      };
+      const score = composeMusicalScore(
+        geometryToMusic(bothStrokes, 'seed-two-strokes'),
+        ABSOLUTE_CONFIG,
+      );
+      const lead = score.tracks.find((track) => track.role === 'lead');
+      const distinctPitches = new Set((lead?.notes ?? []).map((note) => note.pitch));
+      expect(distinctPitches.size).toBe(2);
+    });
+
+    it('שני עיגולים בגבהים שונים מייצרים מנגינות שונות', () => {
+      const high = composeMusicalScore(
+        geometryToMusic(closedCircle(0.25, 0.15), 'seed-circle-high'),
+        ABSOLUTE_CONFIG,
+      );
+      const low = composeMusicalScore(
+        geometryToMusic(closedCircle(0.75, 0.15), 'seed-circle-low'),
+        ABSOLUTE_CONFIG,
+      );
+      const pitchesOf = (score: typeof high) =>
+        (score.tracks.find((track) => track.role === 'lead')?.notes ?? []).map(
+          (note) => note.pitch,
+        );
+      expect(pitchesOf(high)).not.toEqual(pitchesOf(low));
+    });
+
+    it('קו ישר אופקי הופך לתו מוחזק אחד, לא ל-16 חזרות בבר', () => {
+      const flatLine: ShapeData = {
+        version: '1.0.0',
+        paths: [
+          {
+            points: Array.from({ length: 24 }, (_, index) => ({ x: index / 23, y: 0.5 })),
+            closed: false,
+          },
+        ],
+      };
+      const score = composeMusicalScore(
+        geometryToMusic(flatLine, 'seed-flat-line-sustains'),
+        ABSOLUTE_CONFIG,
+      );
+      const lead = score.tracks.find((track) => track.role === 'lead');
+      expect(lead?.notes).toHaveLength(1);
+      expect(lead?.notes[0]?.durationTicks).toBeGreaterThan(480);
+    });
+
+    it('בס ופאד גם הם נגזרים מהציור — עיגול לא מקפיא אותם על אקורד אחד', () => {
+      const score = composeMusicalScore(
+        geometryToMusic(closedCircle(0.5, 0.4), 'seed-circle-harmony'),
+        ABSOLUTE_CONFIG,
+      );
+      const bass = score.tracks.find((track) => track.role === 'bass');
+      expect(new Set((bass?.notes ?? []).map((note) => note.pitch)).size).toBeGreaterThan(1);
+    });
+  });
+
+  // ⭐ 2026-08-31 — נתפס בבדיקה חיה: ציור מרובה-משיכות בהאוס הפיל את הרינדור כולו עם
+  // "Start time must be strictly greater than previous start time". אזור-ערכה משתרע על כמה
+  // שורות, שתי שורות שנחצו באותה עמודה מיפו לאותו כלי, ו-DrumKitProvider מחזיק Player אחד
+  // לכל חלק — כלומר Tone.Source.start נזרק. נמדד ב-11 מתוך 240 צורות אקראיות לפני התיקון.
+  describe('רגרסיה: שתי מכות של אותו כלי-ערכה באותו רגע', () => {
+    function randomShape(random: () => number): ShapeData {
+      const strokeCount = 1 + Math.floor(random() * 3);
+      return {
+        version: '1.0.0',
+        paths: Array.from({ length: strokeCount }, () => ({
+          points: Array.from({ length: 10 + Math.floor(random() * 50) }, () => ({
+            x: Math.min(1, Math.max(0, random())),
+            y: Math.min(1, Math.max(0, random())),
+          })),
+          closed: random() > 0.5,
+        })),
+      };
+    }
+
+    it('200 צורות אקראיות: אף חלק-ערכה לא נפגע פעמיים באותו startTick', () => {
+      const random = createSeededRandom('drum-simultaneity-sweep');
+      for (let index = 0; index < 200; index += 1) {
+        const score = composeMusicalScore(
+          geometryToMusic(randomShape(random), `drum-sweep-${String(index)}`),
+          ABSOLUTE_CONFIG,
+        );
+        const drums = score.tracks.find((track) => track.role === 'drums')?.notes ?? [];
+        const lastStart = new Map<string, number>();
+        for (const note of drums) {
+          const piece = note.drumPiece ?? 'unknown';
+          const previous = lastStart.get(piece);
+          // בדיוק התנאי ש-Tone.Source.start אוכף: גדול **ממש**.
+          expect(
+            previous === undefined || note.startTick > previous,
+            `shape ${String(index)}`,
+          ).toBe(true);
+          lastStart.set(piece, note.startTick);
+        }
+      }
+    });
+
+    it('איחוד מכות שומר על העוצמה החזקה מביניהן, לא על האחרונה', () => {
+      // קו אנכי חוצה את כל השורות בבת אחת — הדרך הישירה ביותר לייצר התנגשות.
+      const verticalSweep: ShapeData = {
+        version: '1.0.0',
+        paths: [
+          {
+            points: Array.from({ length: 40 }, (_, index) => ({ x: 0.5, y: index / 39 })),
+            closed: false,
+          },
+        ],
+      };
+      const score = composeMusicalScore(
+        geometryToMusic(verticalSweep, 'drum-collapse-velocity'),
+        ABSOLUTE_CONFIG,
+      );
+      const drums = score.tracks.find((track) => track.role === 'drums')?.notes ?? [];
+      expect(drums.length).toBeGreaterThan(0);
+      for (const note of drums) {
+        expect(note.velocity).toBeGreaterThan(0);
+        expect(note.velocity).toBeLessThanOrEqual(1);
+      }
+    });
+  });
+
+  // ⭐ 2026-08-31 — נתפס בבדיקה חיה: "הרבה מהצורות נשמעות אותו הדבר". המדידה הראתה
+  // ש-100% מעמדות-הגריד הופעלו בכל בר, בכל ציור — כלומר זרם רציף של שש-עשרות ולא קצב.
+  // האוזן מזהה גרוב לפי קצב, ולכן שני ציורים עם גבהים שונים לגמרי נשמעו זהים.
+  describe('רגרסיה: זרם רציף במקום קצב', () => {
+    function wavyShape(cycles: number, seedIndex: number): ShapeData {
+      const pointCount = 48;
+      return {
+        version: '1.0.0',
+        paths: [
+          {
+            points: Array.from({ length: pointCount }, (_, index) => {
+              const t = index / (pointCount - 1);
+              return { x: t, y: 0.5 + 0.45 * Math.sin(2 * Math.PI * cycles * t + seedIndex) };
+            }),
+            closed: false,
+          },
+        ],
+      };
+    }
+
+    /** שיעור עמדות-הגריד שמופעלות **בתוך בר** — לא איחוד על כל היצירה. */
+    function averageBarFill(score: ReturnType<typeof composeMusicalScore>): number {
+      const lead = score.tracks.find((track) => track.role === 'lead')?.notes ?? [];
+      const slotsByBar = new Map<number, Set<number>>();
+      for (const note of lead) {
+        const bar = Math.floor(note.startTick / 1920);
+        const slot = Math.round(((note.startTick % 1920) / 1920) * 16) % 16;
+        const slots = slotsByBar.get(bar) ?? new Set<number>();
+        slots.add(slot);
+        slotsByBar.set(bar, slots);
+      }
+      const fills = [...slotsByBar.values()].map((slots) => slots.size / 16);
+      return fills.length === 0 ? 0 : fills.reduce((sum, value) => sum + value, 0) / fills.length;
+    }
+
+    it('אף בר לא ממלא את כל הגריד — יש קצב, לא זרם', () => {
+      for (let index = 0; index < 24; index += 1) {
+        const score = composeMusicalScore(
+          geometryToMusic(wavyShape(1 + index * 0.4, index), `wash-${String(index)}`),
+          ABSOLUTE_CONFIG,
+        );
+        expect(averageBarFill(score), `shape ${String(index)}`).toBeLessThan(0.85);
+      }
+    });
+
+    it('לכל תפקיד צפיפות משלו — קיק, בס וליד לא פועמים אותו דבר', () => {
+      const score = composeMusicalScore(
+        geometryToMusic(wavyShape(5, 1), 'role-density'),
+        ABSOLUTE_CONFIG,
+      );
+      const onsetsPerBar = (role: string) => {
+        const notes = score.tracks.find((track) => track.role === role)?.notes ?? [];
+        return new Set(notes.map((note) => note.startTick)).size / score.durationBars;
+      };
+      expect(onsetsPerBar('pad')).toBeLessThan(onsetsPerBar('bass'));
+      expect(onsetsPerBar('bass')).toBeLessThan(onsetsPerBar('lead'));
+    });
+
+    it('הטמפו באמת משתנה בין ציורים (היו 2 ערכים בלבד ב-120 ציורים)', () => {
+      // ⚠️ משתנים גם התדר וגם המשרעת. מעל צפיפות מסוימת הטמפו רווי בתקרת הטווח — זו
+      // התנהגות נכונה, ולכן 24 גלים שכולם צפופים היו בודקים רק את נקודת-הרוויה.
+      const tempos = new Set(
+        Array.from({ length: 24 }, (_, index) => {
+          const pointCount = 48;
+          const cycles = 0.5 + (index % 6) * 1.2;
+          const amplitude = 0.04 + Math.floor(index / 6) * 0.12;
+          const shape: ShapeData = {
+            version: '1.0.0',
+            paths: [
+              {
+                points: Array.from({ length: pointCount }, (_, point) => {
+                  const t = point / (pointCount - 1);
+                  return { x: t, y: 0.5 + amplitude * Math.sin(2 * Math.PI * cycles * t) };
+                }),
+                closed: false,
+              },
+            ],
+          };
+          return composeMusicalScore(geometryToMusic(shape, `tempo-${String(index)}`), {
+            ...ABSOLUTE_CONFIG,
+            tempoRange: { min: 118, max: 128 },
+          }).tempo;
+        }),
+      );
+      expect(tempos.size).toBeGreaterThan(3);
+    });
+
+    it('אף טראק לא נשאר ריק — רצפת-הצפיפות עובדת', () => {
+      for (const cycles of [0.5, 1, 3, 9]) {
+        const score = composeMusicalScore(
+          geometryToMusic(wavyShape(cycles, 0), `floor-${String(cycles)}`),
+          ABSOLUTE_CONFIG,
+        );
+        for (const track of score.tracks) {
+          expect(track.notes.length, `${track.role} @ ${String(cycles)}`).toBeGreaterThan(0);
+        }
+      }
+    });
+  });
+
+  // ⭐ 2026-08-31 — נתפס בבדיקה חיה (טראנס, ציור בצורת 8 שחוצה את עצמו): הרינדור נפל עם
+  // "Start time must be strictly greater than previous start time". שני תווים על טראק
+  // **מונופוני** במרחק של מילישניות בודדות עוברים את הגנת-הדילוג ב-SynthProvider, אבל
+  // `Source.start` מהדק אותם לאותו בלוק-עיבוד (128 דגימות ≈ 4ms) ואז מתנגשים — וזה מפיל
+  // את כל הרינדור, לא רק תו אחד. נמדד לפני התיקון: 270 זוגות כאלה ב-80 ציורים בטראנס.
+  describe('רגרסיה: תווים צמודים-מדי על קול מונופוני', () => {
+    /** חייב להישאר תואם ל-MONOPHONIC_MIN_SEPARATION_SECONDS ב-SynthProvider.ts. */
+    const MONO_GUARD_SECONDS = 0.012;
+
+    it('אין זוג תווים במרווח שגדול מאפס אך קטן מסף-ההגנה', () => {
+      const random = createSeededRandom('mono-collision-sweep');
+      for (let index = 0; index < 60; index += 1) {
+        const pointCount = 12 + Math.floor(random() * 50);
+        const shape: ShapeData = {
+          version: '1.0.0',
+          paths: [
+            {
+              points: Array.from({ length: pointCount }, () => ({ x: random(), y: random() })),
+              closed: random() > 0.5,
+            },
+          ],
+        };
+        const score = composeMusicalScore(
+          geometryToMusic(shape, `mono-collision-${String(index)}`),
+          ABSOLUTE_CONFIG,
+        );
+        const secondsPerTick = 60 / score.tempo / 480;
+        for (const track of score.tracks) {
+          const ticks = track.notes.map((note) => note.startTick).sort((a, b) => a - b);
+          for (let noteIndex = 1; noteIndex < ticks.length; noteIndex += 1) {
+            const gapSeconds =
+              ((ticks[noteIndex] ?? 0) - (ticks[noteIndex - 1] ?? 0)) * secondsPerTick;
+            // אפס מותר (אקורד — ההגנה מדלגת נקי); "קרוב אך לא אפס" הוא המצב המסוכן.
+            const isDangerous = gapSeconds > 0 && gapSeconds < MONO_GUARD_SECONDS;
+            expect(isDangerous, `${track.role} @ shape ${String(index)}`).toBe(false);
+          }
+        }
+      }
+    });
+
+    it('תווים שנפתחים באותה עמודה נוחתים בזמן זהה — אקורד, לא מריחה', () => {
+      // קו אנכי חוצה כמה שורות בבת אחת: כל הקולות אמורים להתחיל יחד.
+      const verticalSweep: ShapeData = {
+        version: '1.0.0',
+        paths: [
+          {
+            points: Array.from({ length: 40 }, (_, index) => ({ x: 0.5, y: index / 39 })),
+            closed: false,
+          },
+        ],
+      };
+      const score = composeMusicalScore(
+        geometryToMusic(verticalSweep, 'chord-together'),
+        ABSOLUTE_CONFIG,
+      );
+      const lead = score.tracks.find((track) => track.role === 'lead')?.notes ?? [];
+      expect(lead.length).toBeGreaterThan(1);
+      expect(new Set(lead.map((note) => note.startTick)).size).toBeLessThan(lead.length);
+    });
+  });
+
+  // ⭐ 2026-08-31 (סבב ב') — הפאד ניגן קודם את השורות שהציור חצה, מדולל ל-4 קולות. נמדד
+  // בסינמטי: `C E F A` — F מול E, חצי טון. צביר, לא אקורד: בלי פונקציה הרמונית, בלי מתח
+  // ובלי פתרון. `buildChord`/`chooseSmoothVoicing` כבר היו בקוד; נתיב הרסטר עקף אותם.
+  describe('רגרסיה: הפאד מנגן אקורדים ולא צבירים', () => {
+    /** ערימת שלישיות (3 או 4 חצאי-טונים) היא אקורד; מרווח של 1–2 הוא צביר. */
+    function isChordal(pitches: readonly number[]): boolean {
+      const classes = [...new Set(pitches.map((pitch) => ((pitch % 12) + 12) % 12))].sort(
+        (a, b) => a - b,
+      );
+      for (let rotation = 0; rotation < classes.length; rotation += 1) {
+        const rotated = [...classes.slice(rotation), ...classes.slice(0, rotation)];
+        const intervals = rotated
+          .slice(1)
+          .map((pitch, index) => (((pitch - (rotated[index] ?? 0)) % 12) + 12) % 12);
+        if (intervals.length > 0 && intervals.every((step) => step === 3 || step === 4)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function padByBar(score: ReturnType<typeof composeMusicalScore>): Map<number, number[]> {
+      const byBar = new Map<number, number[]>();
+      for (const note of score.tracks.find((track) => track.role === 'pad')?.notes ?? []) {
+        const bar = Math.floor(note.startTick / 1920);
+        const pitches = byBar.get(bar) ?? [];
+        pitches.push(note.pitch);
+        byBar.set(bar, pitches);
+      }
+      return byBar;
+    }
+
+    function circleShape(centerY: number, radius: number): ShapeData {
+      return {
+        version: '1.0.0',
+        paths: [
+          {
+            points: Array.from({ length: 48 }, (_, index) => {
+              const angle = (2 * Math.PI * index) / 48;
+              return { x: 0.5 + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) };
+            }),
+            closed: true,
+          },
+        ],
+      };
+    }
+
+    it('כל בר-פאד הוא אקורד תקין, על מגוון צורות', () => {
+      const random = createSeededRandom('pad-chordal-sweep');
+      for (let index = 0; index < 20; index += 1) {
+        const pointCount = 14 + Math.floor(random() * 40);
+        const shape: ShapeData = {
+          version: '1.0.0',
+          paths: [
+            {
+              points: Array.from({ length: pointCount }, () => ({ x: random(), y: random() })),
+              closed: random() > 0.5,
+            },
+          ],
+        };
+        const score = composeMusicalScore(
+          geometryToMusic(shape, `pad-chordal-${String(index)}`),
+          ABSOLUTE_CONFIG,
+        );
+        for (const [bar, pitches] of padByBar(score)) {
+          expect(isChordal(pitches), `shape ${String(index)} bar ${String(bar)}`).toBe(true);
+        }
+      }
+    });
+
+    it('כל סקשן נסגר על הטוניקה — יש קדנצה, לא רק גיוון', () => {
+      const score = composeMusicalScore(
+        geometryToMusic(circleShape(0.5, 0.4), 'cadence-check'),
+        ABSOLUTE_CONFIG,
+      );
+      const byBar = padByBar(score);
+      for (const section of score.sections) {
+        if (section.lengthBars < 2) {
+          continue;
+        }
+        const lastBar = section.startBar + section.lengthBars - 1;
+        const pitches = byBar.get(lastBar);
+        if (!pitches) {
+          continue;
+        }
+        const classes = new Set(pitches.map((pitch) => ((pitch % 12) + 12) % 12));
+        expect(classes.has(score.key.root), `סוף ${section.name}`).toBe(true);
+      }
+    });
+
+    it('עיגול כבר לא מקבל אקורד אחד לכל היצירה — ההרמוניה נגזרת מהרסטר, לא מהמתאר', () => {
+      const score = composeMusicalScore(
+        geometryToMusic(circleShape(0.5, 0.42), 'harmony-not-frozen'),
+        ABSOLUTE_CONFIG,
+      );
+      const chords = new Set(
+        [...padByBar(score).values()].map((pitches) =>
+          [...new Set(pitches.map((pitch) => ((pitch % 12) + 12) % 12))]
+            .sort((a, b) => a - b)
+            .join(),
+        ),
+      );
+      expect(chords.size).toBeGreaterThan(1);
+    });
+
+    it('הבס מנגן את שורש האקורד — הוא מה שמגדיר את ההרמוניה לאוזן', () => {
+      const score = composeMusicalScore(
+        geometryToMusic(circleShape(0.5, 0.4), 'bass-is-root'),
+        ABSOLUTE_CONFIG,
+      );
+      const byBar = padByBar(score);
+      const bass = score.tracks.find((track) => track.role === 'bass')?.notes ?? [];
+      expect(bass.length).toBeGreaterThan(0);
+      for (const note of bass) {
+        const bar = Math.floor(note.startTick / 1920);
+        const chordClasses = new Set(
+          (byBar.get(bar) ?? []).map((pitch) => ((pitch % 12) + 12) % 12),
+        );
+        if (chordClasses.size === 0) {
+          continue;
+        }
+        expect(chordClasses.has(((note.pitch % 12) + 12) % 12), `bar ${String(bar)}`).toBe(true);
+      }
+    });
+
+    it('ציורים שונים עדיין מייצרים פרוגרסיות שונות — לא איבדנו גיוון', () => {
+      const progressionOf = (shape: ShapeData, seed: string) =>
+        [...padByBar(composeMusicalScore(geometryToMusic(shape, seed), ABSOLUTE_CONFIG)).entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([, pitches]) => [...new Set(pitches)].sort((a, b) => a - b).join())
+          .join('|');
+      expect(progressionOf(circleShape(0.25, 0.15), 'prog-a')).not.toBe(
+        progressionOf(circleShape(0.75, 0.15), 'prog-b'),
+      );
+    });
   });
 
   it('flag דלוק: כל ה-seeds מייצרים את אותו שורש בדיוק (בניגוד לבדיקה המקבילה למעלה עם flag כבוי)', () => {

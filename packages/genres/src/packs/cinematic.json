@@ -1,48 +1,369 @@
 {
   "id": "cinematic",
-  "displayName": { "he": "קולנועי", "en": "Cinematic" },
-  "tempo": { "min": 70, "max": 110, "default": 90 },
-  "grid": { "subdivision": 8, "swingAmount": 0 },
+  "displayName": {
+    "he": "קולנועי",
+    "en": "Cinematic"
+  },
+  "tempo": {
+    "min": 70,
+    "max": 110,
+    "default": 90
+  },
+  "grid": {
+    "subdivision": 8,
+    "swingAmount": 0
+  },
   "allowedModes": ["aeolian", "phrygian"],
   "defaultMode": "aeolian",
   "harmonicTendency": "extended",
   "chordProgression": [0, 5, 2, 6],
   "roles": ["bass", "lead", "pad", "drums"],
   "rhythmPatterns": {
-    "bass": [{ "name": "long-tones", "stepsPerBar": 8, "hits": [1, 0, 0, 0, 0, 0, 0, 0] }],
-    "lead": [{ "name": "melodic-line", "stepsPerBar": 8, "hits": [1, 0, 1, 0, 1, 0, 1, 0] }],
-    "pad": [{ "name": "sustained", "stepsPerBar": 8, "hits": [1, 0, 0, 0, 0, 0, 0, 0] }],
-    "drums": [{ "name": "timpani-hits", "stepsPerBar": 8, "hits": [1, 0, 0, 0, 1, 0, 0, 0] }]
+    "bass": [
+      {
+        "name": "long-tones",
+        "stepsPerBar": 8,
+        "hits": [1, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "lead": [
+      {
+        "name": "melodic-line",
+        "stepsPerBar": 8,
+        "hits": [1, 0, 1, 0, 1, 0, 1, 0]
+      }
+    ],
+    "pad": [
+      {
+        "name": "sustained",
+        "stepsPerBar": 8,
+        "hits": [1, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "drums": [
+      {
+        "name": "timpani-hits",
+        "stepsPerBar": 8,
+        "hits": [1, 0, 0, 0, 1, 0, 0, 0]
+      }
+    ]
   },
   "synthMap": {
     "bass": {
       "oscillatorType": "sine",
-      "envelope": { "attack": 0.1, "decay": 0.3, "sustain": 0.7, "release": 1 },
+      "envelope": {
+        "attack": 0.1,
+        "decay": 0.3,
+        "sustain": 0.7,
+        "release": 1
+      },
       "polyphonic": false,
-      "filter": { "type": "lowpass", "frequencyHz": 600, "resonance": 0.5 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 600,
+        "resonance": 0.5
+      }
     },
     "lead": {
       "oscillatorType": "triangle",
-      "envelope": { "attack": 0.15, "decay": 0.2, "sustain": 0.75, "release": 1.2 },
+      "envelope": {
+        "attack": 0.15,
+        "decay": 0.2,
+        "sustain": 0.75,
+        "release": 1.2
+      },
       "polyphonic": false,
-      "filter": { "type": "lowpass", "frequencyHz": 2800, "resonance": 0.6 },
-      "unison": { "count": 3, "spreadCents": 10 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 2800,
+        "resonance": 0.6
+      },
+      "unison": {
+        "count": 3,
+        "spreadCents": 10
+      }
     },
     "pad": {
       "oscillatorType": "sine",
-      "envelope": { "attack": 0.8, "decay": 0.4, "sustain": 0.9, "release": 2.5 },
+      "envelope": {
+        "attack": 0.8,
+        "decay": 0.4,
+        "sustain": 0.9,
+        "release": 2.5
+      },
       "polyphonic": true,
-      "filter": { "type": "lowpass", "frequencyHz": 3500, "resonance": 0.5 },
-      "unison": { "count": 5, "spreadCents": 15 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 3500,
+        "resonance": 0.5
+      },
+      "unison": {
+        "count": 5,
+        "spreadCents": 15
+      }
     },
     "drums": {
       "oscillatorType": "sine",
-      "envelope": { "attack": 0.005, "decay": 0.4, "sustain": 0.1, "release": 0.6 },
+      "envelope": {
+        "attack": 0.005,
+        "decay": 0.4,
+        "sustain": 0.1,
+        "release": 0.6
+      },
       "polyphonic": false
     }
   },
-  "mixChain": { "reverbDecaySeconds": 5, "delayTime": "8n", "delayFeedback": 0.2 },
-  "arrangement": { "sectionOrder": ["intro", "loop", "build", "outro"] },
+  "mixChain": {
+    "reverbDecaySeconds": 5,
+    "delayTime": "8n",
+    "delayFeedback": 0.2
+  },
+  "arrangement": {
+    "sectionOrder": ["intro", "loop", "build", "outro"]
+  },
   "sidechainEnabled": false,
-  "requiresSamples": false
+  "requiresSamples": false,
+  "absoluteNoteBoard": true,
+  "noteBoardRootPitchClass": 2,
+  "noteBoardRowCount": 13,
+  "beatAccents": [1, 0.76, 0.9, 0.8],
+  "soundOptions": {
+    "lead": [
+      {
+        "id": "noble-lead",
+        "displayName": {
+          "he": "ליד אצילי",
+          "en": "Noble Lead"
+        },
+        "preset": {
+          "oscillatorType": "triangle",
+          "envelope": {
+            "attack": 0.15,
+            "decay": 0.2,
+            "sustain": 0.75,
+            "release": 1.2
+          },
+          "polyphonic": false,
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 2800,
+            "resonance": 0.6
+          },
+          "unison": {
+            "count": 3,
+            "spreadCents": 10
+          }
+        }
+      },
+      {
+        "id": "solo-violin",
+        "displayName": {
+          "he": "כינור סולו",
+          "en": "Solo Violin"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "solo-violin",
+          "notes": ["C4", "G4", "E5", "C6"],
+          "extension": "mp3",
+          "release": 1
+        }
+      },
+      {
+        "id": "french-horn",
+        "displayName": {
+          "he": "קרן יער",
+          "en": "French Horn"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "french-horn",
+          "notes": ["F3", "C4", "D5", "F5"],
+          "extension": "mp3",
+          "release": 1
+        }
+      },
+      {
+        "id": "concert-harp",
+        "displayName": {
+          "he": "נבל",
+          "en": "Concert Harp"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "concert-harp",
+          "notes": ["G3", "D4", "A4", "E5", "B5"],
+          "extension": "mp3",
+          "release": 0.7
+        }
+      }
+    ],
+    "pad": [
+      {
+        "id": "warm-strings",
+        "displayName": {
+          "he": "מיתרים חמימים",
+          "en": "Warm Strings"
+        },
+        "preset": {
+          "oscillatorType": "sine",
+          "envelope": {
+            "attack": 0.8,
+            "decay": 0.4,
+            "sustain": 0.9,
+            "release": 2.5
+          },
+          "polyphonic": true,
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 3500,
+            "resonance": 0.5
+          },
+          "unison": {
+            "count": 5,
+            "spreadCents": 15
+          }
+        }
+      },
+      {
+        "id": "violin-section",
+        "displayName": {
+          "he": "תזמורת כינורות",
+          "en": "Violin Section"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "violin-section",
+          "notes": ["D4", "A4", "E5", "B5"],
+          "extension": "mp3",
+          "release": 1.2
+        }
+      },
+      {
+        "id": "cello-section",
+        "displayName": {
+          "he": "צ'לי",
+          "en": "Cello Section"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "cello-section",
+          "notes": ["G2", "D3", "A3", "E4", "B4"],
+          "extension": "mp3",
+          "release": 1.2
+        }
+      }
+    ],
+    "bass": [
+      {
+        "id": "deep-bass",
+        "displayName": {
+          "he": "בס עמוק",
+          "en": "Deep Bass"
+        },
+        "preset": {
+          "oscillatorType": "sine",
+          "envelope": {
+            "attack": 0.1,
+            "decay": 0.3,
+            "sustain": 0.7,
+            "release": 1
+          },
+          "polyphonic": false,
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 600,
+            "resonance": 0.5
+          }
+        }
+      },
+      {
+        "id": "contrabass-arco",
+        "displayName": {
+          "he": "קונטרבס בקשת",
+          "en": "Bowed Double Bass"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "contrabass-arco",
+          "notes": ["C2", "F#2", "C#3", "G#3"],
+          "extension": "mp3",
+          "release": 1
+        }
+      }
+    ],
+    "drums": [
+      {
+        "id": "soft-mallet",
+        "displayName": {
+          "he": "מקוש רך",
+          "en": "Soft Mallet"
+        },
+        "preset": {
+          "oscillatorType": "sine",
+          "envelope": {
+            "attack": 0.005,
+            "decay": 0.4,
+            "sustain": 0.1,
+            "release": 0.6
+          },
+          "polyphonic": false
+        }
+      },
+      {
+        "id": "timpani",
+        "displayName": {
+          "he": "טימפני",
+          "en": "Timpani"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "timpani",
+          "notes": ["F2", "B2", "D3", "F#3"],
+          "extension": "mp3",
+          "release": 0.5
+        }
+      },
+      {
+        "id": "acoustic-kit",
+        "displayName": {
+          "he": "ערכה אקוסטית",
+          "en": "Acoustic Kit"
+        },
+        "preset": {
+          "kind": "drumkit",
+          "instrumentId": "acoustic-kit",
+          "pieces": ["kick", "tom", "snare", "clap", "hihat-closed", "hihat-open", "crash"],
+          "extension": "mp3",
+          "gain": 1
+        }
+      }
+    ]
+  },
+  "allowedSubdivisions": [8, 16],
+  "beatPatterns": [
+    {
+      "id": "heartbeat",
+      "displayName": {
+        "he": "פעימות לב",
+        "en": "Heartbeat"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0.6, 0, 0, 0, 0, 1, 0, 0, 0.6, 0, 0, 0, 0]
+      }
+    },
+    {
+      "id": "march",
+      "displayName": {
+        "he": "מארש",
+        "en": "March"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+        "snare": [0, 0, 0, 0, 0.7, 0, 0.4, 0, 0, 0, 0, 0, 0.7, 0, 0.4, 0]
+      }
+    }
+  ]
 }

@@ -13,6 +13,8 @@ export * from './score/scoreSchema';
 export * from './analysis/contourExtractor';
 export * from './analysis/shapeAnalyzer';
 export * from './analysis/symmetryDetector';
+export * from './analysis/boardRaster';
+export * from './analysis/onsetEvents';
 export * from './mapping/geometryToMusic';
 
 export * from './theory/scales';
@@ -21,6 +23,10 @@ export * from './theory/voiceLeading';
 export * from './theory/rules';
 export * from './theory/harmonyEngine';
 export * from './theory/noteBoard';
+export * from './theory/drumKit';
+export * from './theory/beatPattern';
+export * from './theory/rolePolicy';
+export * from './theory/progression';
 export * from './groove/quantize';
 export * from './groove/humanize';
 

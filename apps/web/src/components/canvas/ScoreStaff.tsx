@@ -44,7 +44,8 @@ import type { GenrePack } from '@soundiform/genres';
 import { useShapeStore } from '@/stores/shapeStore';
 import { useGenreStore } from '@/stores/genreStore';
 import { useGenrePacksStore } from '@/stores/genrePacksStore';
-import { toCompositionConfig } from '@/lib/genreAdapter';
+import { toCompositionConfig, type CompositionOverrides } from '@/lib/genreAdapter';
+import { useCompositionOverrides } from '@/hooks/useCompositionOverrides';
 
 /** ⚠️ הסרגל על רקע לבן (studio/page.tsx) — כל הצבעים כאן כהים/רוויים, לא בהירים-על-כהה. */
 const SCAN_LINE_COLOR = 0x211b4a;
@@ -95,6 +96,7 @@ function computeScore(
   shapeHash: string | null,
   genreId: string,
   packs: GenrePack[],
+  overrides: CompositionOverrides,
 ): MusicalScore | null {
   if (paths.length === 0 || !shapeHash) {
     return null;
@@ -105,7 +107,7 @@ function computeScore(
   }
   const shape = { version: '1.0.0', paths };
   const intent = geometryToMusic(shape, shapeHash);
-  return composeMusicalScore(intent, toCompositionConfig(genrePack));
+  return composeMusicalScore(intent, toCompositionConfig(genrePack, overrides));
 }
 
 function computeLayout(score: MusicalScore, width: number, height: number): StaffLayout | null {
@@ -168,9 +170,10 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
     pathsRef.current = paths;
   }, [paths]);
 
+  const overrides = useCompositionOverrides();
   const score = useMemo(
-    () => computeScore(paths, shapeHash, genreId, packs),
-    [paths, shapeHash, genreId, packs],
+    () => computeScore(paths, shapeHash, genreId, packs, overrides),
+    [paths, shapeHash, genreId, packs, overrides],
   );
   useEffect(() => {
     scoreRef.current = score;

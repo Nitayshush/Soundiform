@@ -27,8 +27,14 @@ import { isInScale } from './scales';
 import { distanceFromSwingGrid, isOnGrid, type GridSubdivision } from '../groove/quantize';
 import { maxTimingJitterTicks } from '../groove/humanize';
 
-/** טווחי MIDI ריאליסטיים גסים לפי תפקיד (§4.3: "טווחי כלים ריאליסטיים"). */
-const ROLE_PITCH_RANGES: Record<string, { min: number; max: number }> = {
+/**
+ * טווחי MIDI ריאליסטיים גסים לפי תפקיד (§4.3: "טווחי כלים ריאליסטיים").
+ *
+ * ⭐ 2026-08-31: יוצא ב-export כדי ש-harmonyEngine יקפל תווים לתוך אותם טווחים *בזמן
+ * הבנייה*, במקום להחזיק העתק משלו — שני מקורות-אמת היו מאפשרים למנוע לייצר תו שהוולידטור
+ * כאן פוסל, וזה בדיוק סוג הסתירה שהחוקה נועדה למנוע.
+ */
+export const ROLE_PITCH_RANGES: Record<string, { min: number; max: number }> = {
   bass: { min: 24, max: 60 },
   lead: { min: 48, max: 96 },
   pad: { min: 36, max: 84 },
@@ -48,10 +54,14 @@ export interface ConstitutionViolation {
  */
 export function validateConstitution(
   score: MusicalScore,
-  gridSubdivision: GridSubdivision = 16,
+  gridSubdivision?: GridSubdivision,
   swingAmount = 0,
 ): ConstitutionViolation[] {
   const violations: ConstitutionViolation[] = [];
+  // ⭐ 2026-08-31: הגריד נלקח מהציון עצמו כשלא נמסר במפורש. הציור בוחר היום את החלוקה
+  // (8/16/32, ראה harmonyEngine's subdivisionFromEventDensity), וברירת-מחדל קשיחה של 16
+  // הייתה פוסלת ציון שקוונטז ל-32 למרות שהוא מיושר לחלוטין — הוולידטור היה סותר את המנוע.
+  const effectiveGrid: GridSubdivision = gridSubdivision ?? score.gridSubdivision ?? 16;
   // ⭐ 2026-08-24: Math.ceil, לא הערך השברירי הגולמי — humanizeTiming (groove/humanize.ts)
   // מעגל (Math.round) tick+jitter, כך שהסטייה בפועל יכולה להגיע ל-Math.round(maxJitterTicks)
   // (למשל 9.6→10), חורגת מהטולרנס השברירי הגולמי (9.6) גם כשההומניזציה פעלה בדיוק כמתוכנן —
@@ -73,8 +83,8 @@ export function validateConstitution(
       }
 
       const startTickOffGrid =
-        distanceFromSwingGrid(note.startTick, gridSubdivision, swingAmount) > startTickTolerance;
-      const durationOffGrid = !isOnGrid(note.durationTicks, gridSubdivision);
+        distanceFromSwingGrid(note.startTick, effectiveGrid, swingAmount) > startTickTolerance;
+      const durationOffGrid = !isOnGrid(note.durationTicks, effectiveGrid);
       if (startTickOffGrid || durationOffGrid) {
         violations.push({
           rule: 'quantized-to-grid',

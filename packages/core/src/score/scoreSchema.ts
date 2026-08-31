@@ -11,6 +11,7 @@
  */
 
 import { z } from 'zod';
+import { DRUM_PIECES } from '../theory/drumKit';
 
 export const modeSchema = z.enum([
   'ionian',
@@ -39,6 +40,8 @@ export const noteSchema = z.object({
   pitch: z.number().int().min(0).max(127),
   velocity: z.number().min(0).max(1),
   articulation: articulationSchema.optional(),
+  /** ⭐ 2026-08-31 — ראה Note.drumPiece ו-theory/drumKit.ts. אופציונלי = תואם-לאחור. */
+  drumPiece: z.enum(DRUM_PIECES).optional(),
 });
 
 export const trackSchema = z.object({
@@ -65,6 +68,8 @@ export const musicalScoreSchema = z.object({
   }),
   genreId: z.string().min(1),
   durationBars: z.number().int().positive(),
+  /** ⭐ 2026-08-31 — ראה MusicalScore.gridSubdivision. אופציונלי = תואם-לאחור. */
+  gridSubdivision: z.union([z.literal(8), z.literal(16), z.literal(32)]).optional(),
   tracks: z.array(trackSchema),
   sections: z.array(sectionSchema),
   metadata: z.object({

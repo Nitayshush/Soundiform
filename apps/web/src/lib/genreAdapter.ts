@@ -9,13 +9,18 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
-import type { CompositionConfig, RhythmStepPattern, TrackRole } from '@soundiform/core';
+import type {
+  BeatPattern,
+  CompositionConfig,
+  RhythmStepPattern,
+  TrackRole,
+} from '@soundiform/core';
 import type { GenreAudioConfig, SynthLayerConfig, SynthPresetConfig } from '@soundiform/audio';
 // ⚠️ ייבוא-ערך (לא type) מ-'@soundiform/audio' — בטוח כאן: api/render/route.ts כבר עושה
 // בדיוק את זה (VIDEO_ASPECT_RATIOS) ורץ בפרודקשן. חייב להיות מקור-אמת יחיד עם SynthProvider,
 // אחרת חישוב-התקציב למטה יסטה בשקט מכמות האוסצילטורים שנוצרת בפועל.
 import { DEFAULT_UNISON_COUNT, DEFAULT_UNISON_SPREAD_CENTS } from '@soundiform/audio';
-import type { GenrePack } from '@soundiform/genres';
+import type { DrumKitPreset, GenrePack, SamplerPreset, SoundPreset } from '@soundiform/genres';
 
 /**
  * ⭐ 2026-08-22: כל role שהסגנון מגדיר rhythmPatterns עבורו (לא רק drums כמו קודם) — זה מה
@@ -63,13 +68,31 @@ function extractRhythmPatternOptions(
   return Object.keys(options).length > 0 ? options : undefined;
 }
 
-export function toCompositionConfig(pack: GenrePack): CompositionConfig {
+/**
+ * ⭐ 2026-08-31 (סבב א'): ההגדרות שהמשתמש בחר. ⚠️ **חייבות להימסר בכל אחד מ-6 מסלולי
+ * הקריאה** — ניגון, סרגל-התווים, ושלושת מסלולי הרינדור. מסלול שלא ימסור אותן ייצר מוזיקה
+ * בסולם אחר מזה שהלוח מציג, וזה כשל שקט שהמשתמש שומע אבל הקוד לא מדווח עליו.
+ */
+export interface CompositionOverrides {
+  beatPatternId?: string;
+  key?: { rootPitchClass: number; mode: GenrePack['defaultMode'] };
+}
+
+export function toCompositionConfig(
+  pack: GenrePack,
+  overrides?: CompositionOverrides,
+): CompositionConfig {
   const rhythmPatterns = extractRhythmPatterns(pack);
   const rhythmPatternOptions = extractRhythmPatternOptions(pack);
+  // ⚠️ מקצב שנבחר ואינו קיים בסגנון (למשל אחרי החלפת סגנון) נבלע בשקט לטובת מהציור —
+  // עדיף מלזרוק, כי זו בחירה ישנה של המשתמש ולא קלט לא-תקין.
+  const beatPattern = overrides?.beatPatternId
+    ? pack.beatPatterns?.find((candidate) => candidate.id === overrides.beatPatternId)
+    : undefined;
   return {
     genreId: pack.id,
     tempoBpm: pack.tempo.default,
-    mode: pack.defaultMode,
+    mode: overrides?.key?.mode ?? pack.defaultMode,
     gridSubdivision: pack.grid.subdivision,
     swingAmount: pack.grid.swingAmount,
     chordProgression: pack.chordProgression,
@@ -83,6 +106,25 @@ export function toCompositionConfig(pack: GenrePack): CompositionConfig {
     ...(rhythmPatterns && { rhythmPatterns }),
     ...(rhythmPatternOptions && { rhythmPatternOptions }),
     ...(pack.absoluteNoteBoard && { absoluteNoteBoard: true }),
+    // ⭐ 2026-08-30: גיאומטריית-הלוח לפי סגנון. מועברים רק כשהוגדרו, כדי ש-core ייפול
+    // לברירות-המחדל שלו ולא נשכפל כאן ערכים שיסטו בשקט (ראה noteBoard.ts).
+    ...((overrides?.key?.rootPitchClass ?? pack.noteBoardRootPitchClass) !== undefined && {
+      noteBoardRootPitchClass: overrides?.key?.rootPitchClass ?? pack.noteBoardRootPitchClass,
+    }),
+    ...(pack.noteBoardRowCount !== undefined && { noteBoardRowCount: pack.noteBoardRowCount }),
+    ...(pack.beatAccents !== undefined && { beatAccents: pack.beatAccents }),
+    ...(pack.allowedSubdivisions !== undefined && {
+      allowedSubdivisions: pack.allowedSubdivisions,
+    }),
+    ...(beatPattern && {
+      beatPattern: {
+        id: beatPattern.id,
+        stepsPerBar: beatPattern.stepsPerBar,
+        // ⚠️ הסכימה שומרת record גנרי (מפתח מחרוזת) כדי לא לשכפל את רשימת חלקי-הערכה
+        // ב-@soundiform/genres; core מצמצם אותה לחלקים שהוא מכיר ומתעלם משאר המפתחות.
+        pieces: beatPattern.pieces as BeatPattern['pieces'],
+      },
+    }),
   };
 }
 
@@ -228,39 +270,94 @@ function applyOscillatorBudget(preset: SynthPresetConfig): SynthPresetConfig {
  * synthMap[role] הקבוע/options[0]. role עם כמה id-ים נבחרים ממוזג ע"י mergeSynthPresets.
  * בחירה ידנית של המשתמש תמיד גוברת על ברירת-המחדל.
  */
+/**
+ * ⭐ 2026-08-30: מפריד בחירה של תפקיד לשני סוגים. `kind: 'sampler'` הוא הדיסקרימיננטור —
+ * פריסטים קיימים נכתבו בלי `kind` ולכן נופלים לענף הסינת', בדיוק כמו קודם.
+ */
+function isSamplerPreset(preset: SoundPreset): preset is SamplerPreset {
+  return 'kind' in preset && preset.kind === 'sampler';
+}
+
+/** ⭐ 2026-08-31: ערכת תופים — ראה drumKitPresetSchema. מפתחות = חלקי ערכה, לא תווים. */
+function isDrumKitPreset(preset: SoundPreset): preset is DrumKitPreset {
+  return 'kind' in preset && preset.kind === 'drumkit';
+}
+
+interface ResolvedPresets {
+  synthPresets: Partial<Record<TrackRole, SynthPresetConfig>>;
+  /** ⭐ מערך לכל תפקיד: אפשר לבחור כמה כלים דגומים יחד, וכולם מתנגנים לצד הסינת'. */
+  samplerPresets: Partial<Record<TrackRole, SamplerPreset[]>>;
+  /** ⭐ 2026-08-31: ערכת תופים לתפקיד — אחת לכל היותר, ראה DrumKitProvider.ts. */
+  drumKitPresets: Partial<Record<TrackRole, DrumKitPreset>>;
+}
+
 function resolveSynthPresets(
   pack: GenrePack,
   seed: string,
   soundSelections?: Partial<Record<TrackRole, string[]>>,
-): Partial<Record<TrackRole, SynthPresetConfig>> {
-  const resolved: Partial<Record<TrackRole, SynthPresetConfig>> = { ...pack.synthMap };
+): ResolvedPresets {
+  const synthPresets: Partial<Record<TrackRole, SynthPresetConfig>> = { ...pack.synthMap };
+  const samplerPresets: Partial<Record<TrackRole, SamplerPreset[]>> = {};
+  const drumKitPresets: Partial<Record<TrackRole, DrumKitPreset>> = {};
+
   for (const role of Object.keys(pack.synthMap) as TrackRole[]) {
     const options = pack.soundOptions?.[role];
     if (options && options.length > 0) {
       const defaultOption = options[seededIndex(seed, role, options.length)];
-      if (defaultOption) {
-        resolved[role] = defaultOption.preset;
+      if (
+        defaultOption &&
+        !isSamplerPreset(defaultOption.preset) &&
+        !isDrumKitPreset(defaultOption.preset)
+      ) {
+        synthPresets[role] = defaultOption.preset;
       }
+      // ⚠️ ברירת-מחדל דגומה במכוון **לא** נבחרת אוטומטית: היא הייתה מחייבת הורדת דגימות
+      // לפני הצליל הראשון. הסינת' של synthMap נשאר ברירת המחדל, והדגימות נטענות רק
+      // כשהמשתמש בוחר בהן — זו החלטת ה"היברידי" שהתקבלה בתכנון.
     }
   }
+
   if (soundSelections) {
     for (const [role, optionIds] of Object.entries(soundSelections) as [TrackRole, string[]][]) {
       if (!optionIds || optionIds.length === 0 || optionIds.includes(MUTED_SOUND_OPTION_ID)) {
         continue;
       }
-      const selectedPresets = optionIds
+      const selected = optionIds
         .map((optionId) =>
           pack.soundOptions?.[role]?.find((candidate) => candidate.id === optionId),
         )
         .filter((option): option is NonNullable<typeof option> => option !== undefined)
         .map((option) => option.preset);
-      const merged = mergeSynthPresets(selectedPresets);
+
+      const sampled = selected.filter(isSamplerPreset);
+      if (sampled.length > 0) {
+        samplerPresets[role] = sampled;
+      }
+
+      // ⚠️ ערכה אחת לכל היותר לתפקיד: שתי ערכות באותו טראק היו מכפילות כל מכה.
+      const kit = selected.find(isDrumKitPreset);
+      if (kit) {
+        drumKitPresets[role] = kit;
+      }
+
+      // ⚠️ `Exclude<...>` ולא `SynthPresetConfig`: טיפוס-הנבואה חייב להיות תת-טיפוס של
+      // הפרמטר, ו-SynthPresetConfig (מ-@soundiform/audio) אינו חלק מהאיחוד של zod.
+      const synths = selected.filter(
+        (preset): preset is Exclude<SoundPreset, SamplerPreset | DrumKitPreset> =>
+          !isSamplerPreset(preset) && !isDrumKitPreset(preset),
+      );
+      const merged = mergeSynthPresets(synths);
       if (merged) {
-        resolved[role] = merged;
+        synthPresets[role] = merged;
+      } else if (sampled.length > 0 || kit) {
+        // ⚠️ נבחרו **רק** דגימות לתפקיד הזה — יש להסיר את פריסט-הסינת' של synthMap, אחרת
+        // הוא היה ממשיך להתנגן מתחת לדגימה והמשתמש היה שומע צליל שלא ביקש.
+        delete synthPresets[role];
       }
     }
   }
-  return resolved;
+
+  return { synthPresets, samplerPresets, drumKitPresets };
 }
 
 function resolveMutedRoles(soundSelections?: Partial<Record<TrackRole, string[]>>): TrackRole[] {
@@ -272,14 +369,51 @@ function resolveMutedRoles(soundSelections?: Partial<Record<TrackRole, string[]>
     .map(([role]) => role);
 }
 
+/**
+ * ⚠️ **מקצב ידני מחייב ערכה — זה לא העדפה אלא תנאי טכני.** תבנית-ביט אומרת "קיק ב-1,
+ * מחיאה ב-2, היי-האט בשמינית" — ו-`SynthProvider` **מתעלם מ-`drumPiece` לגמרי**: הוא ינגן
+ * את אותו צליל סינת' בגבהים שונים לכל חלק. כלומר משתמש בטראנס/האוס, שברירת המחדל שלו היא
+ * פריסט-סינת', בחר ביט ושמע ביפ אחיד במקום ערכה — בלי קיק, בלי מחיאה, בלי היי-האט.
+ *
+ * לכן, וברק כשנבחר ביט, הערכה הראשונה של הסגנון נבחרת אוטומטית. זו חריגה מודעת מהכלל
+ * "פריסט דגום לעולם לא נבחר אוטומטית" (שנועד למנוע הורדה לפני הצליל הראשון) — היא מוצדקת
+ * כאן משתי סיבות: בלי ערכה הביט פשוט **לא עובד**, והערכה האלקטרונית שוקלת 52KB.
+ */
+function autoSelectKitForBeat(
+  pack: GenrePack,
+  drumKitPresets: Partial<Record<TrackRole, DrumKitPreset>>,
+  beatPatternId?: string,
+): Partial<Record<TrackRole, DrumKitPreset>> {
+  if (!beatPatternId || drumKitPresets.drums) {
+    return drumKitPresets;
+  }
+  const kit = pack.soundOptions?.drums?.find(
+    (option): option is typeof option & { preset: DrumKitPreset } =>
+      'kind' in option.preset && option.preset.kind === 'drumkit',
+  );
+  return kit ? { ...drumKitPresets, drums: kit.preset } : drumKitPresets;
+}
+
 export function toGenreAudioConfig(
   pack: GenrePack,
   seed: string,
   soundSelections?: Partial<Record<TrackRole, string[]>>,
+  beatPatternId?: string,
 ): GenreAudioConfig {
   const mutedRoles = resolveMutedRoles(soundSelections);
+  const resolved = resolveSynthPresets(pack, seed, soundSelections);
+  const { samplerPresets } = resolved;
+  const synthPresets = { ...resolved.synthPresets };
+  const drumKitPresets = autoSelectKitForBeat(pack, resolved.drumKitPresets, beatPatternId);
+  // ⚠️ הסינת' של התופים מוסר כשהערכה נבחרה אוטומטית — אחרת שניהם היו מתנגנים זה על גבי זה,
+  // וה"ביפ" שהמשתמש התלונן עליו היה ממשיך להישמע מתחת לערכה.
+  if (drumKitPresets.drums && !resolved.drumKitPresets.drums) {
+    delete synthPresets.drums;
+  }
   return {
-    synthPresets: resolveSynthPresets(pack, seed, soundSelections),
+    synthPresets,
+    ...(Object.keys(samplerPresets).length > 0 && { samplerPresets }),
+    ...(Object.keys(drumKitPresets).length > 0 && { drumKitPresets }),
     mixCharacter: pack.mixChain,
     sidechainEnabled: pack.sidechainEnabled,
     ...(pack.sidechainDepth !== undefined && { sidechainDepth: pack.sidechainDepth }),

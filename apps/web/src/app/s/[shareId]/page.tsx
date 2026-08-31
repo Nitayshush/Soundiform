@@ -48,6 +48,7 @@ export default async function SharePage({ params }: SharePageProps) {
       videoKey: renders.videoKey,
       posterKey: renders.posterKey,
       shapeData: projects.shapeData,
+      creationSettings: projects.creationSettings,
       creatorId: users.id,
       creatorUsername: users.username,
       creatorDisplayName: users.displayName,
@@ -134,7 +135,12 @@ export default async function SharePage({ params }: SharePageProps) {
               <SharePlayer score={row.score} genreId={row.genreId} />
             )}
             <div className="flex flex-wrap items-center gap-3">
-              <RemixButton renderId={row.renderId} paths={row.shapeData.paths} />
+              <RemixButton
+                renderId={row.renderId}
+                paths={row.shapeData.paths}
+                genreId={row.genreId}
+                creationSettings={row.creationSettings}
+              />
               <DownloadLinks renderId={row.renderId} hasVideo={hasVideo} />
             </div>
             <ShareButtons url={`${getSiteUrl()}/s/${shareId}`} />

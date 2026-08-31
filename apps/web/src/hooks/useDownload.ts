@@ -132,6 +132,9 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
   const [renderError, setRenderError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [unsupportedNotice, setUnsupportedNotice] = useState<string | null>(null);
+  // ⚠️ refs ולא state: הם מווסתים את עדכוני-ה-state עצמם, ולכן חייבים לא לגרום ל-render.
+  const lastStageRef = useRef<string | null>(null);
+  const lastPercentRef = useRef<number | null>(null);
   const pendingDownloadRef = useRef(false);
   const autoDownloadAttemptedRef = useRef(false);
   // ⚠️ נלכד פעם אחת ב-mount, לא נקרא reactively מ-searchParams — useSaveProject's autoSave
@@ -144,6 +147,10 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
       setIsRendering(true);
       setRenderError(null);
       setUnsupportedNotice(null);
+      // ⚠️ איפוס הוויסות בתחילת כל הורדה: בלי זה, ניסיון שני שמתחיל באותו שלב ואותו אחוז
+      // כמו סוף הניסיון הקודם היה נבלע, והמשתמש היה רואה הודעה תקועה מהריצה הקודמת.
+      lastStageRef.current = null;
+      lastPercentRef.current = null;
       /** ה-slug לניווט, נאסף בתוך ה-try ומשמש **אחרי** ה-finally — ראה ההערה למטה. */
       let shareSlug: string | null = null;
       /** האם הוצגה הודעה שהמשתמש צריך זמן לקרוא לפני שהדף מתחלף. */
@@ -159,10 +166,22 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
           aspectRatio: DEFAULT_VIDEO_ASPECT_RATIO,
           ...(soundSelections && { soundSelections }),
           onProgress: ({ stage, ratio }) => {
+            // ⚠️ **קיום החוזה של encodeVideoInBrowser**: "נקרא תדיר; הקורא אחראי לוויסות".
+            // הקורא לא ויסת — כל פריים גרר `setStatusMessage`, כלומר ~1200 עדכוני React
+            // באמצע הקידוד, על אותו thread שמצייר את הפריימים ובונה VideoFrame. זה עלה
+            // בעיקר בכרום, כי הוא הדפדפן היחיד שבאמת מקודד את הווידאו.
+            // אחוז שלם הוא כל מה שמוצג ממילא, ולכן זה גם לא מוריד שום מידע מהמסך.
+            const nextPercent =
+              stage === 'video' && ratio !== undefined ? Math.round(ratio * 100) : null;
+            if (stage === lastStageRef.current && nextPercent === lastPercentRef.current) {
+              return;
+            }
+            lastStageRef.current = stage;
+            lastPercentRef.current = nextPercent;
             setStatusMessage(
-              stage === 'video' && ratio !== undefined
-                ? `Creating your video… ${String(Math.round(ratio * 100))}%`
-                : STAGE_MESSAGES[stage],
+              nextPercent === null
+                ? STAGE_MESSAGES[stage]
+                : `Creating your video… ${String(nextPercent)}%`,
             );
           },
         });

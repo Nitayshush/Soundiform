@@ -26,6 +26,17 @@ import { users } from './users';
 export const SOURCE_TYPE_VALUES = ['drawing', 'svg', 'raster'] as const;
 export type SourceType = (typeof SOURCE_TYPE_VALUES)[number];
 
+/**
+ * ⭐ 2026-08-31: ההגדרות שנשמרות יחד עם הציור. ⚠️ מוגדר כאן ולא מיובא מ-apps/web — packages
+ * לא יכולות לתלות באפליקציה (§3). הצורה חייבת להישאר תואמת ל-CreationSettings שם, ולכן
+ * שני הצדדים מאומתים מול אותה סכימת Zod במסלול השמירה.
+ */
+export interface ProjectCreationSettings {
+  soundSelections?: Record<string, string[]>;
+  beatPatternId?: string;
+  key?: { rootPitchClass: number; mode: string };
+}
+
 export const projects = pgTable(
   'projects',
   {
@@ -37,6 +48,16 @@ export const projects = pgTable(
     sourceType: text('source_type', { enum: SOURCE_TYPE_VALUES }).notNull(),
     thumbnailKey: text('thumbnail_key'),
     uploadKey: text('upload_key'),
+    /**
+     * ⭐ 2026-08-31 (סבב א'): ההגדרות שהמשתמש בחר ליצירה — צלילים, מקצב וסולם.
+     *
+     * ⚠️ עד עכשיו הן חיו ב-localStorage בלבד, ולכן יצירה שנפתחה במכשיר אחר קיבלה צלילים
+     * אחרים. עם בורר-הסולם זה נעשה חמור בהרבה: אותה יצירה הייתה מתנגנת **בסולם אחר לגמרי**.
+     * הציור לבדו כבר לא מגדיר את היצירה — ההגדרות הן חלק ממנה, ולכן הן נשמרות איתה.
+     *
+     * nullable: פרויקטים שנוצרו לפני התאריך הזה ממשיכים לעבוד, ונופלים לברירות-מחדל הסגנון.
+     */
+    creationSettings: jsonb('creation_settings').$type<ProjectCreationSettings>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
