@@ -110,6 +110,22 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: caughtError.message }, { status: 400 });
     }
     console.error('api/upload: file processing failed', caughtError);
+    // ⚠️ 2026-09-02: HEIC/HEIF מקבל הודעה משלו. התמיכה בו **אינה** תכונה של sharp אלא של
+    // האופן שבו libvips הורכב על המכונה — אותו קוד בדיוק יפענח על שרת אחד וייכשל על אחר,
+    // ולכן זה הפורמט היחיד שיכול להיכשל בפרודקשן אחרי שעבד בפיתוח. בלי ההפרדה הזו כל
+    // אייפון מקבל "File processing failed" גנרי, ואי אפשר להסיק מהדיווח אם הבעיה בקובץ,
+    // בשרת או בקוד. ⚠️ ההודעה גם נותנת למשתמש דרך פעולה מיידית במקום מבוי סתום.
+    if (kind === 'heif') {
+      return NextResponse.json(
+        {
+          error:
+            'This HEIC/HEIF photo could not be read on the server. On iPhone, ' +
+            'Settings → Camera → Formats → "Most Compatible" saves photos as JPEG. ' +
+            'PNG and JPEG always work.',
+        },
+        { status: 422 },
+      );
+    }
     return NextResponse.json({ error: 'File processing failed' }, { status: 422 });
   }
 }
