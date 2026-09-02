@@ -16,7 +16,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import ffmpeg from 'fluent-ffmpeg';
 import type { MusicalScore } from '@soundiform/core';
-import type { VideoAspectRatio, VideoQuality } from '@soundiform/audio';
+import {
+  computeMusicalDurationSeconds,
+  type VideoAspectRatio,
+  type VideoQuality,
+} from '@soundiform/audio';
 import type { ShapeData } from '@soundiform/shared';
 import { renderVideoFrame, type FrameDimensions } from './frameRenderer';
 
@@ -61,11 +65,17 @@ export interface VideoEncodeInput {
 /** מקודד פריימים+אודיו ל-MP4. מחזיר את ה-buffer המקודד. */
 export async function encodeVideo(input: VideoEncodeInput): Promise<Buffer> {
   const frameCount = Math.max(1, Math.round(input.durationSeconds * FRAME_RATE));
+  // ⚠️ 2026-09-01: ראה אותה הערה ב-apps/web/src/lib/video/encodeVideoInBrowser.ts — שני
+  // המסלולים חייבים למפות התקדמות בדיוק אותו דבר, אחרת אותה יצירה נראית אחרת בכל אחד מהם.
+  const scannerFrameCount = Math.max(
+    1,
+    Math.round(computeMusicalDurationSeconds(input.score) * FRAME_RATE),
+  );
   const tempDir = await mkdtemp(join(tmpdir(), 'soundiform-video-'));
 
   try {
     for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-      const progress = frameCount <= 1 ? 0 : frameIndex / frameCount;
+      const progress = Math.min(1, frameIndex / scannerFrameCount);
       const frameBuffer = await renderVideoFrame(
         input.score,
         progress,

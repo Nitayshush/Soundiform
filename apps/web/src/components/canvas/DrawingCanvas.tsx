@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { ShapePoint } from '@soundiform/shared';
 import { useShapeCapture } from '@/hooks/useShapeCapture';
+import { useShapeStore } from '@/stores/shapeStore';
 
 /** ⚠️ הקנבס עצמו לבן (studio/page.tsx) — קו כהה (לא בהיר-על-כהה כמו קודם). */
 const STROKE_COLOR = '#211b4a';
@@ -63,6 +64,18 @@ export function DrawingCanvas({ hidden = false }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { paths, activeStrokePoints, isDrawing, beginStroke, extendStroke, endStroke } =
     useShapeCapture();
+  /**
+   * ⚠️ 2026-09-02 (באג שנתפס בבדיקה חיה): כשמוצגת תמונה שהועלתה, **השלד לא מצויר כאן.**
+   *
+   * הקנבס הזה מותח את הצורה על **כל** הלוח, בעוד ש-UploadedImageLayer מציג את התמונה
+   * ביחס-הצורה המקורי שלה (object-contain) — כלומר עם שוליים. בשוליים האלה השלד המתוח
+   * נחשף מתחת לתמונה, וזה מה שנראה בצילום המסך: קווים כהים בקצה השמאלי והימני שאינם
+   * חלק מהתמונה.
+   *
+   * ⚠️ הציור הפעיל (activeStrokePoints) **כן** ממשיך להיות מצויר — ברגע שהמשתמש מתחיל
+   * לצייר, addPath ממילא מנקה את התמונה (shapeStore), ואסור שהקו שלו ייעלם בזמן שהוא מצייר.
+   */
+  const hasUploadedImage = useShapeStore((state) => state.previewImageUrl !== null);
   /** מבטיח שרק מגע/עכבר אחד מצייר בכל רגע — נגיעה שנייה בזמן ציור (למשל כף יד בטעות) מתעלמת ממנה. */
   const activePointerIdRef = useRef<number | null>(null);
 
@@ -73,11 +86,13 @@ export function DrawingCanvas({ hidden = false }: DrawingCanvasProps) {
       return;
     }
     context.clearRect(0, 0, canvas.width, canvas.height);
-    for (const path of paths) {
-      drawStroke(context, path.points, canvas.width, canvas.height, STROKE_COLOR);
+    if (!hasUploadedImage) {
+      for (const path of paths) {
+        drawStroke(context, path.points, canvas.width, canvas.height, STROKE_COLOR);
+      }
     }
     drawStroke(context, activeStrokePoints, canvas.width, canvas.height, ACTIVE_STROKE_COLOR);
-  }, [paths, activeStrokePoints]);
+  }, [paths, activeStrokePoints, hasUploadedImage]);
 
   const redrawRef = useRef(redraw);
   useEffect(() => {

@@ -30,4 +30,6 @@ export * from './theory/progression';
 export * from './groove/quantize';
 export * from './groove/humanize';
 
-// TODO(Sprint 4+): ייצוא arrangement/ ככל שייבנה (intro/build/outro — לא בהיקף Sprint 3).
+// ⚠️ 2026-09-01: כאן היה ייצוא של arrangement/. הפיצ'ר נבנה והוסר באותו יום לבקשת הפאונדר —
+// ראה docs/DECISIONS.md לסיבה המבנית (הוא רץ אחרי קביעת הכלים ולכן יכול היה רק להסיר תווים).
+// התיקייה נשארת ריקה, כמו שהייתה מ-Sprint 3.

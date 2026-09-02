@@ -59,8 +59,6 @@ function flattenCubic(p0: FlatPoint, p1: FlatPoint, p2: FlatPoint, p3: FlatPoint
   return points;
 }
 
-class SubpathLimitError extends Error {}
-
 /**
  * מפרסר path-data (מאפיין d של <path>) לרשימת תת-מסלולים (M...Z מפריד ביניהם), עם כל עקומה
  * משוטחת לפוליליין. זורק אם הקלט חורג מהמגבלות ההגנתיות (§8 — קלט לא-סמוך).
@@ -83,19 +81,32 @@ export function flattenPathData(d: string): FlatSubpath[] {
     }
   };
 
+  /**
+   * ⚠️ 2026-09-02: **חוצה-התקרה כבר לא זורק.** קודם קו בודד עם יותר מ-MAX_POINTS_PER_SUBPATH
+   * נקודות הפיל את **כל ההעלאה** עם "File processing failed" — הודעה שהמשתמש לא יכול להבין,
+   * ושהופיעה על כל צילום מפורט או סרוק (נמדד: תמונה רועשת ייצרה 14,667 פקודות בקו אחד).
+   *
+   * עכשיו הנקודות העודפות פשוט **לא נאספות**: הקו נשמר עד התקרה וההעלאה מצליחה. ⚠️ ההגנה
+   * של §8 נשמרת במלואה — התקרה עדיין חוסמת את הזיכרון בדיוק כמו קודם, ההבדל היחיד הוא
+   * שהיא מפסיקה לאסוף במקום להפיל. קו באורך כזה הוא ממילא רעש, לא צורה שהמשתמש התכוון אליה.
+   */
   const appendPoint = (point: FlatPoint): void => {
-    current.push(point);
-    if (current.length > MAX_POINTS_PER_SUBPATH) {
-      throw new SubpathLimitError('SVG subpath exceeds the allowed number of points');
+    if (current.length >= MAX_POINTS_PER_SUBPATH) {
+      return;
     }
+    current.push(point);
   };
 
   for (const command of commands) {
     switch (command.type) {
       case SVGPathData.MOVE_TO: {
         pushCurrentSubpath();
+        // ⚠️ 2026-09-02: מפסיק לאסוף במקום לזרוק — מאותה סיבה בדיוק כמו תקרת-הנקודות
+        // למעלה. תמונה עשירה בפרטים מייצרת מאות קווים, ולזרוק את כל ההעלאה בגללם פירושו
+        // שהמשתמש מקבל "File processing failed" על צילום תקין לחלוטין. ההגנה נשמרת: מספר
+        // הקווים עדיין חסום, פשוט לא במחיר קריסה.
         if (subpaths.length >= MAX_SUBPATHS) {
-          throw new SubpathLimitError('SVG exceeds the allowed number of subpaths');
+          break;
         }
         cx = command.x;
         cy = command.y;

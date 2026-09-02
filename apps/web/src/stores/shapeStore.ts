@@ -35,12 +35,43 @@ interface ShapeStoreState {
   shapeHash: string | null;
   sourceType: ShapeSourceType;
   uploadKey: string | null;
+  /**
+   * ⭐ 2026-09-02: object URL של הקובץ שהמשתמש בחר — **מה שהוא רואה על הלוח**. השלד ממשיך
+   * לייצר את הצליל בדיוק כמו קודם; זו שכבת תצוגה בלבד ואין לה שום השפעה על המוזיקה.
+   *
+   * ⚠️ **לא נשמר ב-localStorage** (ראה partialize למטה): object URL תקף רק לחיי הדף, ו-data
+   * URL של עד 10MB היה מפוצץ את מכסת ה-localStorage. אחרי רענון נשארת הצורה בלי התמונה —
+   * ההמשכיות המלאה תגיע מ-R2 (uploadKey) בשלב הבא.
+   */
+  previewImageUrl: string | null;
+  /**
+   * ⭐ 2026-09-02: מזהה הפרויקט האחרון שנשמר. **נשמר ב-localStorage** — בניגוד לתמונה עצמה,
+   * זו מחרוזת קצרה ולא קובץ.
+   *
+   * ⚠️ זה מה שמאפשר לתמונה המקורית לשרוד רענון: אחרי שמירה אפשר למשוך אותה מ-R2 דרך
+   * `api/projects/[id]/upload`. **לפני** שמירה היא לא נשמרת בכלל — החלטת מוצר מפורשת,
+   * כדי לא להחזיק קבצים של משתמשים שלא ביקשו לשמור כלום.
+   */
+  savedProjectId: string | null;
+  setSavedProjectId: (projectId: string | null) => void;
   addPath: (path: ShapePath) => void;
   loadShape: (
     paths: ShapePath[],
-    source?: { sourceType: ShapeSourceType; uploadKey: string | null },
+    source?: {
+      sourceType: ShapeSourceType;
+      uploadKey: string | null;
+      /** ⭐ 2026-09-02: אופציונלי — קוראים קיימים (Remix מדף שיתוף) לא משתנים. */
+      previewImageUrl?: string | null;
+    },
   ) => void;
   clear: () => void;
+}
+
+/** משחרר object URL קודם כדי לא לדלוף זיכרון בכל העלאה חוזרת. */
+function revokePreview(url: string | null): void {
+  if (url && url.startsWith('blob:')) {
+    URL.revokeObjectURL(url);
+  }
 }
 
 /** מיוצא (בנוסף לשימוש הפנימי) כדי ש-useAudioEngine יוכל לבנות ShapeData מ-paths.state באותה צורה בדיוק. */
@@ -55,9 +86,23 @@ export const useShapeStore = create<ShapeStoreState>()(
       shapeHash: null,
       sourceType: 'drawing',
       uploadKey: null,
+      previewImageUrl: null,
+      savedProjectId: null,
+      setSavedProjectId: (projectId) => {
+        set({ savedProjectId: projectId });
+      },
       addPath: (path) => {
         const nextPaths = [...get().paths, path];
-        set({ paths: nextPaths, sourceType: 'drawing', uploadKey: null });
+        // ⚠️ ציור-יד אחרי העלאה מבטל את התמונה: הצורה כבר אינה זו שהועלתה, והשארת התמונה
+        // הייתה מציגה למשתמש משהו שאינו מקור הצליל.
+        revokePreview(get().previewImageUrl);
+        set({
+          paths: nextPaths,
+          sourceType: 'drawing',
+          uploadKey: null,
+          previewImageUrl: null,
+          savedProjectId: null,
+        });
         computeShapeHash(toShapeData(nextPaths))
           .then((hash) => {
             set({ shapeHash: hash });
@@ -68,11 +113,14 @@ export const useShapeStore = create<ShapeStoreState>()(
           });
       },
       loadShape: (paths, source) => {
+        revokePreview(get().previewImageUrl);
         set({
           paths,
           shapeHash: null,
           sourceType: source?.sourceType ?? 'drawing',
           uploadKey: source?.uploadKey ?? null,
+          previewImageUrl: source?.previewImageUrl ?? null,
+          savedProjectId: null,
         });
         computeShapeHash(toShapeData(paths))
           .then((hash) => {
@@ -83,7 +131,15 @@ export const useShapeStore = create<ShapeStoreState>()(
           });
       },
       clear: () => {
-        set({ paths: [], shapeHash: null, sourceType: 'drawing', uploadKey: null });
+        revokePreview(get().previewImageUrl);
+        set({
+          paths: [],
+          shapeHash: null,
+          sourceType: 'drawing',
+          uploadKey: null,
+          previewImageUrl: null,
+          savedProjectId: null,
+        });
       },
     }),
     {
@@ -94,6 +150,9 @@ export const useShapeStore = create<ShapeStoreState>()(
         shapeHash: state.shapeHash,
         sourceType: state.sourceType,
         uploadKey: state.uploadKey,
+        // ⚠️ previewImageUrl **לא** נשמר (object URL מת ברענון); savedProjectId כן — הוא
+        // מה שמאפשר למשוך את התמונה מחדש מהשרת.
+        savedProjectId: state.savedProjectId,
       }),
     },
   ),

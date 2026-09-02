@@ -47,9 +47,15 @@ export function UploadButton() {
       if (!response.ok || !parsed.shape || !parsed.sourceType) {
         throw new Error(parsed.error ?? 'Upload failed');
       }
+      // ⭐ 2026-09-02: התמונה שתוצג על הלוח נלקחת מהקובץ **שבמכשיר**, לא מהשרת — אפס
+      // המתנה לרשת, ובאיכות המקורית המלאה. השרת ממשיך להחזיר את השלד בדיוק כמו קודם.
+      // ⚠️ SVG לא מקבל תצוגת-תמונה: שם ה"שלד" *הוא* הגרפיקה, וכיסוי שלה היה מסתיר את
+      // הצורה עצמה במקום להעשיר אותה.
+      const previewImageUrl = parsed.sourceType === 'raster' ? URL.createObjectURL(file) : null;
       loadShape(parsed.shape.paths, {
         sourceType: parsed.sourceType,
         uploadKey: parsed.uploadKey ?? null,
+        previewImageUrl,
       });
     } catch (caughtError) {
       setError(errorMessage(caughtError));
@@ -63,7 +69,10 @@ export function UploadButton() {
       <input
         ref={inputRef}
         type="file"
-        accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp"
+        // ⚠️ 2026-09-02: image/* בסוף בכוונה — בלעדיו iOS מסתיר קבצי HEIC בבורר הקבצים
+        // גם כשהשרת תומך בהם, כי חלק מהמכשירים לא מדווחים סיומת/mime שתואמת לרשימה.
+        // הרשימה המפורשת עדיין ראשונה, כדי שבדסקטופ הסינון יישאר הדוק.
+        accept=".svg,.png,.jpg,.jpeg,.webp,.tif,.tiff,.heic,.heif,.avif,image/svg+xml,image/png,image/jpeg,image/webp,image/tiff,image/heic,image/heif,image/avif,image/*"
         className="hidden"
         onChange={(event) => void handleFileChange(event)}
       />

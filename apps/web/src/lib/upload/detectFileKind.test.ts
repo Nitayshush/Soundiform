@@ -14,6 +14,16 @@ async function realJpegBuffer(): Promise<Buffer> {
     .toBuffer();
 }
 
+/** ⭐ 2026-09-02: הפורמטים שנפתחו — כולם מיוצרים מ-sharp עצמו, כך שהבדיקה מאמתת גם שהמנוע
+ *  שמפענח אותם בשרשרת ההעלאה באמת יודע לייצר/לקרוא אותם בסביבה הזו. */
+function blueSquare() {
+  return sharp({ create: { width: 8, height: 8, channels: 3, background: '#0000ff' } });
+}
+const gifBuffer = (): Promise<Buffer> => blueSquare().gif().toBuffer();
+const tiffBuffer = (): Promise<Buffer> => blueSquare().tiff().toBuffer();
+// ⚠️ heif דורש `compression` מפורש ב-sharp 0.35; 'av1' מפיק AVIF, שעוטף באותו HEIF כמו HEIC.
+const heifBuffer = (): Promise<Buffer> => blueSquare().heif({ compression: 'av1' }).toBuffer();
+
 describe('detectFileKind — §8 "בדיקת magic bytes ← לא סיומת!"', () => {
   it('מזהה PNG אמיתי מהתוכן (לא מהסיומת — אין סיומת בקלט כלל)', async () => {
     expect(await detectFileKind(await realPngBuffer())).toBe('png');
@@ -47,6 +57,28 @@ describe('detectFileKind — §8 "בדיקת magic bytes ← לא סיומת!"',
   it('דוחה קובץ בינארי-גולמי שלא תואם אף פורמט נתמך (למשל ELF/exe header מזויף)', async () => {
     const buffer = Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x01, 0x02, 0x03, 0x04]);
     expect(await detectFileKind(buffer)).toBeNull();
+  });
+
+  // ⭐ 2026-09-02: הפורמטים שנפתחו. ⚠️ HEIC של אייפון ו-AVIF שניהם עוטפים ב-HEIF, ולכן
+  // שניהם ממופים ל-'heif'. בלי התמיכה הזו כל צילום מאייפון נדחה — הכשל הנפוץ ביותר.
+  it('מזהה TIFF ו-HEIF/AVIF מהתוכן', async () => {
+    expect(await detectFileKind(await tiffBuffer())).toBe('tiff');
+    expect(await detectFileKind(await heifBuffer())).toBe('heif');
+  });
+
+  // ⚠️ GIF נדחה **בכוונה**, אף ש-sharp מפענח אותו: ה-dithering שלו דוחף 1,424 פיקסלים
+  // מעבר לסף ולכן אותה תמונה נותנת מוזיקה אחרת מכל שאר הפורמטים. עדיף לומר "לא נתמך"
+  // מאשר לתת תוצאה שגויה בשקט. הבדיקה נועלת את ההחלטה.
+  it('דוחה GIF — ה-dithering שלו משנה את הצורה שנחלצת', async () => {
+    expect(await detectFileKind(await gifBuffer())).toBeNull();
+  });
+
+  // ⚠️ BMP נשאר **מחוץ** לרשימה בכוונה: נמדד ש-sharp נכשל עליו ("unsupported image format").
+  // הבדיקה הזו נועלת את ההחלטה — פורמט שהמנוע לא מפענח לא נכנס לרשימת ההיתר, אחרת הכשל
+  // יקרה מאוחר יותר בשרשרת ובהודעת שגיאה גרועה בהרבה.
+  it('דוחה BMP — sharp אינו מפענח אותו, ולכן הוא לא ברשימה', async () => {
+    const bmpHeader = Buffer.concat([Buffer.from('BM'), Buffer.alloc(60, 0)]);
+    expect(await detectFileKind(bmpHeader)).toBeNull();
   });
 
   it('לא נופל על תוכן PNG-אמיתי גם אם שם-קובץ/סיומת מרמזים על SVG — אין קלט סיומת כלל בפונקציה', async () => {

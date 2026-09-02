@@ -28,7 +28,7 @@ import type { MusicalScore, Note, TrackRole } from '@soundiform/core';
 import { TICKS_PER_BEAT } from '@soundiform/core';
 import type { ShapeData } from '@soundiform/shared';
 import { projectShapeToStaff, revealedSegments } from '@soundiform/shared';
-import type { Canvas2DLike, FrameDimensions } from './canvas2d';
+import type { Canvas2DLike, CanvasImageLike, FrameDimensions } from './canvas2d';
 import { drawWatermark } from './watermark';
 
 const BACKGROUND_COLOR = '#ffffff';
@@ -230,20 +230,56 @@ export interface DrawFrameInput {
   progress: number;
   dimensions: FrameDimensions;
   watermark: boolean;
+  /**
+   * ⭐ 2026-09-02: התמונה המקורית שהמשתמש העלה. undefined/null = ציור-יד או SVG, ואז
+   * הפריים נראה בדיוק כמו קודם — אין שינוי התנהגות ליצירות קיימות.
+   *
+   * ⚠️ כשהיא קיימת, **מתאר-הצורה לא מצויר**: הצורה כבר נראית לעין בתמונה עצמה, וקו שחור
+   * מעליה היה מכסה אותה — ההפך ממה שהתבקש ("שיראו את התמונה ולא את השלד"). הבזקי-האור
+   * וקו-הסורק כן נשארים, והם מה שמראה איפה הסאונד נוגע בשלד שמתחת.
+   */
+  backgroundImage?: CanvasImageLike | null;
 }
 
 /**
  * מצייר פריים שלם על ה-context שסופק. סדר השכבות (מלמטה למעלה):
  * רקע → פעימת-רקע → תווים → פרצי-אור → **הצורה הנחשפת** → קו סורק → ווטרמארק.
  */
+/**
+ * מצייר את התמונה בתוך הפריים בלי לחתוך אותה (contain), ממורכזת.
+ *
+ * ⚠️ contain ולא cover: הצורה שהמנוע קרא מנורמלת ל-[0,1] בשני הצירים, וחיתוך היה מזיז את
+ * ההתאמה בין מה שנראה לבין מה שנשמע. אותה החלטה בדיוק כמו ב-UploadedImageLayer בסטודיו.
+ */
+function drawContainedImage(
+  ctx: Canvas2DLike,
+  image: CanvasImageLike,
+  dimensions: FrameDimensions,
+): void {
+  const { width, height } = dimensions;
+  if (image.width <= 0 || image.height <= 0) {
+    return;
+  }
+  const scale = Math.min(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
 export function drawVideoFrame(ctx: Canvas2DLike, input: DrawFrameInput): void {
-  const { score, shapeData, progress, dimensions, watermark } = input;
+  const { score, shapeData, progress, dimensions, watermark, backgroundImage } = input;
   const { width, height } = dimensions;
 
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, width, height);
+
+  // ⚠️ מיד אחרי הרקע ולפני התווים — בדיוק אותו סדר שכבות כמו בסטודיו
+  // (UploadedImageLayer יושב מעל הרשת ומתחת ל-ScoreStaff), כדי ש"פריוויו = פלט".
+  if (backgroundImage) {
+    drawContainedImage(ctx, backgroundImage, dimensions);
+  }
 
   const layout = computeScoreLayout(score, dimensions);
   if (layout) {
@@ -254,7 +290,10 @@ export function drawVideoFrame(ctx: Canvas2DLike, input: DrawFrameInput): void {
   }
 
   // ⭐ מעל התווים — ראה הערת-התיקון בראש הקובץ.
-  drawShapeTrace(ctx, shapeData, dimensions, progress);
+  // ⚠️ מדולג כשיש תמונה מקורית: היא כבר מראה את הצורה, ומתאר מעליה היה מסתיר אותה.
+  if (!backgroundImage) {
+    drawShapeTrace(ctx, shapeData, dimensions, progress);
+  }
 
   const scanX = progress * width;
   ctx.strokeStyle = SCAN_LINE_COLOR;

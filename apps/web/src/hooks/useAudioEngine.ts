@@ -28,6 +28,8 @@ export interface UseAudioEngineResult {
   isLoading: boolean;
   currentSeconds: number;
   durationSeconds: number;
+  /** ⭐ 2026-09-01: האורך המוזיקלי (בלי זנב-הריוורב) — הבסיס למיקום קו-הסריקה. */
+  musicalDurationSeconds: number;
   error: string | null;
   canPlay: boolean;
   play: () => Promise<void>;
@@ -82,6 +84,9 @@ export function useAudioEngine(): UseAudioEngineResult {
   const [isLoading, setIsLoading] = useState(false);
   const [currentSeconds, setCurrentSeconds] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(0);
+  // ⭐ 2026-09-01: האורך עד התו האחרון, בלי זנב-הריוורב. זה מה שקו-הסריקה נמדד מולו —
+  // ראה computeMusicalDurationSeconds ב-@soundiform/audio.
+  const [musicalDurationSeconds, setMusicalDurationSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [renderElapsedSeconds, setRenderElapsedSeconds] = useState(0);
   const [renderProgress, setRenderProgress] = useState<number | null>(null);
@@ -212,14 +217,13 @@ export function useAudioEngine(): UseAudioEngineResult {
         const shape = toShapeData(paths);
         const intent = geometryToMusic(shape, shapeHash);
         const score = composeMusicalScore(intent, toCompositionConfig(genrePack, overrides));
-        const { createBrowserRenderer, computeDurationSeconds, getRendererDiagnostics } =
-          await import('@soundiform/audio');
-        const audioConfig = toGenreAudioConfig(
-          genrePack,
-          intent.seed,
-          soundSelections,
-          overrides.beatPatternId,
-        );
+        const {
+          createBrowserRenderer,
+          computeDurationSeconds,
+          computeMusicalDurationSeconds,
+          getRendererDiagnostics,
+        } = await import('@soundiform/audio');
+        const audioConfig = toGenreAudioConfig(genrePack, intent.seed, soundSelections);
 
         // ⭐ 2026-08-29: מעריכים כמה זמן הרינדור-מראש ייקח *לפני* שמתחילים, מתוך מהירות
         // המכשיר שנמדדה בפעם הקודמת — כך שהמשתמש רואה התקדמות אמיתית ולא רק מספר עולה.
@@ -247,6 +251,7 @@ export function useAudioEngine(): UseAudioEngineResult {
         }
         rendererRef.current = renderer;
         setDurationSeconds(renderer.durationSeconds);
+        setMusicalDurationSeconds(computeMusicalDurationSeconds(score));
         setIsLoading(false);
       }
       await rendererRef.current.play();
@@ -300,6 +305,7 @@ export function useAudioEngine(): UseAudioEngineResult {
     isLoading,
     currentSeconds,
     durationSeconds,
+    musicalDurationSeconds,
     error,
     canPlay: paths.length > 0 && shapeHash !== null,
     play,

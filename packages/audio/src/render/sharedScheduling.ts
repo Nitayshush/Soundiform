@@ -96,8 +96,46 @@ export interface TrackRuntime {
   part: Part<ScheduledNoteEvent>;
 }
 
-/** תקרה סבירה לתוספת-זנב — מונעת padding בלתי-סביר גם אם קונפיג עתידי יגדיר reverb ארוך מאוד. */
-const MAX_RELEASE_TAIL_SECONDS = 8;
+/**
+ * תקרה לתוספת-זנב — מונעת padding בלתי-סביר גם אם קונפיג עתידי יגדיר reverb ארוך מאוד.
+ *
+ * ⚠️ 2026-09-01: הוקטן מ-8 ל-3 לפי בקשה חיה ("שהסיומת תהיה ב-2-3 השניות האחרונות").
+ * הזנב הוא **ריפוד** בסוף היצירה שבו כבר לא מתנגן שום תו — רק דעיכה. סינמטי קיבל 5 שניות
+ * כאלה ו-צ'יל 4, ועם הסורק שמגיע עכשיו לסוף יחד עם התו האחרון (ראה
+ * computeMusicalDurationSeconds) זה היה משאיר את התמונה קפואה 5 שניות.
+ * ⚠️ זה **לא** משנה את הריוורב עצמו — `reverbDecaySeconds` ממשיך להיקרא כמו שהוא ע"י
+ * createSharedReverbBus למטה. רק אורך הריפוד נחתך, ובנקודה הזו הדעיכה כבר מתחת ל--30dB.
+ */
+const MAX_RELEASE_TAIL_SECONDS = 3;
+
+/**
+ * ⭐ 2026-09-01: האורך ה**מוזיקלי** — עד התו האחרון, בלי זנב-הריוורב שמרופד אחריו.
+ *
+ * ⚠️ **זה מה שהסורק חייב להימדד מולו, לא computeDurationSeconds.** דווח בבדיקה חיה:
+ * "המוזיקה מושתקת לפני שהסורק מגיע לסוף הלוח". הסיבה הייתה שקו-הסריקה מיפה את מיקומו
+ * לאורך האודיו **כולל הזנב**, בעוד שכל התווים חיים בחלק הנומינלי בלבד — כלומר הסורק המשיך
+ * לנוע על פני שקט. בסינמטי זה היה 27% מהמסע על יצירה קצרה.
+ *
+ * ⚠️ הפונקציה הזו קיימת כדי ששלושת מקומות-הציור (הסטודיו החי, הווידאו בדפדפן, והווידאו
+ * בוורקר) ימפו **בדיוק אותו דבר**. שלושתם חישבו קודם התקדמות בנפרד; מקור-אמת אחד הוא מה
+ * שמונע "פריוויו ≠ פלט".
+ */
+export function computeMusicalDurationSeconds(score: MusicalScore): number {
+  const [beatsPerBar] = score.timeSignature;
+  const ticksPerBar = TICKS_PER_BEAT * beatsPerBar;
+  return ticksToSeconds(score.durationBars * ticksPerBar, score.tempo);
+}
+
+/**
+ * מיקום הסורק (0–1) לזמן נתון — מהודק ל-1 כדי שהזנב לא ידחוף אותו מעבר לקצה הלוח.
+ */
+export function scannerProgress(elapsedSeconds: number, score: MusicalScore): number {
+  const musicalSeconds = computeMusicalDurationSeconds(score);
+  if (musicalSeconds <= 0) {
+    return 0;
+  }
+  return Math.min(1, Math.max(0, elapsedSeconds / musicalSeconds));
+}
 
 /**
  * ⭐ 2026-08-22 — באג אמיתי שנתפס ע"י בדיקה חיה: המשך היה מחושב *רק* מ-durationBars,
@@ -109,9 +147,7 @@ export function computeDurationSeconds(
   score: MusicalScore,
   audioConfig?: GenreAudioConfig,
 ): number {
-  const [beatsPerBar] = score.timeSignature;
-  const ticksPerBar = TICKS_PER_BEAT * beatsPerBar;
-  const nominalSeconds = ticksToSeconds(score.durationBars * ticksPerBar, score.tempo);
+  const nominalSeconds = computeMusicalDurationSeconds(score);
   const releaseTailSeconds = Math.min(
     MAX_RELEASE_TAIL_SECONDS,
     audioConfig?.mixCharacter.reverbDecaySeconds ?? 0,

@@ -3,6 +3,8 @@
  * @description ⭐ העלאת קבצים (SVG/raster) → ShapeData. שרשרת ההגנה המלאה של §8:
  *              1. גודל (מקס 10MB) → 2. magic bytes → 3. SVG: svgo+DOMPurify /
  *              4. raster: sharp re-encode+potrace → מעלה את הקובץ *הנקי* ל-R2 (uploads/).
+ *              ⭐ 2026-09-02: הפורמטים הורחבו ל-GIF/TIFF/HEIC/AVIF — ראה detectFileKind.ts.
+ *              הענף כאן לא השתנה: SVG מול "כל השאר", ו-sharp מטפל בכולם באותה דרך.
  * @author      Soundiform
  * @created     2026-08-16
  *
@@ -66,7 +68,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   const kind = await detectFileKind(buffer);
   if (!kind) {
     return NextResponse.json(
-      { error: 'Unsupported file type — only SVG, PNG, JPEG, or WebP' },
+      {
+        error:
+          'Unsupported file type. Supported: PNG, JPEG, WebP, HEIC, AVIF, TIFF, SVG. ' +
+          'GIF is not supported — its colour dithering changes the extracted shape, ' +
+          'so the same picture would produce different music. Save it as PNG instead.',
+      },
       { status: 415 },
     );
   }

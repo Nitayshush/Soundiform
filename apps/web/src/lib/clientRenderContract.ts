@@ -93,12 +93,7 @@ export async function resolveClientRender(
   return {
     plan,
     score,
-    audioConfig: toGenreAudioConfig(
-      genrePack,
-      intent.seed,
-      effectiveSettings.soundSelections,
-      effectiveSettings.beatPatternId,
-    ),
+    audioConfig: toGenreAudioConfig(genrePack, intent.seed, effectiveSettings.soundSelections),
     shapeData: project.shapeData,
     shapeHash: project.shapeHash,
     keyPrefix: `renders/${score.seed}/${score.genreId}`,

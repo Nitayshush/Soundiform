@@ -1,8 +1,18 @@
 {
   "id": "reggae",
-  "displayName": { "he": "רגאיי", "en": "Reggae" },
-  "tempo": { "min": 65, "max": 80, "default": 72 },
-  "grid": { "subdivision": 16, "swingAmount": 0.18 },
+  "displayName": {
+    "he": "רגאיי",
+    "en": "Reggae"
+  },
+  "tempo": {
+    "min": 138,
+    "max": 164,
+    "default": 150
+  },
+  "grid": {
+    "subdivision": 16,
+    "swingAmount": 0.18
+  },
   "allowedModes": ["mixolydian"],
   "defaultMode": "mixolydian",
   "harmonicTendency": "diatonic",
@@ -11,16 +21,16 @@
   "rhythmPatterns": {
     "bass": [
       {
-        "name": "one-drop",
+        "name": "reggae-bassline",
         "stepsPerBar": 16,
-        "hits": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+        "hits": [1, 0, 0, 0.7, 0, 0, 0.9, 0, 0.95, 0, 0, 0.7, 0, 0, 0.85, 0]
       }
     ],
     "skank": [
       {
-        "name": "skank-2-and-4",
+        "name": "skank-offbeats",
         "stepsPerBar": 16,
-        "hits": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+        "hits": [0, 0, 0.85, 0, 0, 0, 1, 0, 0, 0, 0.85, 0, 0, 0, 1, 0]
       }
     ],
     "lead": [
@@ -41,31 +51,437 @@
   "synthMap": {
     "bass": {
       "oscillatorType": "sine",
-      "envelope": { "attack": 0.02, "decay": 0.2, "sustain": 0.8, "release": 0.3 },
+      "envelope": {
+        "attack": 0.02,
+        "decay": 0.2,
+        "sustain": 0.8,
+        "release": 0.3
+      },
       "polyphonic": false,
-      "filter": { "type": "lowpass", "frequencyHz": 500, "resonance": 0.7 },
-      "unison": { "count": 1, "spreadCents": 0 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 500,
+        "resonance": 0.7
+      },
+      "unison": {
+        "count": 1,
+        "spreadCents": 0
+      }
     },
     "skank": {
       "oscillatorType": "square",
-      "envelope": { "attack": 0.001, "decay": 0.08, "sustain": 0.05, "release": 0.05 },
+      "envelope": {
+        "attack": 0.001,
+        "decay": 0.08,
+        "sustain": 0.05,
+        "release": 0.05
+      },
       "polyphonic": true,
-      "filter": { "type": "highpass", "frequencyHz": 800, "resonance": 1.5 }
+      "filter": {
+        "type": "highpass",
+        "frequencyHz": 800,
+        "resonance": 1.5
+      }
     },
     "lead": {
       "oscillatorType": "triangle",
-      "envelope": { "attack": 0.02, "decay": 0.15, "sustain": 0.6, "release": 0.2 },
+      "envelope": {
+        "attack": 0.02,
+        "decay": 0.15,
+        "sustain": 0.6,
+        "release": 0.2
+      },
       "polyphonic": false,
-      "filter": { "type": "lowpass", "frequencyHz": 2000, "resonance": 0.7 }
+      "filter": {
+        "type": "lowpass",
+        "frequencyHz": 2000,
+        "resonance": 0.7
+      }
     },
     "drums": {
       "oscillatorType": "triangle",
-      "envelope": { "attack": 0.001, "decay": 0.15, "sustain": 0, "release": 0.05 },
+      "envelope": {
+        "attack": 0.001,
+        "decay": 0.15,
+        "sustain": 0,
+        "release": 0.05
+      },
       "polyphonic": false
     }
   },
-  "mixChain": { "reverbDecaySeconds": 2.5, "delayTime": "8n.", "delayFeedback": 0.45 },
-  "arrangement": { "sectionOrder": ["intro", "loop", "outro"] },
+  "mixChain": {
+    "reverbDecaySeconds": 2.5,
+    "delayTime": "8n.",
+    "delayFeedback": 0.45
+  },
+  "arrangement": {
+    "sectionOrder": ["intro", "loop", "outro"]
+  },
   "sidechainEnabled": false,
-  "requiresSamples": false
+  "requiresSamples": false,
+  "soundOptions": {
+    "skank": [
+      {
+        "id": "classic-skank",
+        "displayName": {
+          "he": "סקאנק קלאסי",
+          "en": "Classic Skank"
+        },
+        "preset": {
+          "oscillatorType": "square",
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.08,
+            "sustain": 0.05,
+            "release": 0.05
+          },
+          "polyphonic": true,
+          "filter": {
+            "type": "highpass",
+            "frequencyHz": 800,
+            "resonance": 1.5
+          }
+        }
+      },
+      {
+        "id": "electric-guitar",
+        "displayName": {
+          "he": "גיטרה חשמלית",
+          "en": "Electric Guitar"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "electric-guitar",
+          "notes": ["E2", "C3", "E3", "G3", "E4", "C5"],
+          "extension": "mp3",
+          "release": 0.45
+        }
+      },
+      {
+        "id": "organ",
+        "displayName": {
+          "he": "אורגן",
+          "en": "Organ"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "organ",
+          "notes": ["D#2", "C4", "A4", "C5", "F#5", "C6"],
+          "extension": "mp3",
+          "release": 0.3
+        }
+      },
+      {
+        "id": "nylon-guitar",
+        "displayName": {
+          "he": "גיטרה קלאסית",
+          "en": "Nylon Guitar"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "nylon-guitar",
+          "notes": ["A2", "D3", "G3", "B3", "E4", "A4"],
+          "extension": "mp3",
+          "release": 0.4
+        }
+      },
+      {
+        "id": "grand-piano",
+        "displayName": {
+          "he": "פסנתר כנף",
+          "en": "Grand Piano"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "grand-piano",
+          "notes": ["C3", "G#3", "E4", "C5", "G#5", "D6"],
+          "extension": "mp3",
+          "release": 0.35
+        }
+      }
+    ],
+    "drums": [
+      {
+        "id": "synth-drums",
+        "displayName": {
+          "he": "תופי סינת'",
+          "en": "Synth Drums"
+        },
+        "preset": {
+          "oscillatorType": "triangle",
+          "envelope": {
+            "attack": 0.001,
+            "decay": 0.15,
+            "sustain": 0,
+            "release": 0.05
+          },
+          "polyphonic": false
+        }
+      },
+      {
+        "id": "acoustic-kit",
+        "displayName": {
+          "he": "ערכה אקוסטית",
+          "en": "Acoustic Kit"
+        },
+        "preset": {
+          "kind": "drumkit",
+          "instrumentId": "acoustic-kit",
+          "pieces": ["kick", "tom", "snare", "clap", "hihat-closed", "hihat-open", "crash"],
+          "extension": "mp3",
+          "gain": 1
+        }
+      }
+    ],
+    "lead": [
+      {
+        "id": "synth-lead",
+        "displayName": {
+          "he": "ליד סינתטי",
+          "en": "Synth Lead"
+        },
+        "preset": {
+          "oscillatorType": "triangle",
+          "envelope": {
+            "attack": 0.02,
+            "decay": 0.15,
+            "sustain": 0.6,
+            "release": 0.2
+          },
+          "polyphonic": false,
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 2000,
+            "resonance": 0.7
+          }
+        }
+      },
+      {
+        "id": "organ",
+        "displayName": {
+          "he": "אורגן",
+          "en": "Organ"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "organ",
+          "notes": ["D#2", "C4", "A4", "C5", "F#5", "C6"],
+          "extension": "mp3",
+          "release": 0.3
+        }
+      },
+      {
+        "id": "trumpet",
+        "displayName": {
+          "he": "חצוצרה",
+          "en": "Trumpet"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "trumpet",
+          "notes": ["F3", "A#3", "D4", "G4", "D5", "A5"],
+          "extension": "mp3",
+          "release": 0.4
+        }
+      },
+      {
+        "id": "electric-guitar",
+        "displayName": {
+          "he": "גיטרה חשמלית",
+          "en": "Electric Guitar"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "electric-guitar",
+          "notes": ["E2", "C3", "E3", "G3", "E4", "C5"],
+          "extension": "mp3",
+          "release": 0.45
+        }
+      },
+      {
+        "id": "grand-piano",
+        "displayName": {
+          "he": "פסנתר כנף",
+          "en": "Grand Piano"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "grand-piano",
+          "notes": ["C3", "G#3", "E4", "C5", "G#5", "D6"],
+          "extension": "mp3",
+          "release": 0.6
+        }
+      },
+      {
+        "id": "tenor-sax",
+        "displayName": {
+          "he": "סקסופון טנור",
+          "en": "Tenor Sax"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "tenor-sax",
+          "notes": ["C3", "A#3", "F#4", "D5", "G#5"],
+          "extension": "mp3",
+          "release": 0.9
+        }
+      },
+      {
+        "id": "nylon-guitar",
+        "displayName": {
+          "he": "גיטרה קלאסית",
+          "en": "Nylon Guitar"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "nylon-guitar",
+          "notes": ["A2", "D3", "G3", "B3", "E4", "A4"],
+          "extension": "mp3",
+          "release": 0.5
+        }
+      },
+      {
+        "id": "flute",
+        "displayName": {
+          "he": "חליל",
+          "en": "Flute"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "flute",
+          "notes": ["C4", "A4", "E5", "C6"],
+          "extension": "mp3",
+          "release": 0.8
+        }
+      }
+    ],
+    "bass": [
+      {
+        "id": "synth-bass",
+        "displayName": {
+          "he": "בס סינתטי",
+          "en": "Synth Bass"
+        },
+        "preset": {
+          "oscillatorType": "sine",
+          "envelope": {
+            "attack": 0.02,
+            "decay": 0.2,
+            "sustain": 0.8,
+            "release": 0.3
+          },
+          "polyphonic": false,
+          "filter": {
+            "type": "lowpass",
+            "frequencyHz": 500,
+            "resonance": 0.7
+          },
+          "unison": {
+            "count": 1,
+            "spreadCents": 0
+          }
+        }
+      },
+      {
+        "id": "tuba",
+        "displayName": {
+          "he": "טובה",
+          "en": "Tuba"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "tuba",
+          "notes": ["A#1", "D#2", "A#2", "D3", "A#3"],
+          "extension": "mp3",
+          "release": 0.5
+        }
+      },
+      {
+        "id": "trombone",
+        "displayName": {
+          "he": "טרומבון",
+          "en": "Trombone"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "trombone",
+          "notes": ["D#2", "D3", "F3", "C4", "D#4", "F4"],
+          "extension": "mp3",
+          "release": 0.5
+        }
+      },
+      {
+        "id": "contrabass-pizz",
+        "displayName": {
+          "he": "קונטרבס אמיתי",
+          "en": "Upright Bass"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "contrabass-pizz",
+          "notes": ["A#1", "E2", "A2", "G#3"],
+          "extension": "mp3",
+          "release": 0.3
+        }
+      }
+    ]
+  },
+  "absoluteNoteBoard": true,
+  "noteBoardRootPitchClass": 9,
+  "noteBoardRowCount": 13,
+  "allowedSubdivisions": [8, 16],
+  "beatAccents": [0.72, 0.94, 1, 0.94],
+  "beatPatterns": [
+    {
+      "id": "one-drop",
+      "displayName": {
+        "he": "וואן-דרופ",
+        "en": "One Drop"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+        "snare": [0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0],
+        "hihat-closed": [0, 0, 0.72, 0, 0.42, 0, 0.72, 0, 0.42, 0, 0.72, 0, 0.42, 0, 0.72, 0],
+        "hihat-open": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.55, 0]
+      },
+      "bassSteps": [2, 4, 6, 10, 12, 14],
+      "skank": [0, 0, 0.85, 0, 0, 0, 1, 0, 0, 0, 0.85, 0, 0, 0, 1, 0]
+    },
+    {
+      "id": "rockers",
+      "displayName": {
+        "he": "רוקרס",
+        "en": "Rockers"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+        "snare": [0, 0, 0, 0, 0.9, 0, 0, 0, 0, 0, 0, 0, 0.9, 0, 0, 0],
+        "hihat-closed": [0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0.5, 0],
+        "hihat-open": [0, 0, 0, 0, 0, 0, 0.55, 0, 0, 0, 0, 0, 0, 0, 0.6, 0]
+      },
+      "bassSteps": [2, 3, 6, 10, 11, 14],
+      "skank": [0, 0, 0.85, 0.32, 0, 0, 0.95, 0.32, 0, 0, 0.85, 0.32, 0, 0, 0.95, 0.32]
+    },
+    {
+      "id": "steppers",
+      "displayName": {
+        "he": "סטפרס",
+        "en": "Steppers"
+      },
+      "stepsPerBar": 16,
+      "pieces": {
+        "kick": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        "snare": [0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0],
+        "hihat-closed": [
+          0.34, 0.26, 0.62, 0.26, 0.38, 0.26, 0.62, 0.26, 0.34, 0.26, 0.62, 0.26, 0.38, 0.26, 0.62,
+          0.26
+        ],
+        "hihat-open": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0]
+      },
+      "bassSteps": [2, 6, 10, 14],
+      "skank": [0, 0.28, 0.9, 0, 0, 0.28, 0.9, 0, 0, 0.28, 0.9, 0, 0, 0.28, 0.9, 0]
+    }
+  ]
 }

@@ -18,6 +18,7 @@ import { Maximize, Minimize } from 'lucide-react';
 import { DrawingCanvas } from '@/components/canvas/DrawingCanvas';
 import { MusicalGrid } from '@/components/canvas/MusicalGrid';
 import { ScoreStaff } from '@/components/canvas/ScoreStaff';
+import { UploadedImageLayer } from '@/components/canvas/UploadedImageLayer';
 import { RevealOverlay } from '@/components/canvas/RevealOverlay';
 import { GenreSelector } from '@/components/controls/GenreSelector';
 import { SoundSelector } from '@/components/controls/SoundSelector';
@@ -41,6 +42,7 @@ function StudioContent() {
     isLoading,
     currentSeconds,
     durationSeconds,
+    musicalDurationSeconds,
     error,
     canPlay,
     play,
@@ -87,7 +89,11 @@ function StudioContent() {
   // עצמו, לא להישאר class Tailwind נפרד; ראה התיעוד ב-useFitAspectRatio.ts לבאג שזה תיקן.
   const fittedSize = useFitAspectRatio(stageContainerRef, 1024);
 
-  const progress = durationSeconds > 0 ? currentSeconds / durationSeconds : 0;
+  // ⚠️ 2026-09-01: נמדד מול **האורך המוזיקלי** ולא מול אורך האודיו. אורך האודיו כולל
+  // זנב-ריוורב שבו כבר לא מתנגן אף תו, ולכן הסורק היה ממשיך לנוע על פני שקט — מה שדווח
+  // כ"המוזיקה מושתקת לפני שהסורק מגיע לסוף הלוח". מהודק ל-1 כדי שלא יחרוג מקצה הלוח.
+  const progress =
+    musicalDurationSeconds > 0 ? Math.min(1, currentSeconds / musicalDurationSeconds) : 0;
 
   return (
     <main className="flex h-dvh flex-col bg-background">
@@ -256,6 +262,9 @@ function StudioContent() {
               rowLabels: noteBoardGrid.rowLabels,
             })}
           />
+          {/* ⭐ 2026-09-02: התמונה שהועלתה — מעל הרשת והציור, **מתחת** ל-ScoreStaff, כך
+              שהסורק, פסי-התווים והבזקי-האור נשארים גלויים מעליה. ראה UploadedImageLayer.tsx. */}
+          <UploadedImageLayer />
           <ScoreStaff progress={progress} />
           <RevealOverlay />
         </div>

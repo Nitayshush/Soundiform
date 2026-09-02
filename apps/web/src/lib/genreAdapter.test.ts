@@ -9,8 +9,8 @@
 import { describe, expect, it } from 'vitest';
 import { composeMusicalScore, geometryToMusic } from '@soundiform/core';
 import type { ShapeData } from '@soundiform/shared';
-import { loadGenrePackById, type GenrePack } from '@soundiform/genres';
-import { toCompositionConfig, toGenreAudioConfig } from './genreAdapter';
+import { loadAllGenrePacks, loadGenrePackById, type GenrePack } from '@soundiform/genres';
+import { DRAWING_BEAT_ID, toCompositionConfig, toGenreAudioConfig } from './genreAdapter';
 
 function makeTestPack(): GenrePack {
   return {
@@ -225,7 +225,15 @@ describe("composeMusicalScore + genreAdapter — תיקון-ביצועים עם 
 
     const shape = makeSpikyShapeData();
     const intent = geometryToMusic(shape, 'seed-spiky-real-content');
-    const score = composeMusicalScore(intent, toCompositionConfig(trancePack));
+    // ⚠️ 2026-09-01: **מודדים במפורש את המסלול שנגזר מהציור** (DRAWING_BEAT_ID), לא את
+    // ברירת המחדל. התקרה הזו נכתבה כדי לחסום צפיפות שנגזרת מ-cornerHint — כמות שאין לה גבול
+    // עליון מובנה. מאז שהביט של הסגנון הוא ברירת המחדל, הציון כולל גם תבנית קבועה וחסומה
+    // מעצם הגדרתה (16 צעדים × חלקי-ערכה), שהיא **בכוונה** צפופה: היא ה"קצב מסגרת" של הסגנון.
+    // מדידת שתיהן יחד הייתה הופכת את הבדיקה לחסרת-משמעות — היא כבר לא בודקת את מה שנועדה.
+    const score = composeMusicalScore(
+      intent,
+      toCompositionConfig(trancePack, { beatPatternId: DRAWING_BEAT_ID }),
+    );
 
     const drumsTrack = score.tracks.find((track) => track.role === 'drums');
     expect(drumsTrack?.notes.length ?? 0).toBeGreaterThan(0);
@@ -246,5 +254,25 @@ describe("composeMusicalScore + genreAdapter — תיקון-ביצועים עם 
     // (intent סינתטי, בלי רעש-גבולות). כאן, עם intent אמיתי מ-geometryToMusic ותוכן-ז'אנר
     // אמיתי, מספיק להראות שהצפיפות עדיין *באותו סדר-גודל* — רחוק מ-16/בר (המצב הישן, ללא תקרה).
     expect(notesPerBar).toBeLessThanOrEqual(8);
+  });
+
+  /**
+   * ⚠️ 2026-09-01: הביט של הסגנון חסום מעצם מבנהו, אבל **לא** אינסופית — תבנית עם הרבה
+   * חלקי-ערכה על 16 צעדים יכולה לגדול. הבדיקה הזו קיימת כדי ששינוי-תוכן בפאק לא ינפח את
+   * הצפיפות בלי שאיש ישים לב. הסף רחב בכוונה: זו רשת, לא כיול.
+   *
+   * ⚠️ העלות של המכות האלה שונה מהותית מהעלות שהתקרה שמעל נועדה לחסום: מאז שערכת-תופים
+   * נבחרת תמיד (autoSelectDrumKit), מכה היא הפעלת באפר ולא קול-סינת'. הבאג המקורי היה
+   * קרקושים בסינתזה בזמן-אמת, ומאז המעבר לרינדור-מראש (5dfe086) גם זה כבר לא במסלול.
+   */
+  it('הביט של הסגנון צפוף בכוונה — אבל לא בלי גבול', () => {
+    for (const pack of loadAllGenrePacks()) {
+      const intent = geometryToMusic(makeSpikyShapeData(), `beat-${pack.id}`);
+      const score = composeMusicalScore(intent, toCompositionConfig(pack));
+      const drums = score.tracks.find((track) => track.role === 'drums');
+      const perBar = (drums?.notes.length ?? 0) / score.durationBars;
+      expect(perBar, `${pack.id} — צפיפות תופים`).toBeGreaterThan(6);
+      expect(perBar, `${pack.id} — צפיפות תופים`).toBeLessThanOrEqual(32);
+    }
   });
 });

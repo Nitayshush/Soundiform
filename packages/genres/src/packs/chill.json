@@ -184,6 +184,48 @@
           "extension": "mp3",
           "release": 0.5
         }
+      },
+      {
+        "id": "nylon-guitar",
+        "displayName": {
+          "he": "גיטרה קלאסית",
+          "en": "Nylon Guitar"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "nylon-guitar",
+          "notes": ["A2", "D3", "G3", "B3", "E4", "A4"],
+          "extension": "mp3",
+          "release": 0.5
+        }
+      },
+      {
+        "id": "organ",
+        "displayName": {
+          "he": "אורגן",
+          "en": "Organ"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "organ",
+          "notes": ["D#2", "C4", "A4", "C5", "F#5", "C6"],
+          "extension": "mp3",
+          "release": 0.3
+        }
+      },
+      {
+        "id": "clarinet",
+        "displayName": {
+          "he": "קלרינט",
+          "en": "Clarinet"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "clarinet",
+          "notes": ["D3", "A#3", "F4", "A#4", "D5", "A#5"],
+          "extension": "mp3",
+          "release": 0.5
+        }
       }
     ],
     "pad": [
@@ -236,6 +278,20 @@
           "extension": "mp3",
           "release": 1.2
         }
+      },
+      {
+        "id": "clarinet",
+        "displayName": {
+          "he": "קלרינט",
+          "en": "Clarinet"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "clarinet",
+          "notes": ["D3", "A#3", "F4", "A#4", "D5", "A#5"],
+          "extension": "mp3",
+          "release": 0.5
+        }
       }
     ],
     "bass": [
@@ -273,6 +329,20 @@
           "notes": ["A#1", "E2", "A2", "G#3"],
           "extension": "mp3",
           "release": 0.3
+        }
+      },
+      {
+        "id": "bassoon",
+        "displayName": {
+          "he": "בסון",
+          "en": "Bassoon"
+        },
+        "preset": {
+          "kind": "sampler",
+          "instrumentId": "bassoon",
+          "notes": ["F2", "C3", "G3", "C4", "E4", "G4"],
+          "extension": "mp3",
+          "release": 0.5
         }
       }
     ],

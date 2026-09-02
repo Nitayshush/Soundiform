@@ -35,7 +35,34 @@ export interface ClientRenderInput {
   genreId: string;
   aspectRatio: string;
   soundSelections?: Record<string, string[]>;
+  /**
+   * ⭐ 2026-09-02: ה-object URL של התמונה שהמשתמש העלה (shapeStore.previewImageUrl).
+   * כשקיים — הוא נכנס לפריימים של הווידאו, כך שהקליפ מראה את התמונה שלו ולא את השלד.
+   * ⚠️ אופציונלי: ציור-יד ו-SVG לא שולחים אותו, והווידאו יוצא בדיוק כמו קודם.
+   */
+  previewImageUrl?: string | null;
   onProgress?: (progress: ClientRenderProgress) => void;
+}
+
+/**
+ * מפענח את התמונה פעם אחת לפני לולאת-הפריימים.
+ *
+ * ⚠️ **כישלון כאן לא מפיל את הווידאו.** מחזירים null וממשיכים בלי התמונה — אותו כלל
+ * שנקבע ב-0ed90b6: "כישלון קידוד אינו כישלון הורדה". תמונה חסרה היא פגם ויזואלי, לא סיבה
+ * לאבד את כל היצירה.
+ */
+async function decodePreviewImage(url: string | null | undefined): Promise<ImageBitmap | null> {
+  if (!url) {
+    return null;
+  }
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return await createImageBitmap(blob);
+  } catch (error) {
+    console.error('clientRender: פענוח התמונה המקורית נכשל — הווידאו ייוצא בלעדיה', error);
+    return null;
+  }
 }
 
 export interface ClientRenderResult {
@@ -151,6 +178,7 @@ async function resampleForVideo(audio: AudioBuffer): Promise<AudioBuffer> {
  * מרנדר ומעלה הכל מהמכשיר, ומחזיר את מזהה הרינדור שנרשם בשרת.
  */
 export async function runClientRender(input: ClientRenderInput): Promise<ClientRenderResult> {
+  const { previewImageUrl } = input;
   const { projectId, genreId, aspectRatio, soundSelections, onProgress } = input;
   onProgress?.({ stage: 'preparing' });
 
@@ -267,9 +295,16 @@ export async function runClientRender(input: ClientRenderInput): Promise<ClientR
     // זה גם עמיד בפני כל תקלת-מקודד עתידית בכל דפדפן, במקום לרדוף אחרי כל אחת בנפרד.
     try {
       const { encodeVideoInBrowser } = await import('@/lib/video/encodeVideoInBrowser');
+      // ⭐ 2026-09-02: התמונה המקורית נכנסת לווידאו. היא נלקחת מה-object URL שכבר קיים
+      // בסטודיו (shapeStore.previewImageUrl) — אותו קובץ שהמשתמש רואה על הלוח, כך
+      // ש"פריוויו = פלט" נשמר גם כאן.
+      // ⚠️ פענוח אחד בלבד, לפני הלולאה. כישלון בפענוח **לא מפיל את הווידאו** — מקבלים
+      // קליפ בלי התמונה, בדיוק לפי הכלל שנקבע ב-0ed90b6 ("כישלון קידוד אינו כישלון הורדה").
+      const backgroundImage = await decodePreviewImage(previewImageUrl);
       const mp4 = await encodeVideoInBrowser({
         score: start.score,
         shapeData: start.shapeData,
+        ...(backgroundImage && { backgroundImage }),
         audio: videoAudio,
         durationSeconds,
         dimensions: { width: videoDimensions.width, height: videoDimensions.height },

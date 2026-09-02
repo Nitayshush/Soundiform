@@ -37,7 +37,10 @@ export const useGenrePacksStore = create<GenrePacksState>((set, get) => ({
     }
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/genres');
+      // ⚠️ 2026-09-01: cache:'no-store' לצד הכותרת בתשובה — כל צד יכול לטמן בנפרד, ותשובה
+      // ישנה כאן פירושה שהמשתמש שומע גרסה קודמת של הסגנון בלי שום סימן לכך. ראה
+      // api/genres/route.ts.
+      const response = await fetch('/api/genres', { cache: 'no-store' });
       const body: unknown = await response.json();
       const parsed = body as { packs?: GenrePack[]; error?: string };
       if (!response.ok) {

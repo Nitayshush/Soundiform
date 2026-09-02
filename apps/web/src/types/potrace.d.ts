@@ -24,7 +24,18 @@ declare module 'potrace' {
     height?: number;
   }
 
+  /**
+   * ⭐ 2026-09-02: אפשרויות ה-Posterizer. `steps` הוא מספר רמות-הבהירות שמהן מחלצים קווים —
+   * ראה rasterToShapeData.ts למדידה שהובילה לבחירת הערך.
+   */
+  export interface PosterizeOptions extends PotraceOptions {
+    steps?: number;
+    fillStrategy?: string;
+    rangeDistribution?: string;
+  }
+
   export type TraceCallback = (error: Error | null, svg: string) => void;
 
   export function trace(file: Buffer, options: PotraceOptions, callback: TraceCallback): void;
+  export function posterize(file: Buffer, options: PosterizeOptions, callback: TraceCallback): void;
 }

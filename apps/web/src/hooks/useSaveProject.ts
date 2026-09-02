@@ -92,6 +92,9 @@ export function useSaveProject(): UseSaveProjectResult {
         throw new Error(parsed.error ?? 'Save failed');
       }
       setSavedProjectId(parsed.project?.id ?? null);
+      // ⭐ 2026-09-02: נשמר גם ב-shapeStore (ומשם ל-localStorage), כדי שהתמונה המקורית
+      // תישרד רענון — ראה UploadedImageLayer.tsx.
+      useShapeStore.getState().setSavedProjectId(parsed.project?.id ?? null);
     } catch (caughtError) {
       setSaveError(errorMessage(caughtError));
     } finally {

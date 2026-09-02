@@ -159,8 +159,10 @@ function walk(element: Element, parentMatrix: Matrix2D, state: WalkState): void 
   );
 
   for (const rawSubpath of shapeElementSubpaths(element)) {
+    // ⚠️ 2026-09-02: עוצר במקום לזרוק — ראה ההערה המקבילה ב-svgPathFlatten.ts. תמונה
+    // מפורטת היא קלט לגיטימי, לא התקפה; החסם נשאר, הקריסה לא.
     if (state.subpaths.length >= MAX_SUBPATHS) {
-      throw new SvgConversionError('SVG exceeds the allowed number of subpaths');
+      break;
     }
     state.subpaths.push(transformSubpath(rawSubpath, worldMatrix));
   }

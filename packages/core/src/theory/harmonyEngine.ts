@@ -1550,7 +1550,11 @@ function buildSkankTrack(
     role: 'skank',
     instrumentId: 'default-skank',
     notes,
-    mixSettings: { volume: 0.7, pan: 0, reverbSend: 0.15, delaySend: 0.1 },
+    // ⚠️ 2026-09-02: הווליום ירד מ-0.7. נמדדה חלוקת האנרגיה במיקס והסקאנק היה **50%-59%**
+    // ממנה — כלומר האלמנט הראשי, בעוד התופים 17%-31%. ברגאיי היחס הפוך: התופים והבס הם
+    // ה"רידים" (היסוד), והסקאנק הוא טקסטורה מעליהם. הוא גם פוליפוני, כך שכל נגיחה היא
+    // אקורד מלא — פי שלושה אנרגיה מכל מכת-תוף. ⚠️ הערך הזה כויל במדידה, לא באוזן.
+    mixSettings: { volume: 0.3, pan: 0, reverbSend: 0.15, delaySend: 0.1 },
   };
 }
 
@@ -2054,15 +2058,19 @@ export function composeMusicalScore(
   }
 
   if (config.rhythmPatterns?.skank) {
+    // ⚠️ 2026-09-01 (בדיקה חיה: "לא נשמע כמו רגאיי"): הסקאנק נבנה קודם על **פרוסת ה-loop
+    // בלבד** והוזז ב-loopStartTicks, כלומר ה-intro וה-outro יצאו בלעדיו. נמדד: הסקאנק כיסה
+    // בר אחד מתוך שלושה. הסקאנק הוא האלמנט שמגדיר את הסגנון — יצירה שנפתחת בלעדיו לא
+    // נשמעת רגאיי בכלל, וזה גם מה שדווח כ"צליל קבוע בפתיחה" (נשארו רק בס ותופים).
+    // עכשיו הוא נבנה על כל הברים, כמו bass/lead/drums, ובלי הזזה.
     const skankTrack = buildSkankTrack(
       config.rhythmPatterns.skank,
       root,
       mode,
-      progressionDegrees,
+      fullProgressionDegrees,
       config,
       random,
     );
-    skankTrack.notes = shiftNotes(skankTrack.notes, loopStartTicks);
     tracks.push(skankTrack);
     swellTrack ??= skankTrack; // ⭐ בלי pad (רגאיי) — intro/outro/build "נושמים" על skank במקום.
   }

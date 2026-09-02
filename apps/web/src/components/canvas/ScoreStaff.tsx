@@ -150,6 +150,11 @@ function energyAtTick(score: MusicalScore, tick: number): number {
 export function ScoreStaff({ progress }: ScoreStaffProps) {
   const paths = useShapeStore((state) => state.paths);
   const shapeHash = useShapeStore((state) => state.shapeHash);
+  // ⭐ 2026-09-02: כשמוצגת התמונה המקורית של המשתמש (UploadedImageLayer), מתאר-הצורה
+  // **לא** מצויר מעליה — היא כבר מראה את הצורה, וקו מעליה היה מכסה אותה. הבזקי-האור
+  // וקו-הסורק נשארים, והם מה שמראה איפה הסאונד נוגע בשלד. ⚠️ אותה החלטה בדיוק מיושמת
+  // ב-drawFrame.ts של הווידאו — אחרת הפריוויו והפלט היו נראים שונה.
+  const hasOriginalImage = useShapeStore((state) => state.previewImageUrl !== null);
   const genreId = useGenreStore((state) => state.genreId);
   const packs = useGenrePacksStore((state) => state.packs);
 
@@ -336,7 +341,7 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
     shapeCrispLayer.clear();
 
     const currentPaths = pathsRef.current;
-    if (currentPaths.length > 0) {
+    if (currentPaths.length > 0 && !hasOriginalImage) {
       const shapeLayout = projectShapeToStaff(
         { version: '1.0.0', paths: currentPaths },
         { width: app.renderer.width, height: app.renderer.height },
@@ -405,7 +410,9 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
       }
     }
     previousProgressRef.current = progress;
-  }, [progress, score]);
+    // ⚠️ hasOriginalImage בתלויות: כשהמשתמש מעלה תמונה או מנקה אותה, השכבה צריכה להצטייר
+    // מחדש מיד — אחרת מתאר-הצורה היה נשאר על המסך עד ה-progress הבא.
+  }, [progress, score, hasOriginalImage]);
 
   return <div ref={containerRef} className="pointer-events-none absolute inset-0" />;
 }

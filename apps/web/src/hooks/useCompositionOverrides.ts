@@ -18,19 +18,17 @@
 import { useMemo } from 'react';
 import type { CompositionOverrides } from '@/lib/genreAdapter';
 import { useGenreStore } from '@/stores/genreStore';
-import { useCreationSettingsStore, DRAWING_BEAT_ID } from '@/stores/creationSettingsStore';
+import { useCreationSettingsStore } from '@/stores/creationSettingsStore';
 
 export function useCompositionOverrides(): CompositionOverrides {
   const genreId = useGenreStore((state) => state.genreId);
   const settings = useCreationSettingsStore((state) => state.byGenre[genreId]);
 
   return useMemo(() => {
-    // ⚠️ DRAWING_BEAT_ID אינו מזהה-תבנית אמיתי — הוא הסמל ל"התופים מהציור", ולכן לא מועבר
-    // הלאה בכלל. העברתו הייתה גורמת ל-toCompositionConfig לחפש תבנית שלא קיימת.
-    const beatPatternId =
-      settings?.beatPatternId && settings.beatPatternId !== DRAWING_BEAT_ID
-        ? settings.beatPatternId
-        : undefined;
+    // ⚠️ 2026-09-01: הסמל **כן** מועבר הלאה עכשיו. מאז שברירת המחדל היא הביט של הסגנון,
+    // "אין ערך" ו"המשתמש בחר מהציור" הם שני מצבים שונים, ובליעת הסמל כאן הייתה מוחקת את
+    // הבחירה של המשתמש. resolveBeatPattern הוא זה שמפרש אותו.
+    const beatPatternId = settings?.beatPatternId;
     return {
       ...(beatPatternId !== undefined && { beatPatternId }),
       ...(settings?.key !== undefined && { key: settings.key }),

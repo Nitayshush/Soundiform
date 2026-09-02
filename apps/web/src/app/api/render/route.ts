@@ -133,12 +133,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // ⭐ 2026-08-24 (Area 1): toGenreAudioConfig עצמו כבר מאמת כל id מול genrePack.soundOptions
   // (genreAdapter.ts's resolveSynthPresets) — id לא-קיים נופל בשקט ל-synthMap הרגיל, אף פעם
   // לא נכשל/נזרק. אין כאן עוד ולידציה נדרשת מעבר לזו שכבר ב-renderRequestSchema (טיפוס התפקיד).
-  const audioConfig = toGenreAudioConfig(
-    genrePack,
-    intent.seed,
-    soundSelections,
-    projectSettings.beatPatternId,
-  );
+  const audioConfig = toGenreAudioConfig(genrePack, intent.seed, soundSelections);
 
   const jobId = await enqueueRenderJob({
     projectId,

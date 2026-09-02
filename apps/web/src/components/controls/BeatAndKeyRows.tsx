@@ -14,6 +14,12 @@
  *
  * ⚠️ בורר-הסולם הוא גם התיקון לממצא שכל היצירות בסגנון חלקו פלטה אחת: נמדד שאותם 6 גבהים
  * הופיעו ב-80 מתוך 80 ציורים, כי השורש והמוד היו קבועים לסגנון.
+ *
+ * ⚠️ 2026-09-01: הייתה כאן לזמן קצר שורה שלישית — **ארנג'מנט** — והיא **הוסרה לבקשת
+ * הפאונדר**. הסיבה מתועדת ב-docs/DECISIONS.md: היא יכלה רק **להסיר תווים** מהכלים שכבר
+ * נקבעו, ולכן בגרסה אחת היא רוקנה את הלהקה ובגרסה השנייה כמעט ולא נשמעה (16-21% הפרש).
+ * אל תחזירו אותה בצורה הזו — ארנג'מנט אמיתי צריך להחליף **כלים** בין הסקשנים, וזה דורש
+ * לרוץ לפני קביעת הכלים ולא אחריה.
  */
 
 'use client';
@@ -44,7 +50,8 @@ export function BeatAndKeyRows({ pack }: BeatAndKeyRowsProps) {
   const setBeatPattern = useCreationSettingsStore((state) => state.setBeatPattern);
   const setKey = useCreationSettingsStore((state) => state.setKey);
 
-  const activeBeatId = settings?.beatPatternId ?? DRAWING_BEAT_ID;
+  // ⚠️ ברירת המחדל היא הביט הראשון של הסגנון, לא "מהציור" — ראה resolveBeatPattern.
+  const activeBeatId = settings?.beatPatternId ?? pack.beatPatterns?.[0]?.id ?? DRAWING_BEAT_ID;
   const activeRoot = settings?.key?.rootPitchClass ?? pack.noteBoardRootPitchClass ?? 0;
   const activeMode = settings?.key?.mode ?? pack.defaultMode;
   const beatPatterns = pack.beatPatterns ?? [];
@@ -54,13 +61,12 @@ export function BeatAndKeyRows({ pack }: BeatAndKeyRowsProps) {
       {beatPatterns.length > 0 ? (
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">Beat</span>
-          {/* ⚠️ אזור-גלילה משלו: עם כמה מקצבים לסגנון הרשימה גדלה, והפאנל כולו כבר מוגבל
-              ב-max-h — בלי גלילה פנימית המקצב האחרון היה נחתך במסך קטן. */}
-          <div
-            className="flex max-h-28 flex-col gap-1 overflow-y-auto pe-1"
-            role="group"
-            aria-label="Beat"
-          >
+          {/* ⚠️ 2026-09-01: היה כאן אזור-גלילה פנימי (max-h-28), שנועד למנוע מהמקצב האחרון
+              להיחתך. בפועל הוא **גרם** לזה: עם 4 מקצבים ו-4 ארנג'מנטים שתי הרשימות נחתכו
+              באמצע כפתור, וזה נראה כאילו האפשרות לא קיימת (דווח בבדיקה חיה על הארנג'מנט).
+              הוסר — לפאנל עצמו כבר יש max-h-[70vh]+overflow-y-auto, כך שיש גלילה **אחת**
+              במקום שלוש מקוננות, ואף פריט לא נחתך. */}
+          <div className="flex flex-col gap-1" role="group" aria-label="Beat">
             <Button
               type="button"
               size="sm"

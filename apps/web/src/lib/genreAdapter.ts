@@ -78,16 +78,50 @@ export interface CompositionOverrides {
   key?: { rootPitchClass: number; mode: GenrePack['defaultMode'] };
 }
 
+/**
+ * ⭐ 2026-09-01 (בדיקה חיה: "זה סתם ביט איטי ומשעמם", "הביטים לא של רגאיי"): **הביט של
+ * הסגנון הוא ברירת המחדל.**
+ *
+ * ⚠️ עד כאן הבורר נפתח על "מהציור", והתופים נגזרו כולם מהרסטר. נמדד מה זה נותן בפועל:
+ * טראנס קיבל **קיק אחד ביצירה שלמה**, האוס קיק אחד, ורגאיי שניים — פיזור הקשה בלי שום
+ * דופק. הביטים לפי-סגנון נבנו בסבב א' בדיוק כדי לתת "קצב מסגרת" (החריגה המכוונת מהעיקרון
+ * "הכל מהציור"), והם היו כבויים אצל כל משתמש שלא נכנס לפאנל ובחר.
+ *
+ * ⚠️ "מהציור" נשאר זמין, אבל עכשיו הוא **בחירה מפורשת** (DRAWING_BEAT_ID) ולא היעדר-בחירה.
+ * מזהה לא-מוכר נופל לברירת המחדל של הסגנון, לא לשקט — אחרי החלפת סגנון עדיף גרוב שגוי
+ * מאשר תופים בלי דופק.
+ */
+function resolveBeatPattern(
+  pack: GenrePack,
+  beatPatternId: string | undefined,
+): NonNullable<GenrePack['beatPatterns']>[number] | undefined {
+  if (beatPatternId === DRAWING_BEAT_ID) {
+    return undefined;
+  }
+  const chosen = beatPatternId
+    ? pack.beatPatterns?.find((candidate) => candidate.id === beatPatternId)
+    : undefined;
+  return chosen ?? pack.beatPatterns?.[0];
+}
+
+function withSkankOverride(
+  patterns: Partial<Record<TrackRole, RhythmStepPattern>>,
+  skank: RhythmStepPattern | undefined,
+): Partial<Record<TrackRole, RhythmStepPattern>> {
+  return skank ? { ...patterns, skank } : patterns;
+}
+
 export function toCompositionConfig(
   pack: GenrePack,
   overrides?: CompositionOverrides,
 ): CompositionConfig {
   const rhythmPatterns = extractRhythmPatterns(pack);
   const rhythmPatternOptions = extractRhythmPatternOptions(pack);
-  // ⚠️ מקצב שנבחר ואינו קיים בסגנון (למשל אחרי החלפת סגנון) נבלע בשקט לטובת מהציור —
-  // עדיף מלזרוק, כי זו בחירה ישנה של המשתמש ולא קלט לא-תקין.
-  const beatPattern = overrides?.beatPatternId
-    ? pack.beatPatterns?.find((candidate) => candidate.id === overrides.beatPatternId)
+  const beatPattern = resolveBeatPattern(pack, overrides?.beatPatternId);
+  // ⭐ 2026-09-02: פיגורת הסקאנק של הגרוב הנבחר. הסקאנק נמדד כ-50%-59% מאנרגיית המיקס,
+  // והוא היה זהה בכל הביטים — כלומר רוב מה שהמשתמש שומע לא השתנה כשהחליף ביט.
+  const skankFigure: RhythmStepPattern | undefined = beatPattern?.skank
+    ? { stepsPerBar: 16, hits: beatPattern.skank }
     : undefined;
   return {
     genreId: pack.id,
@@ -103,8 +137,15 @@ export function toCompositionConfig(
     ...(pack.chordProgressionOptions && {
       chordProgressionOptions: pack.chordProgressionOptions,
     }),
-    ...(rhythmPatterns && { rhythmPatterns }),
-    ...(rhythmPatternOptions && { rhythmPatternOptions }),
+    ...(rhythmPatterns && { rhythmPatterns: withSkankOverride(rhythmPatterns, skankFigure) }),
+    // ⚠️ חייבים לדרוס **גם** את ה-options: composeMusicalScore קורא ל-selectRhythmPatterns,
+    // ושם ה-options גוברים על rhythmPatterns לכל תפקיד. דריסה של אחד מהם בלבד נבלעת בשקט —
+    // וזה בדיוק מה שקרה בניסיון הראשון: הפיגורה הוזרקה ולא הגיעה לציון.
+    ...(rhythmPatternOptions && {
+      rhythmPatternOptions: skankFigure
+        ? { ...rhythmPatternOptions, skank: [skankFigure] }
+        : rhythmPatternOptions,
+    }),
     ...(pack.absoluteNoteBoard && { absoluteNoteBoard: true }),
     // ⭐ 2026-08-30: גיאומטריית-הלוח לפי סגנון. מועברים רק כשהוגדרו, כדי ש-core ייפול
     // לברירות-המחדל שלו ולא נשכפל כאן ערכים שיסטו בשקט (ראה noteBoard.ts).
@@ -115,6 +156,11 @@ export function toCompositionConfig(
     ...(pack.beatAccents !== undefined && { beatAccents: pack.beatAccents }),
     ...(pack.allowedSubdivisions !== undefined && {
       allowedSubdivisions: pack.allowedSubdivisions,
+    }),
+    // ⭐ 2026-09-01: מסכת-הצעדים של הבס מגיעה מהגרוב שנבחר. resolveRolePolicy (core) ממזג
+    // אותה מעל ברירת המחדל של התפקיד, כך שכל שאר המדיניות (רווח מינימלי, תקרת מכות) נשמרת.
+    ...(beatPattern?.bassSteps && {
+      rolePolicies: { bass: { allowedSteps: beatPattern.bassSteps } },
     }),
     ...(beatPattern && {
       beatPattern: {
@@ -136,6 +182,13 @@ export function toCompositionConfig(
  * resolveMutedRoles למטה, ו-SoundSelector.tsx לכפתור ה-"Off".
  */
 export const MUTED_SOUND_OPTION_ID = '__muted__';
+
+/**
+ * ⭐ 2026-09-01: ערך-סמל ל"התופים נגזרים מהציור" — הוא כבר לא ברירת המחדל אלא **בחירה
+ * מפורשת**. הוגדר כאן ולא ב-store, כי מסלולי הרינדור בשרת חייבים לזהות אותו גם הם, ו-store
+ * של zustand הוא client-only.
+ */
+export const DRAWING_BEAT_ID = '__drawing__';
 
 /**
  * ⭐ 2026-08-25 (מגוון מוזיקלי לפי-צורה): hash דטרמיניסטי (djb2-variant) מ-seed+role לאינדקס
@@ -375,16 +428,22 @@ function resolveMutedRoles(soundSelections?: Partial<Record<TrackRole, string[]>
  * את אותו צליל סינת' בגבהים שונים לכל חלק. כלומר משתמש בטראנס/האוס, שברירת המחדל שלו היא
  * פריסט-סינת', בחר ביט ושמע ביפ אחיד במקום ערכה — בלי קיק, בלי מחיאה, בלי היי-האט.
  *
- * לכן, וברק כשנבחר ביט, הערכה הראשונה של הסגנון נבחרת אוטומטית. זו חריגה מודעת מהכלל
- * "פריסט דגום לעולם לא נבחר אוטומטית" (שנועד למנוע הורדה לפני הצליל הראשון) — היא מוצדקת
- * כאן משתי סיבות: בלי ערכה הביט פשוט **לא עובד**, והערכה האלקטרונית שוקלת 52KB.
+ * לכן הערכה הראשונה של הסגנון נבחרת אוטומטית. זו חריגה מודעת מהכלל "פריסט דגום לעולם לא
+ * נבחר אוטומטית" (שנועד למנוע הורדה לפני הצליל הראשון) — היא מוצדקת משתי סיבות: בלי ערכה
+ * התופים פשוט **לא עובדים**, והערכה האלקטרונית שוקלת 52KB.
+ *
+ * ⚠️ 2026-09-01 (בדיקה חיה: "יש צליל קבוע שמתנגן בפתיחה", "המקצבים משעממים"): התנאי היה
+ * **רק כשנבחר ביט ידני**. אבל מאז מעבר כל הסגנונות ללוח האבסולוטי, כל מכת-תוף נושאת
+ * `drumPiece` גם כשהמקצב נגזר מהציור — כלומר בברירת המחדל ("From the drawing") התופים
+ * ניגנו דרך הסינת', שמתעלם מ-`drumPiece`, והשמיע קיק/סנר/היי-האט כ**אותו צליל בגבהים
+ * שונים**. זה בדיוק ה"ביפ" שההערה הזו נכתבה כדי למנוע, רק בנתיב אחר. התנאי הוסר: אם
+ * לסגנון יש ערכה והמשתמש לא בחר אחרת — היא נבחרת תמיד.
  */
-function autoSelectKitForBeat(
+function autoSelectDrumKit(
   pack: GenrePack,
   drumKitPresets: Partial<Record<TrackRole, DrumKitPreset>>,
-  beatPatternId?: string,
 ): Partial<Record<TrackRole, DrumKitPreset>> {
-  if (!beatPatternId || drumKitPresets.drums) {
+  if (drumKitPresets.drums) {
     return drumKitPresets;
   }
   const kit = pack.soundOptions?.drums?.find(
@@ -394,17 +453,21 @@ function autoSelectKitForBeat(
   return kit ? { ...drumKitPresets, drums: kit.preset } : drumKitPresets;
 }
 
+/**
+ * ⚠️ 2026-09-01: הפרמטר `beatPatternId` הוסר. הוא שימש **רק** לתנאי "בחר ערכה כשנבחר
+ * מקצב", ומאז שהערכה נבחרת תמיד (ראה autoSelectDrumKit) הוא היה קלט מת שכל קורא היה חייב
+ * להעביר בלי שהוא משפיע — בדיוק סוג הפרמטר שגורם למסלול אחד לשכוח אותו ולסטות בשקט.
+ */
 export function toGenreAudioConfig(
   pack: GenrePack,
   seed: string,
   soundSelections?: Partial<Record<TrackRole, string[]>>,
-  beatPatternId?: string,
 ): GenreAudioConfig {
   const mutedRoles = resolveMutedRoles(soundSelections);
   const resolved = resolveSynthPresets(pack, seed, soundSelections);
   const { samplerPresets } = resolved;
   const synthPresets = { ...resolved.synthPresets };
-  const drumKitPresets = autoSelectKitForBeat(pack, resolved.drumKitPresets, beatPatternId);
+  const drumKitPresets = autoSelectDrumKit(pack, resolved.drumKitPresets);
   // ⚠️ הסינת' של התופים מוסר כשהערכה נבחרה אוטומטית — אחרת שניהם היו מתנגנים זה על גבי זה,
   // וה"ביפ" שהמשתמש התלונן עליו היה ממשיך להישמע מתחת לערכה.
   if (drumKitPresets.drums && !resolved.drumKitPresets.drums) {

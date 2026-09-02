@@ -23,6 +23,7 @@
 import { ArrayBufferTarget, Muxer } from 'mp4-muxer';
 import type { MusicalScore } from '@soundiform/core';
 import type { ShapeData } from '@soundiform/shared';
+import { computeMusicalDurationSeconds } from '@soundiform/audio';
 import { drawVideoFrame, type Canvas2DLike, type FrameDimensions } from '@soundiform/video';
 import { AAC_CODEC, h264CodecFor, type ExportAudioCodec } from './webcodecsSupport';
 
@@ -44,6 +45,14 @@ const MICROSECONDS_PER_SECOND = 1_000_000;
 export interface EncodeVideoInput {
   score: MusicalScore;
   shapeData: ShapeData;
+  /**
+   * ⭐ 2026-09-02: התמונה המקורית שהמשתמש העלה, כבר מפוענחת ל-ImageBitmap.
+   * undefined = ציור-יד או SVG, ואז הווידאו נראה בדיוק כמו קודם.
+   *
+   * ⚠️ מפוענחת **פעם אחת** ע"י הקורא ולא בכל פריים — 1200 פריימים × פענוח תמונה היה
+   * מכפיל את זמן הקידוד, וזה בדיוק מה שהעברנו למכשיר כדי לחסוך.
+   */
+  backgroundImage?: ImageBitmap | null;
   /** הבאפר שכבר רונדר לנגינה — לא מרנדרים אודיו מחדש. */
   audio: AudioBuffer;
   durationSeconds: number;
@@ -120,6 +129,7 @@ export async function encodeVideoInBrowser(input: EncodeVideoInput): Promise<Uin
   const {
     score,
     shapeData,
+    backgroundImage,
     audio,
     durationSeconds,
     dimensions,
@@ -129,6 +139,13 @@ export async function encodeVideoInBrowser(input: EncodeVideoInput): Promise<Uin
   } = input;
   const { width, height } = dimensions;
   const frameCount = Math.max(1, Math.round(durationSeconds * FRAME_RATE));
+  // ⚠️ 2026-09-01: הסורק נמדד מול האורך המוזיקלי, לא מול אורך הווידאו — ראה
+  // computeMusicalDurationSeconds. הווידאו ממשיך לרוץ לאורך המלא (הזנב נשמע), אבל הסורק
+  // מגיע לקצה הלוח יחד עם התו האחרון ולא אחריו.
+  const scannerFrameCount = Math.max(
+    1,
+    Math.round(computeMusicalDurationSeconds(score) * FRAME_RATE),
+  );
 
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
@@ -223,7 +240,8 @@ export async function encodeVideoInBrowser(input: EncodeVideoInput): Promise<Uin
       drawVideoFrame(ctx as unknown as Canvas2DLike, {
         score,
         shapeData,
-        progress: frameIndex / frameCount,
+        ...(backgroundImage && { backgroundImage }),
+        progress: Math.min(1, frameIndex / scannerFrameCount),
         dimensions,
         watermark,
       });

@@ -25,8 +25,9 @@ import type { Mode, TrackRole } from '@soundiform/core';
 
 const STORAGE_KEY = 'soundiform:creation-settings-v1';
 
-/** ערך-סמל ל"התופים נגזרים מהציור" — ברירת המחדל, ההתנהגות שקדמה לבורר. */
-export const DRAWING_BEAT_ID = '__drawing__';
+// ⚠️ 2026-09-01: ההגדרה עברה ל-genreAdapter (השרת צריך אותה גם), ומיוצאת מחדש כאן כדי
+// שהקוראים הקיימים לא ישברו. הסמל כבר אינו ברירת המחדל — ראה resolveBeatPattern.
+export { DRAWING_BEAT_ID } from '@/lib/genreAdapter';
 
 export interface MusicalKeySelection {
   /** 0=C … 11=B. */

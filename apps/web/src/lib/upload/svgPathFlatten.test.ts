@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { flattenPathData } from './svgPathFlatten';
+import { flattenPathData, MAX_POINTS_PER_SUBPATH } from './svgPathFlatten';
 
 describe('flattenPathData', () => {
   it('משטח קו ישר (M/L) לשני נקודות, לא-סגור', () => {
@@ -63,8 +63,21 @@ describe('flattenPathData', () => {
     ]);
   });
 
-  it('זורק על d ענק במיוחד (הגנה על DoS — §8 קלט לא-סמוך)', () => {
+  /**
+   * ⚠️ 2026-09-02: הבדיקה הזו קבעה קודם שקו ענק **זורק**. זה השתנה בכוונה: זריקה הפילה את
+   * **כל ההעלאה** עם "File processing failed", והיא קרתה על כל צילום מפורט או סרוק (נמדד:
+   * תמונה רועשת ייצרה 14,667 פקודות בקו אחד). המשתמש לא יכול היה להבין למה התמונה נדחתה.
+   *
+   * ⚠️ **ההגנה עצמה לא בוטלה** — זה מה שנבדק כאן עכשיו: הקלט חסום בדיוק כמו קודם, פשוט
+   * ע"י הפסקת-איסוף ולא ע"י קריסה. זו הכוונה המקורית של §8 (חסימת DoS על קלט לא-סמוך),
+   * רק בלי לקחת איתה את חוויית המשתמש.
+   */
+  it('קו ענק נחתך לתקרה ולא מפיל את העיבוד (הגנת DoS — §8 קלט לא-סמוך)', () => {
     const hugeLine = Array.from({ length: 6000 }, (_, i) => `L${String(i)},${String(i)}`).join(' ');
-    expect(() => flattenPathData(`M0,0 ${hugeLine}`)).toThrow();
+    const subpaths = flattenPathData(`M0,0 ${hugeLine}`);
+    expect(subpaths).toHaveLength(1);
+    expect(subpaths[0]?.points.length).toBeLessThanOrEqual(MAX_POINTS_PER_SUBPATH);
+    // ⚠️ ולא ריק: הצורה נשמרת עד התקרה, לא נזרקת.
+    expect(subpaths[0]?.points.length).toBeGreaterThan(1000);
   });
 });

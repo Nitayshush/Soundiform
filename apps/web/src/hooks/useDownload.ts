@@ -26,6 +26,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useGenreStore } from '@/stores/genreStore';
 import { useSoundSelectionStore } from '@/stores/soundSelectionStore';
+import { useShapeStore } from '@/stores/shapeStore';
 import type { UseSaveProjectResult } from './useSaveProject';
 
 const POLL_INTERVAL_MS = 2000;
@@ -160,7 +161,10 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
         // מחשב מקומי), ולכן ההורדה לקחה דקות; קידוד H.264 בדפדפן נמדד ב-2.13x מהזמן-אמת
         // באנדרואיד — מהר בסדר-גודל. ראה lib/download/clientRender.ts.
         const { runClientRender } = await import('@/lib/download/clientRender');
+        // ⭐ 2026-09-02: אותה תמונה שמוצגת על הלוח נכנסת גם לווידאו — "פריוויו = פלט".
+        const { previewImageUrl } = useShapeStore.getState();
         const { renderId, hasVideo, downgradedTo, limitedCompatibility } = await runClientRender({
+          previewImageUrl,
           projectId,
           genreId,
           aspectRatio: DEFAULT_VIDEO_ASPECT_RATIO,

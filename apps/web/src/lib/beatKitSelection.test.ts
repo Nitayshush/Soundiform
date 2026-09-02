@@ -24,7 +24,7 @@ describe('בחירת ערכה אוטומטית כשנבחר מקצב', () => {
       if (!firstBeat) {
         continue;
       }
-      const config = toGenreAudioConfig(pack, 'seed', undefined, firstBeat);
+      const config = toGenreAudioConfig(pack, 'seed');
       expect(config.drumKitPresets?.drums, `${pack.id} עם מקצב`).toBeDefined();
     }
   });
@@ -32,27 +32,28 @@ describe('בחירת ערכה אוטומטית כשנבחר מקצב', () => {
   it('הסינת׳ של התופים מוסר — אחרת הביפ ממשיך להישמע מתחת לערכה', () => {
     const pack = loadGenrePackById('trance');
     expect(pack).not.toBeNull();
-    const config = toGenreAudioConfig(pack!, 'seed', undefined, pack!.beatPatterns?.[0]?.id);
+    const config = toGenreAudioConfig(pack!, 'seed');
     expect(config.synthPresets.drums).toBeUndefined();
   });
 
-  it('בלי מקצב — שום דבר לא משתנה, הסינת׳ נשאר וערכה לא נטענת', () => {
+  // ⚠️ 2026-09-01: הבדיקה הזו קבעה קודם שבלי מקצב **לא** נטענת ערכה — כדי לא להוריד דגימות
+  // לפני הצליל הראשון. זה התהפך אחרי בדיקה חיה ("יש צליל קבוע שמתנגן בפתיחה", "המקצבים
+  // משעממים"): מאז שכל הסגנונות עברו ללוח האבסולוטי, כל מכת-תוף נושאת `drumPiece` גם כשהמקצב
+  // נגזר מהציור — ולכן ברירת המחדל ניגנה קיק/סנר/היי-האט כאותו צליל סינת' בגבהים שונים.
+  // ההיגיון המקורי לא בטל, הוא פשוט נכשל מול המציאות החדשה: הערכה שוקלת 52KB, ובלעדיה
+  // התופים אינם תופים.
+  it('גם בלי מקצב — ערכה נבחרת, כי מכות התופים נושאות זהות-כלי בכל מקרה', () => {
     const pack = loadGenrePackById('trance');
-    const config = toGenreAudioConfig(pack!, 'seed', undefined, undefined);
-    expect(config.drumKitPresets?.drums).toBeUndefined();
-    expect(config.synthPresets.drums).toBeDefined();
+    const config = toGenreAudioConfig(pack!, 'seed');
+    expect(config.drumKitPresets?.drums).toBeDefined();
+    expect(config.synthPresets.drums, 'הסינת׳ מוסר, אחרת הוא מתנגן מתחת לערכה').toBeUndefined();
   });
 
   it('בחירה מפורשת של המשתמש גוברת על הבחירה האוטומטית', () => {
     const pack = loadGenrePackById('trance');
     const chosen = pack!.soundOptions?.drums?.find((option) => option.id === 'acoustic-kit');
     expect(chosen, 'acoustic-kit חייב להישאר זמין כאופציה').toBeDefined();
-    const config = toGenreAudioConfig(
-      pack!,
-      'seed',
-      { drums: ['acoustic-kit'] },
-      pack!.beatPatterns?.[0]?.id,
-    );
+    const config = toGenreAudioConfig(pack!, 'seed', { drums: ['acoustic-kit'] });
     expect(config.drumKitPresets?.drums?.instrumentId).toBe('acoustic-kit');
   });
 
@@ -61,7 +62,7 @@ describe('בחירת ערכה אוטומטית כשנבחר מקצב', () => {
     // הוא לא קיק ריקוד בשום עוצמה. האלקטרוני: התקפה 1.5ms, יחס 2.37.
     for (const genreId of ['trance', 'house']) {
       const pack = loadGenrePackById(genreId);
-      const config = toGenreAudioConfig(pack!, 'seed', undefined, pack!.beatPatterns?.[0]?.id);
+      const config = toGenreAudioConfig(pack!, 'seed');
       expect(config.drumKitPresets?.drums?.instrumentId, genreId).toBe('electronic-kit');
     }
   });

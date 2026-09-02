@@ -18,6 +18,16 @@
  * *וגם* ה-canvas של הדפדפן תומכים בה (למשל roundRect לא בשימוש בכוונה — ראה drawFrame.ts).
  */
 
+/**
+ * ⭐ 2026-09-02: מקור-תמונה לציור על הקנבס. **אטום בכוונה** — בדפדפן זה `ImageBitmap`
+ * ובוורקר זה `Image` של @napi-rs/canvas, ואין להם טיפוס משותף. השדות היחידים שהקוד כאן
+ * צריך הם המידות, כדי לחשב "contain" בלי לחתוך.
+ */
+export interface CanvasImageLike {
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface Canvas2DLike {
   fillStyle: string;
   strokeStyle: string;
@@ -31,6 +41,8 @@ export interface Canvas2DLike {
   textBaseline: string;
 
   fillRect(x: number, y: number, width: number, height: number): void;
+  /** ⭐ 2026-09-02: לציור התמונה המקורית שהמשתמש העלה — ראה drawFrame.ts. */
+  drawImage(image: CanvasImageLike, dx: number, dy: number, dw: number, dh: number): void;
   beginPath(): void;
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
