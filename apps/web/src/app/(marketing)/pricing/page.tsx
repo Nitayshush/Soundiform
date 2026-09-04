@@ -40,9 +40,9 @@ const PLANS: Plan[] = [
     price: '$0',
     purchasable: true,
     features: [
-      { label: 'Length', value: '30 sec' },
-      { label: 'Creations / month', value: '10' },
-      { label: 'Saved projects', value: '5' },
+      { label: 'Length', value: '1 min' },
+      { label: 'Creations / month', value: '15' },
+      { label: 'Saved projects', value: '15' },
       { label: 'Download', value: 'MP3, watermarked' },
       { label: 'License', value: 'Personal' },
       { label: 'Video', value: '720p, watermarked' },

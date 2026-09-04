@@ -108,7 +108,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
                   showFollowButton={Boolean(sessionUser) && sessionUser?.id !== row.creatorId}
                   isFollowingCreator={followingIds.has(row.creatorId)}
                 >
-                  <ShareButtons url={`${getSiteUrl()}/s/${row.slug}`} />
+                  <ShareButtons path={`/s/${row.slug}`} fallbackOrigin={getSiteUrl()} />
                 </GalleryCard>
               </li>
             ))}

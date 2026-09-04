@@ -6,19 +6,23 @@
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  *
+ * ⭐ 2026-09-03: נוסף LogoutButton (עד אז לא היתה שום דרך להתנתק באתר), ורשימת
+ * "Saved creations" הוסרה לפי בקשה חיה — המשתמש רואה את מה ששמר בגלריה (§11), עם תמונות
+ * ונגינה, ולא כרשימת טקסט. ⭐ עם ההסרה ירדה גם שאילתת כל-הפרויקטים (SELECT ללא
+ * LIMIT שרץ בכל טעינת עמוד) — העמוד לא צורך אותה לשום דבר אחר.
+ *
  * Server Component — קורא ישירות מה-session (Supabase server client) ומ-Drizzle
  * (getDb, עוקף RLS בכוונה — השרת הוא הצד המורשה, ראה api/projects/route.ts).
  */
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import {
   follows,
   getDb,
   getMonthlyCreationCount,
   getSavedProjectCount,
-  projects,
   resolveEffectivePlan,
   users,
 } from '@soundiform/db';
@@ -27,6 +31,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProfileEditForm } from '@/components/account/ProfileEditForm';
+import { LogoutButton } from '@/components/account/LogoutButton';
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -43,20 +48,14 @@ export default async function AccountPage() {
   // מיושן לרגע אחרי שמענק-גישה זמני מהאדמין פג (ראה planOverride.ts).
   const { plan } = await resolveEffectivePlan(user.id);
 
-  const [savedCount, monthlyCreations, myProjects, [followingCountRow], [followerCountRow]] =
-    await Promise.all([
-      getSavedProjectCount(user.id),
-      getMonthlyCreationCount(user.id),
-      db
-        .select()
-        .from(projects)
-        .where(and(eq(projects.userId, user.id), isNull(projects.deletedAt)))
-        .orderBy(desc(projects.createdAt)),
-      db.select({ total: count() }).from(follows).where(eq(follows.followerId, user.id)),
-      db.select({ total: count() }).from(follows).where(eq(follows.followingId, user.id)),
-    ]);
-  const followingCount = followingCountRow?.total ?? 0;
-  const followerCount = followerCountRow?.total ?? 0;
+  const [savedCount, monthlyCreations, [followingRow], [followerRow]] = await Promise.all([
+    getSavedProjectCount(user.id),
+    getMonthlyCreationCount(user.id),
+    db.select({ total: count() }).from(follows).where(eq(follows.followerId, user.id)),
+    db.select({ total: count() }).from(follows).where(eq(follows.followingId, user.id)),
+  ]);
+  const followingCount = followingRow?.total ?? 0;
+  const followerCount = followerRow?.total ?? 0;
 
   const isFree = plan === 'free';
 
@@ -109,28 +108,7 @@ export default async function AccountPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60">
-          <CardHeader>
-            <CardTitle className="text-base">Saved creations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {myProjects.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No saved creations yet.</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {myProjects.map((project) => (
-                  <li
-                    key={project.id}
-                    className="rounded-lg border border-border/60 px-3 py-2 text-sm"
-                  >
-                    {project.title ?? project.shapeHash.slice(0, 12)} —{' '}
-                    {new Date(project.createdAt).toLocaleDateString('en-US')}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <LogoutButton />
       </main>
     </>
   );

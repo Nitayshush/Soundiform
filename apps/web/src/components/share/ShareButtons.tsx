@@ -21,16 +21,25 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 export interface ShareButtonsProps {
-  url: string;
+  /**
+   * ⚠️ **נתיב יחסי** (`/s/abc123`), לא URL מוחלט. הדומיין נקבע כאן מ-`window.location.origin`
+   * ולא ע"י הקורא — ראה ההסבר ב-lib/siteUrl.ts.
+   */
+  path: string;
+  /** הדומיין לרינדור הראשון בשרת בלבד, לפני שהלקוח יודע איפה הוא. `getSiteUrl()`. */
+  fallbackOrigin: string;
   title?: string;
 }
 
 export function ShareButtons({
-  url,
+  path,
+  fallbackOrigin,
   title = 'Check out this creation on Soundiform',
 }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
+  const [origin, setOrigin] = useState(fallbackOrigin);
+  const url = `${origin}${path}`;
   const encodedUrl = encodeURIComponent(url);
   const encodedTitle = encodeURIComponent(title);
 
@@ -40,6 +49,10 @@ export function ShareButtons({
     // "false", הלקוח היה מחשב את הערך האמיתי כבר ברינדור הראשון — פער מול ה-HTML מהשרת).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCanNativeShare(typeof navigator.share === 'function');
+    // ⚠️ אותו שיקול בדיוק עבור window.location: הרינדור הראשון **חייב** להסכים עם השרת
+    // (fallbackOrigin), ורק אחרי ה-mount הכתובת מתוקנת לדומיין האמיתי. חישוב ברינדור היה
+    // hydration mismatch, ו-fallbackOrigin לבדו הוא בדיוק הבאג שתוקן כאן.
+    setOrigin(window.location.origin);
   }, []);
 
   const copyLink = async (): Promise<void> => {

@@ -143,7 +143,7 @@ export default async function SharePage({ params }: SharePageProps) {
               />
               <DownloadLinks renderId={row.renderId} hasVideo={hasVideo} />
             </div>
-            <ShareButtons url={`${getSiteUrl()}/s/${shareId}`} />
+            <ShareButtons path={`/s/${shareId}`} fallbackOrigin={getSiteUrl()} />
           </CardContent>
         </Card>
         <div className="mt-6">
