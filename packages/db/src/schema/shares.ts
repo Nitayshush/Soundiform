@@ -9,13 +9,27 @@
  * ⚠️ RLS: SELECT ל-`public` (גם 'anon', לא רק 'authenticated') — זו כל המהות של שיתוף:
  * דף `/s/[slug]` חייב להיות קריא בלי חשבון. עדיין אין policy ל-INSERT/UPDATE מהקליינט —
  * יצירת share עוברת שרת (בדיקת בעלות על ה-render לפני יצירת slug).
+ *
+ * ⭐ 2026-09-04 (מקצה שדרוגים — כפתור פרסום/הסתרה בגלריה הפרטית): נוסף ערך `'private'`,
+ * וההחלטה התיעודית הקודמת ("אין ערך private בכוונה") בוטלה במפורש. עד עכשיו: לא רוצים
+ * לשתף = פשוט לא יוצרים שורת share, וזו הייתה כל המשמעות של visibility. עכשיו יש הבדל בין
+ * "לא נוצרה עדיין" לבין "המשתמש הסתיר יצירה שכבר פורסמה" — וצריך שהשורה **תישאר** (כדי
+ * שהיא עדיין תופיע ב-My Gallery, ה-slug/viewCount לא יאבדו כשמפרסמים בחזרה), רק תיחסם
+ * מהגלריה הציבורית ומהעמוד הישיר.
+ *
+ * ⚠️⚠️ קריטי: policy יחיד עם `using: sql\`true\`` היה הופך `private` לחסר-משמעות ברמת
+ * ה-DB — כל הקריאות בפועל באפליקציה עוברות דרך Drizzle בשרת (עוקף RLS, "השרת הוא הצד
+ * המורשה"), אבל ה-anon key **ציבורי** ב-.env, ומאפשר גישה ישירה ל-PostgREST של Supabase
+ * בלי לעבור דרך האפליקציה בכלל — RLS הוא קו ההגנה האמיתי היחיד מול זה. לכן שני policies
+ * נפרדים: 1) ציבור/anon רואים רק public/unlisted (בדיוק ההתנהגות הישנה, לא השתנתה).
+ * 2) הבעלים (authenticated, subquery בדיוק כמו renders.ts) רואה גם את ה-private שלו.
  */
 
 import { sql } from 'drizzle-orm';
 import { integer, pgPolicy, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { renders } from './renders';
 
-export const SHARE_VISIBILITY_VALUES = ['public', 'unlisted'] as const;
+export const SHARE_VISIBILITY_VALUES = ['public', 'unlisted', 'private'] as const;
 export type ShareVisibility = (typeof SHARE_VISIBILITY_VALUES)[number];
 
 export const shares = pgTable(
@@ -31,12 +45,18 @@ export const shares = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   () => [
-    // כל שורת shares היא, במובן הזה, ציבורית בכוונה (אין ערך 'private' ב-enum — אם לא רוצים
-    // לשתף, פשוט לא יוצרים share). visibility מבדיל public/unlisted רק לצורך הגלריה (§9).
     pgPolicy('shares_select_public', {
       for: 'select',
       to: 'public',
-      using: sql`true`,
+      using: sql`visibility <> 'private'`,
+    }),
+    pgPolicy('shares_select_own_private', {
+      for: 'select',
+      to: 'authenticated',
+      using: sql`visibility = 'private' and exists (
+        select 1 from renders r join projects p on p.id = r.project_id
+        where r.id = render_id and p.user_id = auth.uid()
+      )`,
     }),
   ],
 ).enableRLS();

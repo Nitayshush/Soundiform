@@ -9,6 +9,9 @@
  * @created     2026-08-22
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ 2026-09-04 (מקצה שדרוגים — כפתור פרסום/הסתרה): נוסף PublishToggleButton לכל כרטיס —
+ * ראה shares.ts להסבר על ערך ה-visibility החדש 'private'.
  */
 
 import { redirect } from 'next/navigation';
@@ -18,6 +21,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Header } from '@/components/layout/Header';
 import { GalleryCard } from '@/components/gallery/GalleryCard';
 import { DownloadLinks } from '@/components/share/DownloadLinks';
+import { PublishToggleButton } from '@/components/gallery/PublishToggleButton';
 
 export default async function MyGalleryPage() {
   const supabase = await createClient();
@@ -33,7 +37,9 @@ export default async function MyGalleryPage() {
 
   const rows = await db
     .select({
+      shareId: shares.id,
       slug: shares.slug,
+      visibility: shares.visibility,
       viewCount: shares.viewCount,
       genreId: renders.genreId,
       posterKey: renders.posterKey,
@@ -82,12 +88,15 @@ export default async function MyGalleryPage() {
                   viewCount={row.viewCount}
                   likeCount={likeCountByRenderId.get(row.renderId) ?? 0}
                 >
-                  <DownloadLinks
-                    renderId={row.renderId}
-                    hasVideo={Boolean(row.videoKey)}
-                    showMidiAndStems={plan === 'studio'}
-                    stemRoles={Object.keys(row.stemKeys ?? {})}
-                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <DownloadLinks
+                      renderId={row.renderId}
+                      hasVideo={Boolean(row.videoKey)}
+                      showMidiAndStems={plan === 'studio'}
+                      stemRoles={Object.keys(row.stemKeys ?? {})}
+                    />
+                    <PublishToggleButton shareId={row.shareId} initialVisibility={row.visibility} />
+                  </div>
                 </GalleryCard>
               </li>
             ))}

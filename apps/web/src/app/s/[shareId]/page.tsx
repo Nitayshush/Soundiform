@@ -42,6 +42,7 @@ export default async function SharePage({ params }: SharePageProps) {
   const [row] = await db
     .select({
       shareRowId: shares.id,
+      visibility: shares.visibility,
       renderId: renders.id,
       score: renders.score,
       genreId: renders.genreId,
@@ -63,16 +64,23 @@ export default async function SharePage({ params }: SharePageProps) {
     notFound();
   }
 
-  await db
-    .update(shares)
-    .set({ viewCount: sql`${shares.viewCount} + 1` })
-    .where(eq(shares.id, row.shareRowId));
-
   const supabase = await createClient();
   const {
     data: { user: sessionUser },
   } = await supabase.auth.getUser();
   const isOwnCreation = sessionUser?.id === row.creatorId;
+
+  // ⚠️ 2026-09-04: 'private' חסום גם בקישור הישיר, לא רק בגלריה הציבורית (אחרת 'private'
+  // היה רק "לא רשום", כמו unlisted, ולא היה מגן בכלל — ראה shares.ts). הבדיקה חייבת לקרות
+  // **לפני** הגדלת viewCount, אחרת גם צפיות חסומות היו נספרות.
+  if (row.visibility === 'private' && !isOwnCreation) {
+    notFound();
+  }
+
+  await db
+    .update(shares)
+    .set({ viewCount: sql`${shares.viewCount} + 1` })
+    .where(eq(shares.id, row.shareRowId));
   const [isFollowingCreator, [likeCountRow], isLikedRows] = await Promise.all([
     sessionUser
       ? db
