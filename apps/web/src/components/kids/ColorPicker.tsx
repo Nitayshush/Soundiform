@@ -7,6 +7,12 @@
  * @created     2026-09-04
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ 2026-09-05 (דווח חי, מובייל): גודל-קטן-כברירת-מחדל, גדל רק מ-sm ומעלה — הגודל הקבוע
+ * הקודם (size-9, פועל שווה בכל רוחב מסך) היה חלק ממה שדחק את לוח-הציור לתיבה קטנה בנייד.
+ * ⚠️ בכוונה **בלי** [@media(pointer:coarse)] (כמו ב-button.tsx המשותף) — pointer:coarse
+ * מזהה קלט-מגע, לא רוחב-מסך, אז הוא היה מגדיל את הכפתורים גם על טלפון צר (המקרה שבדיוק
+ * רצינו לצמצם), ומבטל את אפקט ה-sm: לגמרי.
  */
 
 'use client';
@@ -28,7 +34,7 @@ export function ColorPicker() {
   const setCurrentColor = useShapeStore((state) => state.setCurrentColor);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       {COLORS.map((color) => (
         <button
           key={color}
@@ -38,7 +44,7 @@ export function ColorPicker() {
           }}
           aria-label={`Pick color ${color}`}
           aria-pressed={currentColor === color}
-          className="size-9 shrink-0 rounded-full border-2 shadow-sm transition-transform active:scale-90 [@media(pointer:coarse)]:size-11"
+          className="size-7 shrink-0 rounded-full border-2 shadow-sm transition-transform active:scale-90 sm:size-9"
           style={{
             backgroundColor: color,
             borderColor: currentColor === color ? 'var(--foreground)' : 'transparent',

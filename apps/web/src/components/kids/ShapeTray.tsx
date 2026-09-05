@@ -11,6 +11,9 @@
  * inset-0` יחסית להורה הכי קרוב עם position:relative — אם הוא היה מצויר בתוך הטולבר
  * (מחוץ למיכל-הבמה), הוא היה ממוקם ביחס למקום הלא-נכון לגמרי. לכן ה-state של "איזו צורה
  * ממתינה למיקום" גר בעמוד (studio/kids/page.tsx), לא כאן — ראה שם.
+ *
+ * ⭐ 2026-09-05 (דווח חי, מובייל): גודל-קטן-כברירת-מחדל (sm: מגדיל) — ראה ColorPicker.tsx
+ * להסבר המלא, כולל למה בלי [@media(pointer:coarse)].
  */
 
 'use client';
@@ -34,7 +37,7 @@ export interface ShapeTrayProps {
 
 export function ShapeTray({ onSelect, disabled }: ShapeTrayProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       {KIDS_SHAPE_KINDS.map((kind) => {
         const Icon = SHAPE_ICONS[kind];
         return (
@@ -46,9 +49,9 @@ export function ShapeTray({ onSelect, disabled }: ShapeTrayProps) {
             }}
             aria-label={`Place a ${kind}`}
             disabled={disabled}
-            className="flex size-12 items-center justify-center rounded-2xl border-2 border-border bg-card text-foreground shadow-sm transition-transform active:scale-90 disabled:opacity-40 [@media(pointer:coarse)]:size-14"
+            className="flex size-8 items-center justify-center rounded-2xl border-2 border-border bg-card text-foreground shadow-sm transition-transform active:scale-90 disabled:opacity-40 sm:size-12"
           >
-            <Icon className="size-7" aria-hidden="true" />
+            <Icon className="size-4 sm:size-7" aria-hidden="true" />
           </button>
         );
       })}

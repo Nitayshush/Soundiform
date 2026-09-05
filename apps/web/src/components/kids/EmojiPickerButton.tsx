@@ -17,6 +17,9 @@
  * אימוג'י (onPick) וסוגרת את הפאנל; הקורא (studio/kids/page.tsx) פותח ShapePlacementOverlay
  * עם emoji זה, כדי שהילד יגרור-למיקום/יגדיל ויאשר ב-✓ — בדיוק כמו ShapeTray. רק אחרי אישור
  * נוצר sticker בפועל, **וגם** צורת-עיגול ב-shapeStore (משפיעה על הצליל).
+ *
+ * ⭐ 2026-09-05 (דווח חי, מובייל): כפתור-הטריגר קטן-כברירת-מחדל (sm: מגדיל) — ראה
+ * ColorPicker.tsx להסבר המלא. פאנל-הבחירה עצמו (modal) לא צומצם — יש לו מסך שלם לעבוד בו.
  */
 
 'use client';
@@ -44,7 +47,7 @@ export function EmojiPickerButton({ onPick, disabled = false }: EmojiPickerButto
         }}
         disabled={disabled}
         aria-label="Add a sticker"
-        className="flex size-12 items-center justify-center rounded-2xl border-2 border-border bg-card text-2xl shadow-sm transition-transform active:scale-90 disabled:opacity-40 [@media(pointer:coarse)]:size-14"
+        className="flex size-8 items-center justify-center rounded-2xl border-2 border-border bg-card text-base shadow-sm transition-transform active:scale-90 disabled:opacity-40 sm:size-12 sm:text-2xl"
       >
         😊
       </button>

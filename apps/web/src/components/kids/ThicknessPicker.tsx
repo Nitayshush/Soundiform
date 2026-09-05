@@ -5,6 +5,9 @@
  * @created     2026-09-04
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ 2026-09-05 (דווח חי, מובייל): גודל-קטן-כברירת-מחדל (sm: מגדיל) — ראה ColorPicker.tsx
+ * להסבר המלא, כולל למה בלי [@media(pointer:coarse)].
  */
 
 'use client';
@@ -19,7 +22,7 @@ export function ThicknessPicker() {
   const setCurrentStrokeWidth = useShapeStore((state) => state.setCurrentStrokeWidth);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 sm:gap-2">
       {THICKNESSES.map((width) => (
         <button
           key={width}
@@ -29,7 +32,7 @@ export function ThicknessPicker() {
           }}
           aria-label={`Line thickness ${String(width)}`}
           aria-pressed={currentStrokeWidth === width}
-          className="flex size-10 items-center justify-center rounded-full border-2 bg-card shadow-sm transition-transform active:scale-90 [@media(pointer:coarse)]:size-12"
+          className="flex size-7 items-center justify-center rounded-full border-2 bg-card shadow-sm transition-transform active:scale-90 sm:size-10"
           style={{ borderColor: currentStrokeWidth === width ? 'var(--primary)' : 'transparent' }}
         >
           <span

@@ -14,9 +14,13 @@
  * (fullscreen נייד, viewport דינמי וכו', ראה ההערות שם) והלייאאוט כאן שונה מספיק (פחות
  * בקרות, כרום אחר) שכמעט שום JSX לא היה משותף בפועל.
  *
- * ⚠️ אין כאן isStageExpanded/useVisibleViewport (מצב מסך-מלא בנייד, קיים ב-studio הרגיל) —
- * הוקטן במכוון מ-v1 הזה: מקטין סיכון (לא מעתיקים תזמורת viewport עדינה לקובץ חדש) ומשאיר
- * מיקוד בלולאת-היצירה הליבתית. ניתן להוסיף בסבב הבא אם יתברר שצריך.
+ * ⭐⭐⭐ 2026-09-05 (דווח חי, מובייל — "הכפתורים גדולים מדי, הלוח קטן מדי, בנוף הלוח נעלם"):
+ * isStageExpanded/useVisibleViewport **כן** מיובאים עכשיו — פורטו נאמנה מ-studio/page.tsx
+ * (אותה סיבה בדיוק: fixed inset-x-0 + מדידת visualViewport, לא Fullscreen API — לא נתמך
+ * ב-iOS Safari על אלמנטים רגילים). זו הדרך היחידה לתת ללוח "גדול ככל שניתן" בפועל, גם
+ * בנוף שבו כרום-הדפדפן דוחס את הגובה הזמין כמעט לאפס. כל שאר הכרום (כותרת/סגנון/טולבר)
+ * קיבל גדלים מגיבים (קטן כברירת מחדל, גדל מ-sm ומעלה) כדי לצמצם כמה שיותר את מה שהלוח
+ * הרגיל (הלא-מורחב) צריך לחלוק איתו — ראה ColorPicker.tsx/KidsGenrePicker.tsx וכו' לפירוט.
  *
  * ⚠️ Suspense: כמו ב-studio הרגיל — useSaveProject/useDownload קוראים useSearchParams.
  *
@@ -44,6 +48,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Maximize, Minimize } from 'lucide-react';
 import { DrawingCanvas } from '@/components/canvas/DrawingCanvas';
 import { MusicalGrid } from '@/components/canvas/MusicalGrid';
 import { ScoreStaff } from '@/components/canvas/ScoreStaff';
@@ -64,6 +69,7 @@ import { useSaveProject } from '@/hooks/useSaveProject';
 import { useDownload } from '@/hooks/useDownload';
 import { useFitAspectRatio } from '@/hooks/useFitAspectRatio';
 import { useNoteBoardGrid } from '@/hooks/useNoteBoardGrid';
+import { useVisibleViewport } from '@/hooks/useVisibleViewport';
 import { useGenreStore } from '@/stores/genreStore';
 import { useGenrePacksStore } from '@/stores/genrePacksStore';
 import { useShapeStore } from '@/stores/shapeStore';
@@ -105,6 +111,29 @@ function KidsStudioContent() {
     useDownload(saveProject, { defaultVisibility: 'private', soundSelectionsOverride });
   const noteBoardGrid = useNoteBoardGrid();
   const stageContainerRef = useRef<HTMLDivElement>(null);
+  // ⭐ 2026-09-05 (לפי בקשה חיה: כפתור הגדלה/הקטנה כמו ב-Studio הרגיל) — פורט נאמן, ראה
+  // ⭐⭐⭐ למעלה וההערות המקוריות ב-studio/page.tsx (fixed inset-x-0, לא Fullscreen API).
+  const [isStageExpanded, setIsStageExpanded] = useState(false);
+  const visibleViewport = useVisibleViewport(isStageExpanded);
+
+  useEffect(() => {
+    if (!isStageExpanded) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setIsStageExpanded(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isStageExpanded]);
+
   const fittedSize = useFitAspectRatio(stageContainerRef, 1024);
   const [pendingShapeKind, setPendingShapeKind] = useState<KidsShapeKind | null>(null);
   const [pendingEmoji, setPendingEmoji] = useState<string | null>(null);
@@ -137,54 +166,89 @@ function KidsStudioContent() {
 
   const progress =
     musicalDurationSeconds > 0 ? Math.min(1, currentSeconds / musicalDurationSeconds) : 0;
+  const hasStatusMessage =
+    isLoading ||
+    Boolean(error) ||
+    Boolean(downloadError) ||
+    Boolean(unsupportedNotice) ||
+    Boolean(statusMessage);
 
   return (
     <main className="flex h-dvh flex-col bg-background">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-card/60 px-4 py-3">
-        <Link href="/" className="shrink-0 transition-opacity hover:opacity-80">
-          <Logo markOnly />
-        </Link>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => void (isPlaying ? stop() : play())}
-            disabled={!canPlay || isLoading}
-            className="flex h-14 items-center justify-center rounded-2xl bg-primary px-6 text-lg font-semibold text-primary-foreground shadow-md active:scale-95 disabled:opacity-40"
-          >
-            {isLoading ? 'Creating…' : isPlaying ? 'Stop' : 'Play'}
-          </button>
-          <button
-            type="button"
-            onClick={requestDownload}
-            disabled={!canPlay || isDownloading}
-            className="flex h-14 items-center justify-center rounded-2xl bg-secondary px-6 text-lg font-semibold text-secondary-foreground shadow-md active:scale-95 disabled:opacity-40"
-          >
-            {isDownloading ? 'Working…' : 'Save'}
-          </button>
+      <header className="flex flex-col gap-1.5 border-b border-border/60 bg-card/60 px-2 py-1.5 sm:gap-2 sm:px-4 sm:py-3">
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/" className="shrink-0 transition-opacity hover:opacity-80">
+            <Logo markOnly />
+          </Link>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => void (isPlaying ? stop() : play())}
+              disabled={!canPlay || isLoading}
+              className="flex h-8 items-center justify-center rounded-2xl bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-md active:scale-95 disabled:opacity-40 sm:h-14 sm:px-6 sm:text-lg"
+            >
+              {isLoading ? 'Creating…' : isPlaying ? 'Stop' : 'Play'}
+            </button>
+            <button
+              type="button"
+              onClick={requestDownload}
+              disabled={!canPlay || isDownloading}
+              className="flex h-8 items-center justify-center rounded-2xl bg-secondary px-3 text-xs font-semibold text-secondary-foreground shadow-md active:scale-95 disabled:opacity-40 sm:h-14 sm:px-6 sm:text-lg"
+            >
+              {isDownloading ? 'Working…' : 'Save'}
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className="text-xs font-medium text-muted-foreground">Music Style</span>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="shrink-0 text-[9px] font-medium text-muted-foreground sm:text-xs">
+            Style
+          </span>
           <KidsGenrePicker />
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center justify-center gap-3 px-4 py-2 text-sm text-muted-foreground">
-        {isLoading && (
-          <span role="status">Creating your sound… {renderElapsedSeconds.toFixed(0)}s</span>
-        )}
-        {error && <span className="text-destructive">{error}</span>}
-        {downloadError && <span className="text-destructive">{downloadError}</span>}
-        {unsupportedNotice && <span className="text-amber-500">{unsupportedNotice}</span>}
-        {statusMessage && <span>{statusMessage}</span>}
-      </div>
+      {hasStatusMessage && (
+        <div className="flex flex-wrap items-center justify-center gap-2 px-2 py-1 text-[11px] text-muted-foreground sm:gap-3 sm:px-4 sm:py-2 sm:text-sm">
+          {isLoading && (
+            <span role="status">Creating your sound… {renderElapsedSeconds.toFixed(0)}s</span>
+          )}
+          {error && <span className="text-destructive">{error}</span>}
+          {downloadError && <span className="text-destructive">{downloadError}</span>}
+          {unsupportedNotice && <span className="text-amber-500">{unsupportedNotice}</span>}
+          {statusMessage && <span>{statusMessage}</span>}
+        </div>
+      )}
 
+      {/* ⚠️ ראה studio/page.tsx להסבר המלא על כל שורה כאן — הפורט נאמן ב-100%: fixed
+          inset-x-0 + מדידת visibleViewport (לא inset-0/100dvh לבד, שלא מספיקים בנייד עם
+          כרום-דפדפן מרחף/אחרי סיבוב), ו-fittedSize לא חל כלל במצב מורחב (הציור מנורמל
+          [0,1] בשני הצירים, יחס-הלוח לא משפיע על המוזיקה). */}
       <div
         ref={stageContainerRef}
-        className="relative flex min-h-0 flex-1 items-center justify-center bg-muted/30 p-4"
+        className={
+          isStageExpanded
+            ? 'fixed inset-x-0 z-50 flex h-[100dvh] items-center justify-center bg-background p-1'
+            : 'relative flex min-h-0 flex-1 items-center justify-center bg-muted/30 p-2 sm:p-4'
+        }
+        style={
+          isStageExpanded && visibleViewport
+            ? { height: visibleViewport.height, top: visibleViewport.offsetTop }
+            : isStageExpanded
+              ? { top: 0 }
+              : undefined
+        }
       >
         <div
-          className="relative aspect-video max-h-full w-full overflow-hidden bg-white text-[#211B4A] shadow-lg"
-          style={fittedSize ? { width: fittedSize.width, height: fittedSize.height } : undefined}
+          className={
+            isStageExpanded
+              ? 'relative h-full w-full overflow-hidden bg-white text-[#211B4A] shadow-lg'
+              : 'relative aspect-video max-h-full w-full overflow-hidden bg-white text-[#211B4A] shadow-lg'
+          }
+          style={
+            !isStageExpanded && fittedSize
+              ? { width: fittedSize.width, height: fittedSize.height }
+              : undefined
+          }
         >
           <DrawingCanvas hidden={isPlaying} />
           <MusicalGrid
@@ -218,9 +282,27 @@ function KidsStudioContent() {
             />
           )}
         </div>
+        {/* ⭐ 2026-09-05 (לפי בקשה חיה): כפתור הגדלה/הקטנה — **בנייד בלבד** (sm:hidden), בדיוק
+            כמו ב-Studio הרגיל. ⚠️ ממוקם מול המיכל ולא מול קופסת-הציור — ראה studio/page.tsx
+            להסבר (סיבוב מכשיר לא יחתוך את הכפתור מחוץ לתחום). */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsStageExpanded((expanded) => !expanded);
+          }}
+          aria-label={isStageExpanded ? 'Exit full screen' : 'Draw in full screen'}
+          aria-pressed={isStageExpanded}
+          className="absolute right-3 bottom-3 z-20 flex size-11 touch-none items-center justify-center rounded-full bg-[#211B4A]/80 text-white shadow-lg backdrop-blur-sm active:bg-[#211B4A] sm:hidden"
+        >
+          {isStageExpanded ? (
+            <Minimize className="size-5" aria-hidden="true" />
+          ) : (
+            <Maximize className="size-5" aria-hidden="true" />
+          )}
+        </button>
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-4 border-t border-border/60 bg-card/60 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-center gap-2 border-t border-border/60 bg-card/60 px-2 py-1.5 sm:gap-4 sm:px-4 sm:py-3">
         <ColorPicker />
         <ThicknessPicker />
         <ShapeTray
@@ -234,7 +316,7 @@ function KidsStudioContent() {
         <button
           type="button"
           onClick={clearAll}
-          className="flex h-12 items-center justify-center rounded-2xl border-2 border-border bg-card px-4 text-base font-medium text-muted-foreground shadow-sm active:scale-95"
+          className="flex h-8 items-center justify-center rounded-2xl border-2 border-border bg-card px-3 text-xs font-medium text-muted-foreground shadow-sm active:scale-95 sm:h-12 sm:px-4 sm:text-base"
         >
           Clear
         </button>
