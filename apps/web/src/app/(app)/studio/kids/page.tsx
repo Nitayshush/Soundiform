@@ -22,6 +22,18 @@
  * קיבל גדלים מגיבים (קטן כברירת מחדל, גדל מ-sm ומעלה) כדי לצמצם כמה שיותר את מה שהלוח
  * הרגיל (הלא-מורחב) צריך לחלוק איתו — ראה ColorPicker.tsx/KidsGenrePicker.tsx וכו' לפירוט.
  *
+ * ⭐⭐⭐⭐ 2026-09-05 (דווח חי: "כשהופכים את המסך בנייד הלוח נעלם", גם אחרי התיקון הראשון):
+ * מקור הבאג האמיתי — useFitAspectRatio.ts (משותף עם Studio הרגיל) עושה `if (availableWidth
+ * <= 0 || availableHeight <= 0) return;` **בלי לאפס את size** — אם המדידה תוך-כדי-סיבוב
+ * נתפסת ברגע שהמיכל (flex-1 בתוך h-dvh נוקשה) נסחט לגובה 0-או-שלילי, ה-hook פשוט קופא על
+ * הגודל הישן (מהפורטרט), שעכשיו גדול/קטן-לא-נכון ביחס לנוף. main היה `h-dvh` (גובה קשיח —
+ * שום צד לא יכול "לברוח" אם הכרום+הלוח לא נכנסים יחד), ומיכל-הבמה היה `min-h-0` (מרשה
+ * לו להיסחט עד 0 לגמרי). ⚠️ בכוונה **לא** נגעתי ב-useFitAspectRatio.ts עצמו (משותף, עדין,
+ * ומסוכן לשנות בלי בדיקה חיה ב-Studio הרגיל) — התיקון כאן מונע מהתנאי ה-baguy להתרחש בכלל:
+ * main עבר ל-`min-h-dvh` (יכול לגדול, לא רק לצמצם) ומיכל-הבמה קיבל `min-h-[220px]` קבוע
+ * (לא `min-h-0`) — הבמה **לעולם** לא נסחטת ל-0, ואם הכרום+הרצפה-הזו לא נכנסים יחד בגובה
+ * הנוף, הדף פשוט גולל אנכית (עדיף על "הלוח נעלם" לגמרי).
+ *
  * ⚠️ Suspense: כמו ב-studio הרגיל — useSaveProject/useDownload קוראים useSearchParams.
  *
  * ⚠️ ברירת-מחדל פרטיות: useDownload({defaultVisibility:'private'}) — יצירות מכאן לא
@@ -174,7 +186,7 @@ function KidsStudioContent() {
     Boolean(statusMessage);
 
   return (
-    <main className="flex h-dvh flex-col bg-background">
+    <main className="flex min-h-dvh flex-col bg-background">
       <header className="flex flex-col gap-1.5 border-b border-border/60 bg-card/60 px-2 py-1.5 sm:gap-2 sm:px-4 sm:py-3">
         <div className="flex items-center justify-between gap-2">
           <Link href="/" className="shrink-0 transition-opacity hover:opacity-80">
@@ -228,7 +240,7 @@ function KidsStudioContent() {
         className={
           isStageExpanded
             ? 'fixed inset-x-0 z-50 flex h-[100dvh] items-center justify-center bg-background p-1'
-            : 'relative flex min-h-0 flex-1 items-center justify-center bg-muted/30 p-2 sm:p-4'
+            : 'relative flex min-h-[220px] flex-1 items-center justify-center bg-muted/30 p-2 sm:p-4'
         }
         style={
           isStageExpanded && visibleViewport

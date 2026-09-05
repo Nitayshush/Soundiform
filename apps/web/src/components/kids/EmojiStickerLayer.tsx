@@ -29,13 +29,19 @@
  * הנמחק חייב לזוז אחורה ב-1, אחרת הוא יצביע על ה-path הלא-נכון (זה שהחליף את מקומו
  * בעקבות ה-shift). הבעיה לא קיימת לצורות-גיאומטריות (ShapeTray) כי שום דבר לא עוקב אחרי
  * ה-index שלהן חוץ מ-shapeStore עצמו.
+ *
+ * ⭐⭐⭐⭐ 2026-09-05 (דווח חי: "אחרי שמזיזים/מגדילים סטיקר קיים, אין דרך לאשר — הוא נשאר"):
+ * לא הייתה בכלל דרך **לצאת** ממצב-בחירה (isSelected) — פרט לבחירת סטיקר אחר, ה-handles
+ * (ידית/מחיקה) פשוט נשארו גלויים לנצח. נוסף כפתור ✓ (deselect בלבד — x/y/size כבר מסונכרנים
+ * ל-shapeStore בכל pointerup, ראה endDrag למעלה; אין כאן שום "commit" נוסף לבצע), באותה
+ * שפה חזותית בדיוק כמו ShapePlacementOverlay (✓ מול ✕).
  */
 
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { generateStickerCirclePath } from '@/lib/kidsShapes';
 import { useShapeStore } from '@/stores/shapeStore';
 
@@ -234,6 +240,17 @@ export function EmojiStickerLayer({ stickers, onChange }: EmojiStickerLayerProps
                   style={{ left: -handleOffset, top: -handleOffset }}
                 >
                   <X className="size-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Done editing sticker"
+                  onClick={() => {
+                    setSelectedId(null);
+                  }}
+                  className="pointer-events-auto absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md"
+                  style={{ right: -handleOffset, top: -handleOffset }}
+                >
+                  <Check className="size-4" aria-hidden="true" />
                 </button>
               </>
             )}
