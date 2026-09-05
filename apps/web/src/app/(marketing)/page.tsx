@@ -5,6 +5,12 @@
  * @created     2026-08-16
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ 2026-09-06 (דווח חי: "קשה לראות את הקישור ל-Kids Studio, בנייד הוא נעלם לתוך ההמבורגר"):
+ * כפתור-הכניסה ל-Kids Studio בהדר (Header.tsx) נשאר — זה לא מחליף אותו, זה מוסיף דרך
+ * הרבה יותר בולטת: כפתור עיצוב-ילדים ממש ליד "Start creating", לא Button המשותף (עיצוב
+ * מבוגרים אחיד) אלא עיצוב עצמאי צבעוני-בכוונה (gradient, פונט עגול, אימוג'י) — כדי שיהיה
+ * **ברור מיד במבט ראשון** שזו כניסה שונה, לא עוד וריאציה של אותו כפתור.
  */
 
 import Link from 'next/link';
@@ -54,6 +60,12 @@ export default function HomePage() {
             <Button size="lg" nativeButton={false} render={<Link href="/studio" />}>
               Start creating
             </Button>
+            <Link
+              href="/studio/kids"
+              className="flex h-9 items-center gap-1.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-pink-500 to-orange-400 px-5 text-base font-bold text-white shadow-lg shadow-pink-500/30 transition-transform hover:scale-105 active:scale-95 sm:h-11 sm:text-lg"
+            >
+              <span aria-hidden="true">🎨</span> Kids Studio
+            </Link>
             <Button
               size="lg"
               variant="outline"
