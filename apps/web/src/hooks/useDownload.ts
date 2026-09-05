@@ -18,16 +18,35 @@
  * חייב לקרוא ל-useSaveProject() פעם אחת בלבד ולהעביר את אותה תוצאה גם לכפתור Save וגם לכאן.
  * שתי קריאות עצמאיות ל-useSaveProject() היו יוצרות שני state instances נפרדים (savedProjectId
  * שונה בכל אחד) — autoSave=1 היה יכול לרוץ *פעמיים* במקביל ולשמור את אותו פרויקט כשתי שורות.
+ *
+ * ⭐ 2026-09-04 (Kids Studio v1): defaultVisibility אופציונלי (options.defaultVisibility),
+ * ברירת מחדל 'public' — ההתנהגות הקיימת בדיוק. Kids Studio מעביר 'private' כדי שיצירות
+ * ילדים לא יפורסמו לגלריה הציבורית אוטומטית (ראה shares.ts/PublishToggleButton.tsx —
+ * המשתמש עדיין יכול לפרסם ידנית מ-My Gallery). נבחר על-פני PATCH אחרי-מעשה כדי לא ליצור
+ * חלון-זמן שבו היצירה כן ציבורית לרגע.
  */
 
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import type { TrackRole } from '@soundiform/core';
 import { useGenreStore } from '@/stores/genreStore';
 import { useSoundSelectionStore } from '@/stores/soundSelectionStore';
 import { useShapeStore } from '@/stores/shapeStore';
+import type { ShareVisibility } from '@soundiform/db';
 import type { UseSaveProjectResult } from './useSaveProject';
+
+export interface UseDownloadOptions {
+  /** ברירת מחדל 'public' — ההתנהגות הקיימת. ראה ⭐ 2026-09-04 למעלה. */
+  defaultVisibility?: ShareVisibility;
+  /**
+   * ⭐ 2026-09-05 (Kids Studio): מחליף (לא ממזג) את הבחירה מ-useSoundSelectionStore, בדיוק
+   * כמו soundSelectionsOverride ב-useAudioEngine.ts — כדי שהרינדור-לייצוא ישקף את אותה
+   * ברירת-מחדל שהילד שמע בפריוויו, בלי לכתוב ל-store המשותף עם Studio הרגיל.
+   */
+  soundSelectionsOverride?: Partial<Record<TrackRole, string[]>>;
+}
 
 const POLL_INTERVAL_MS = 2000;
 // ⭐ 2026-08-22: 60 (2 דקות) היה קרוב-מדי-לגבול — בדיקה חיה מדדה רינדור וידאו אמיתי
@@ -120,13 +139,18 @@ const STAGE_MESSAGES: Record<string, string> = {
   saving: 'Saving your creation…',
 };
 
-export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResult {
+export function useDownload(
+  saveProject: UseSaveProjectResult,
+  options?: UseDownloadOptions,
+): UseDownloadResult {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const defaultVisibility: ShareVisibility = options?.defaultVisibility ?? 'public';
   const genreId = useGenreStore((state) => state.genreId);
   // ⭐ 2026-08-24 (Area 1): נדרש כדי שהוידאו המורד ישקף את אותה בחירת-צליל של הפריוויו החי
   // (useAudioEngine.ts) — בלי זה, הרינדור הסופי היה תמיד ברירת-המחדל של הז'אנר.
-  const soundSelections = useSoundSelectionStore((state) => state.selectionsByGenre[genreId]);
+  const storeSoundSelections = useSoundSelectionStore((state) => state.selectionsByGenre[genreId]);
+  const soundSelections = options?.soundSelectionsOverride ?? storeSoundSelections;
   const { requestSave, savedProjectId, isSaving, saveError } = saveProject;
 
   const [isRendering, setIsRendering] = useState(false);
@@ -217,7 +241,7 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
         const shareResponse = await fetch('/api/shares', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ renderId, visibility: 'public' }),
+          body: JSON.stringify({ renderId, visibility: defaultVisibility }),
         });
         const shareBody = (await shareResponse.json()) as { slug?: string };
 
@@ -251,7 +275,7 @@ export function useDownload(saveProject: UseSaveProjectResult): UseDownloadResul
         router.push(`/s/${shareSlug}`);
       }
     },
-    [genreId, soundSelections, router],
+    [genreId, soundSelections, router, defaultVisibility],
   );
 
   const requestDownload = useCallback(() => {

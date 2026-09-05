@@ -11,6 +11,12 @@
  * פשוט לכמה קישורים).
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ 2026-09-04: נוסף קישור ל-Kids Studio — עד עכשיו הנתיב (/studio/kids) היה קיים בקוד
+ * אבל בלתי-נגיש מה-UI לגמרי (אין לו קישור בשום מקום), אז המשתמש לא יכול היה למצוא אותו
+ * חוץ מהקלדת ה-URL ידנית. לא מוצג בעמוד ה-Kids Studio עצמו (יש לו header מינימלי משלו,
+ * בכוונה בלי Header.tsx הזה — ראה studio/kids/page.tsx) וגם לא בעמוד ה-Studio הרגיל (סרגל
+ * קומפקטי נפרד, ראה למעלה) — אבל מופיע בכל שאר העמודים (בית/גלריה/תמחור/פיד).
  */
 
 'use client';
@@ -25,6 +31,7 @@ import { useUsername } from '@/hooks/useUsername';
 
 const NAV_LINKS = [
   { href: '/studio', label: 'Studio' },
+  { href: '/studio/kids', label: 'Kids Studio' },
   { href: '/gallery', label: 'Gallery' },
   { href: '/pricing', label: 'Pricing' },
 ];

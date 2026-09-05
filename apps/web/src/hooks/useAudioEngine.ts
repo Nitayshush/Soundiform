@@ -8,13 +8,21 @@
  *
  * ⭐ Sprint 9: הסגנון נלקח מ-genrePacksStore.getState() (DB, נטען כבר ע"י GenreSelector) —
  * לא מ-@soundiform/genres הסטטי — ראה genrePacksStore.ts.
+ *
+ * ⭐ 2026-09-05 (Kids Studio): options.soundSelectionsOverride — Kids Studio לא מרכיב את
+ * SoundSelector.tsx בכלל, אז אין לו דרך לכתוב ל-useSoundSelectionStore, וגם לא כדאי שיכתוב
+ * אליו: זה store משותף ועקבי ל-Studio הרגיל, וכתיבה אליו מ-Kids Studio הייתה "מדביקה" את
+ * ברירת-המחדל המתוקתקת (kidsSoundDefaults.ts) גם לבחירה של מבוגר שיפתח את אותו ז'אנר
+ * ב-Studio הרגיל באותו דפדפן — תופעת-לוואי בלתי-מבוקשת. לכן override מפורש, לא כתיבה
+ * ל-store: כשהוא ניתן הוא **מחליף** את מה שהיה מגיע מה-store (לא ממוזג), ו-Studio הרגיל
+ * (שלעולם לא מעביר options) ממשיך להתנהג בדיוק כמו היום.
  */
 
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BrowserRendererHandle } from '@soundiform/audio';
-import { geometryToMusic, composeMusicalScore } from '@soundiform/core';
+import { geometryToMusic, composeMusicalScore, type TrackRole } from '@soundiform/core';
 import { useShapeStore, toShapeData } from '@/stores/shapeStore';
 import { useGenreStore } from '@/stores/genreStore';
 import { useGenrePacksStore } from '@/stores/genrePacksStore';
@@ -43,6 +51,11 @@ export interface UseAudioEngineResult {
   renderProgress: number | null;
 }
 
+export interface UseAudioEngineOptions {
+  /** ראה ⭐ 2026-09-05 למעלה. כשקיים, מחליף (לא ממזג) את הבחירה מ-useSoundSelectionStore. */
+  soundSelectionsOverride?: Partial<Record<TrackRole, string[]>>;
+}
+
 /** קצב עדכון מונה-ההמתנה. 100ms מספיק חלק לעין ולא מעמיס בזמן שהמכשיר עסוק ברינדור. */
 const RENDER_TICK_MS = 100;
 
@@ -56,7 +69,7 @@ function errorMessage(error: unknown): string {
  * על play — Tone.js דורש מחוות משתמש אמיתית) ונהרס כשהצורה **או** הסגנון משתנים, כי הוא
  * בנוי סביב score קבוע (§4.5: הצורה קובעת תוכן, הסגנון קובע לבוש — שינוי בכל אחד מהם מייצר score אחר).
  */
-export function useAudioEngine(): UseAudioEngineResult {
+export function useAudioEngine(options?: UseAudioEngineOptions): UseAudioEngineResult {
   const paths = useShapeStore((state) => state.paths);
   const shapeHash = useShapeStore((state) => state.shapeHash);
   const genreId = useGenreStore((state) => state.genreId);
@@ -66,7 +79,8 @@ export function useAudioEngine(): UseAudioEngineResult {
   // ⭐ 2026-08-24 (Area 1): נבחר-רה-אקטיבית לפי genreId — משתנה זהות בכל selectSound,
   // ולכן משתתף בתלויות ה-useEffect למטה בדיוק כמו shapeHash/genreId (renderer ישן שייך
   // לבחירת-צליל הקודמת, לא ניתן להמשיך להשתמש בו).
-  const soundSelections = useSoundSelectionStore((state) => state.selectionsByGenre[genreId]);
+  const storeSoundSelections = useSoundSelectionStore((state) => state.selectionsByGenre[genreId]);
+  const soundSelections = options?.soundSelectionsOverride ?? storeSoundSelections;
 
   const rendererRef = useRef<BrowserRendererHandle | null>(null);
   const animationFrameRef = useRef<number | null>(null);

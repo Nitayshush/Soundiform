@@ -17,6 +17,19 @@
  * עוברים כמו-שהם ל-api/projects בשמירה כדי שהפרויקט יסומן נכון (ומודרציה תיפתח לו — §8).
  * ציור-יד ידני (addPath) מאפס אותם בחזרה ל-'drawing'/null — ברגע שהמשתמש מצייר על גבי צורה
  * שהועלתה, זו כבר לא "בדיוק הקובץ שהועלה" (§9 remix/provenance מתייחס לזה באופן דומה).
+ *
+ * ⭐ 2026-09-04 (Kids Studio v1): pathStyles — עיצוב חזותי בלבד (צבע/עובי קו) לכל path,
+ * במקביל ל-paths (index-aligned). **לא חלק מ-ShapeData/shapeHash** — המנוע (core/audio/video)
+ * לא צריך לדעת שום דבר על צבע. Studio הרגיל אף פעם לא קורא ל-setCurrentColor/setCurrentStrokeWidth,
+ * ולכן pathStyles נשאר ריק שם ו-DrawingCanvas נופל לברירות המחדל הישנות בדיוק כמו היום.
+ * ⚠️ קריטי: addPath/loadShape/clear חייבים לשמור את pathStyles מסונכרן עם paths (אותו אורך,
+ * אותו index) — אחרת Remix (loadShape, מחליף paths בבת אחת) משאיר pathStyles עם אורך ישן.
+ *
+ * ⭐ 2026-09-05 (דווח חי: "מזיזים את האימוג'י ומופיע עיגול, לא ניתן לעדכן את מיקומו"):
+ * updatePath — מחליף path קיים **במקום** (אותו index, לא append) ומחשב shapeHash מחדש
+ * פעם אחת. נועד ל-EmojiStickerLayer: כשגוררים סטיקר-אימוג'י שכבר הונח, הצליל חייב לזוז
+ * יחד איתו (אחרת העיגול-מקור נשאר "יתום" במקום הישן, חשוף וגלוי — בדיוק הבאג שדווח). לא
+ * נקרא בכל pointermove — פעם אחת ב-pointerup, אותה משמעת בדיוק כמו addPath ב-ShapePlacementOverlay.
  */
 
 'use client';
@@ -30,8 +43,24 @@ const STORAGE_KEY = 'soundiform:current-shape';
 
 export type ShapeSourceType = 'drawing' | 'svg' | 'raster';
 
+/** עיצוב חזותי של path בודד — ראה ⭐ 2026-09-04 למעלה. */
+export interface PathStyle {
+  color: string;
+  strokeWidth: number;
+}
+
+// ⚠️ תואמים בכוונה ל-fallback constants ב-DrawingCanvas.tsx (STROKE_COLOR/LINE_WIDTH) — כך
+// שהקו הראשון ב-Kids Studio, לפני שהילד נגע בבורר-הצבע, נראה בדיוק כמו קו רגיל ב-Studio.
+const DEFAULT_STROKE_COLOR = '#211b4a';
+const DEFAULT_STROKE_WIDTH = 6;
+
 interface ShapeStoreState {
   paths: ShapePath[];
+  pathStyles: PathStyle[];
+  currentColor: string;
+  currentStrokeWidth: number;
+  setCurrentColor: (color: string) => void;
+  setCurrentStrokeWidth: (width: number) => void;
   shapeHash: string | null;
   sourceType: ShapeSourceType;
   uploadKey: string | null;
@@ -55,6 +84,22 @@ interface ShapeStoreState {
   savedProjectId: string | null;
   setSavedProjectId: (projectId: string | null) => void;
   addPath: (path: ShapePath) => void;
+  /** מחליף path[index] במקום (לא append) — ראה ⭐ 2026-09-05 למעלה. no-op אם index לא תקף. */
+  updatePath: (index: number, path: ShapePath) => void;
+  /**
+   * ⭐ 2026-09-05 (Kids Studio — סטיקר-אימוג'י): קובע עיצוב ל-path קיים בלי לגעת ב-
+   * currentColor/currentStrokeWidth הגלובליים (בניגוד ל-addPath, שתמיד לוקח אותם). נחוץ כי
+   * ה-path של סטיקר-אימוג'י צריך color='transparent' קבוע (בלתי-נראה מעצמו — האימוג'י הוא
+   * הייצוג היחיד), בלי קשר לצבע-הקו הנוכחי שהילד בחר לציור-יד. no-op אם index לא תקף.
+   */
+  setPathStyle: (index: number, style: PathStyle) => void;
+  /**
+   * ⭐ 2026-09-05 (דווח חי: "מחיקת סטיקר חייבת להסיר גם את הצליל שלו"): מסיר path **בפועל**
+   * (לא רק מסתיר) — משנה אורך המערך, ולכן כל אינדקס-path אחר ששמור במקום אחר (pathIndex
+   * ב-EmojiSticker) חייב להתעדכן בהתאם (ראה EmojiStickerLayer.removeSticker, שמזיז את
+   * pathIndex של כל סטיקר אחר שמצביע על path שבא *אחרי* הנמחק). no-op אם index לא תקף.
+   */
+  removePath: (index: number) => void;
   loadShape: (
     paths: ShapePath[],
     source?: {
@@ -83,6 +128,15 @@ export const useShapeStore = create<ShapeStoreState>()(
   persist(
     (set, get) => ({
       paths: [],
+      pathStyles: [],
+      currentColor: DEFAULT_STROKE_COLOR,
+      currentStrokeWidth: DEFAULT_STROKE_WIDTH,
+      setCurrentColor: (color) => {
+        set({ currentColor: color });
+      },
+      setCurrentStrokeWidth: (width) => {
+        set({ currentStrokeWidth: width });
+      },
       shapeHash: null,
       sourceType: 'drawing',
       uploadKey: null,
@@ -93,11 +147,16 @@ export const useShapeStore = create<ShapeStoreState>()(
       },
       addPath: (path) => {
         const nextPaths = [...get().paths, path];
+        const nextStyles = [
+          ...get().pathStyles,
+          { color: get().currentColor, strokeWidth: get().currentStrokeWidth },
+        ];
         // ⚠️ ציור-יד אחרי העלאה מבטל את התמונה: הצורה כבר אינה זו שהועלתה, והשארת התמונה
         // הייתה מציגה למשתמש משהו שאינו מקור הצליל.
         revokePreview(get().previewImageUrl);
         set({
           paths: nextPaths,
+          pathStyles: nextStyles,
           sourceType: 'drawing',
           uploadKey: null,
           previewImageUrl: null,
@@ -112,10 +171,53 @@ export const useShapeStore = create<ShapeStoreState>()(
             console.error('shapeStore: computeShapeHash נכשל', error);
           });
       },
+      updatePath: (index, path) => {
+        const currentPaths = get().paths;
+        if (index < 0 || index >= currentPaths.length) {
+          return;
+        }
+        const nextPaths = currentPaths.map((existing, i) => (i === index ? path : existing));
+        set({ paths: nextPaths });
+        computeShapeHash(toShapeData(nextPaths))
+          .then((hash) => {
+            set({ shapeHash: hash });
+          })
+          .catch((error: unknown) => {
+            console.error('shapeStore: computeShapeHash נכשל (updatePath)', error);
+          });
+      },
+      setPathStyle: (index, style) => {
+        const currentStyles = get().pathStyles;
+        if (index < 0 || index >= get().paths.length) {
+          return;
+        }
+        const nextStyles = [...currentStyles];
+        nextStyles[index] = style;
+        set({ pathStyles: nextStyles });
+      },
+      removePath: (index) => {
+        const currentPaths = get().paths;
+        if (index < 0 || index >= currentPaths.length) {
+          return;
+        }
+        const nextPaths = currentPaths.filter((_, i) => i !== index);
+        const nextStyles = get().pathStyles.filter((_, i) => i !== index);
+        set({ paths: nextPaths, pathStyles: nextStyles });
+        computeShapeHash(toShapeData(nextPaths))
+          .then((hash) => {
+            set({ shapeHash: hash });
+          })
+          .catch((error: unknown) => {
+            console.error('shapeStore: computeShapeHash נכשל (removePath)', error);
+          });
+      },
       loadShape: (paths, source) => {
         revokePreview(get().previewImageUrl);
         set({
           paths,
+          // ⚠️ לצורה שנטענת (Remix/שיתוף) אין עיצוב-per-path משלה — מערך ריק, לא מערך
+          // "יתום" באורך הישן. DrawingCanvas נופל ל-fallback הרגיל לכל path כזה.
+          pathStyles: [],
           shapeHash: null,
           sourceType: source?.sourceType ?? 'drawing',
           uploadKey: source?.uploadKey ?? null,
@@ -134,6 +236,7 @@ export const useShapeStore = create<ShapeStoreState>()(
         revokePreview(get().previewImageUrl);
         set({
           paths: [],
+          pathStyles: [],
           shapeHash: null,
           sourceType: 'drawing',
           uploadKey: null,
@@ -147,6 +250,7 @@ export const useShapeStore = create<ShapeStoreState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         paths: state.paths,
+        pathStyles: state.pathStyles,
         shapeHash: state.shapeHash,
         sourceType: state.sourceType,
         uploadKey: state.uploadKey,
