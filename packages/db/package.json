@@ -12,7 +12,8 @@
     "test": "vitest run --passWithNoTests",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed-genres": "tsx --env-file=.env src/seed/run.ts"
+    "db:seed-genres": "tsx --env-file=.env src/seed/run.ts",
+    "db:seed-legal": "tsx --env-file=.env src/seed/run-legal.ts"
   },
   "dependencies": {
     "@soundiform/core": "workspace:*",

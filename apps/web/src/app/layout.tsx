@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import Script from 'next/script';
+import { CookieConsentBanner } from '@/components/legal/CookieConsentBanner';
+import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
 import './globals.css';
 
 /**
@@ -69,7 +71,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: CONFIGURE_AUDIO_CONTEXT_SCRIPT }}
         />
+        <GoogleAnalytics />
         {children}
+        <CookieConsentBanner />
       </body>
     </html>
   );

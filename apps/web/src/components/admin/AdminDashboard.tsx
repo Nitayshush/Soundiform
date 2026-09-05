@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { ModerationPanel } from './ModerationPanel';
 import { FeatureFlagsPanel } from './FeatureFlagsPanel';
 import { GenrePacksPanel } from './GenrePacksPanel';
+import { LegalPagesPanel } from './LegalPagesPanel';
 import { AuditLogPanel } from './AuditLogPanel';
 import { UsersPanel } from './UsersPanel';
 
@@ -21,6 +22,7 @@ const TABS = [
   { id: 'users', label: 'Users' },
   { id: 'feature-flags', label: 'Feature Flags' },
   { id: 'genre-packs', label: 'GenrePacks' },
+  { id: 'legal-pages', label: 'Legal' },
   { id: 'audit-log', label: 'Audit Log' },
 ] as const;
 
@@ -55,6 +57,7 @@ export function AdminDashboard() {
       {activeTab === 'users' && <UsersPanel />}
       {activeTab === 'feature-flags' && <FeatureFlagsPanel />}
       {activeTab === 'genre-packs' && <GenrePacksPanel />}
+      {activeTab === 'legal-pages' && <LegalPagesPanel />}
       {activeTab === 'audit-log' && <AuditLogPanel />}
     </div>
   );

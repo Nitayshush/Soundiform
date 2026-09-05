@@ -29,6 +29,12 @@
  * resolveEffectivePlan נקרא בכל נקודת-שער-הרשאות (quota/render/download) ומבצע את ההחזרה
  * בעצמו (lazy, on-access) אם התאריך כבר עבר — פשוט יותר מתשתית cron חדשה, ותמיד נכון
  * ברגע שמישהו בפועל בודק את ה-plan (לא רק "מתישהו ברקע").
+ *
+ * ⭐ 2026-09-06: termsAcceptedAt — nullable בכוונה. נכתב פעם אחת ב-api/account/accept-terms
+ * מיד אחרי הרשמה מוצלחת (ראה (auth)/login/page.tsx + auth/callback/route.ts). משתמשים
+ * שנרשמו *לפני* שהתכונה הזו קיימת נשארים null לצמיתות — זה לא באג, זה תיעוד כן של המצב
+ * בפועל (לא מבקשים רטרואקטיבית מהם לאשר). אין כאן "גרסת תנאים" — אם התנאים ישתנו מהותית
+ * בעתיד, זו תוספת נפרדת.
  */
 
 import { sql } from 'drizzle-orm';
@@ -57,6 +63,7 @@ export const users = pgTable(
     restorePlanSource: text('restore_plan_source', { enum: PLAN_SOURCE_VALUES }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
   },
   () => [
     pgPolicy('users_select_own', {

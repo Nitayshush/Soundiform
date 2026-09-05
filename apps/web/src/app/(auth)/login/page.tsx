@@ -9,6 +9,14 @@
  * ⚠️ next/autoSave: אחרי אימות מצליח מפנים ל-next (ברירת מחדל /studio) — אם autoSave=1
  * מגיע איתו, ה-studio page עצמו (לא כאן) יבצע את השמירה בפועל, כי localStorage/shapeStore
  * זמינים רק שם. ה-flow הזה זהה בין אימייל+סיסמה ל-Google (ראה auth/callback/route.ts).
+ *
+ * ⭐ 2026-09-06: agreedToTerms — checkbox חובה **רק** במצב הרשמה (מי שכבר יש לו חשבון כבר
+ * הסכים בזמנו). חוסם גם את שליחת הטופס וגם את "Continue with Google". קבלת-התנאים בפועל
+ * מתועדת בשני מסלולים שונים: (א) הרשמת אימייל+סיסמה עם session מיידי (אין אימות-מייל
+ * בהמתנה) — נקרא כאן ישירות ל-api/account/accept-terms אחרי signUp; (ב) Google OAuth
+ * *וגם* הרשמת אימייל עם אימות-מייל בהמתנה — שני אלה תמיד עוברים דרך auth/callback/route.ts
+ * מאוחר יותר (לא נחתמים כאן בכלל), אז מסמנים acceptTerms=1 על ה-redirectTo/emailRedirectTo
+ * וה-callback הוא זה שבאמת כותב את התאריך (ראה שם).
  */
 
 'use client';
@@ -36,6 +44,7 @@ function LoginForm() {
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,13 +54,30 @@ function LoginForm() {
     setIsSubmitting(true);
     try {
       const supabase = createClient();
-      const { error: authError } =
-        mode === 'signin'
-          ? await supabase.auth.signInWithPassword({ email, password })
-          : await supabase.auth.signUp({ email, password });
+      if (mode === 'signin') {
+        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        if (authError) {
+          setError(authError.message);
+          return;
+        }
+        router.push(next);
+        return;
+      }
+
+      const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}&acceptTerms=1`;
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: callbackUrl },
+      });
       if (authError) {
         setError(authError.message);
         return;
+      }
+      // ⚠️ session קיים מיד רק כשאין אימות-מייל בהמתנה — אחרת data.session הוא null וה-
+      // אישור יירשם מאוחר יותר ב-auth/callback/route.ts כשהמשתמש ילחץ על קישור-האימות.
+      if (data.session) {
+        await fetch('/api/account/accept-terms', { method: 'POST' });
       }
       router.push(next);
     } catch (caughtError) {
@@ -65,10 +91,11 @@ function LoginForm() {
     setError(null);
     try {
       const supabase = createClient();
+      const acceptTermsParam = mode === 'signup' ? '&acceptTerms=1' : '';
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}${acceptTermsParam}`,
         },
       });
       if (authError) {
@@ -113,8 +140,28 @@ function LoginForm() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
+            {mode === 'signup' && (
+              <label className="flex items-start gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(event) => setAgreedToTerms(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link href="/terms" target="_blank" className="underline hover:text-foreground">
+                    Terms of Service
+                  </Link>
+                </span>
+              </label>
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" disabled={isSubmitting} className="w-full">
+            <Button
+              type="submit"
+              disabled={isSubmitting || (mode === 'signup' && !agreedToTerms)}
+              className="w-full"
+            >
               {isSubmitting ? 'One sec…' : mode === 'signin' ? 'Sign in' : 'Sign up'}
             </Button>
           </form>
@@ -123,6 +170,7 @@ function LoginForm() {
             type="button"
             variant="outline"
             className="w-full"
+            disabled={mode === 'signup' && !agreedToTerms}
             onClick={() => void handleGoogleSignIn()}
           >
             Continue with Google

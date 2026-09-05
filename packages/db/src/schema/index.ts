@@ -18,6 +18,7 @@ export * from './likes';
 export * from './follows';
 export * from './comments';
 export * from './genrePacks';
+export * from './legalPages';
 export * from './moderationQueue';
 export * from './auditLog';
 export * from './featureFlags';
