@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import Script from 'next/script';
 import { CookieConsentBanner } from '@/components/legal/CookieConsentBanner';
 import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
+import { getSiteUrl } from '@/lib/siteUrl';
 import './globals.css';
 
 /**
@@ -57,9 +58,20 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+/**
+ * ⭐ 2026-09-14 (נתפס בבדיקה חיה, build warning): בלי metadataBase, תמונות-OG **סטטיות**
+ * (home/gallery opengraph-image.tsx — אין להן DB query, אז Next.js בונה אותן פעם אחת
+ * ב-build) לא ידעו לפתור את הכתובת-היחסית שלהן לכתובת מוחלטת, ונפלו ל-localhost — בדיוק
+ * אותה מחלקת-באג שתוקנה היום ל-sitemap.xml/robots.txt. ⚠️ בניגוד ל-getSiteUrl()'s
+ * שימוש-בזמן-ריצה הרגיל (per-request, ראה siteUrl.ts) — כאן זה בהכרח מוערך פעם אחת
+ * ב-module scope, אבל זה בטוח עכשיו: NEXT_PUBLIC_APP_URL כבר מוגדר נכון ב-Vercel Production
+ * (https://www.soundiform.com, תוקן היום). דפי-OG **דינמיים** (s/[shareId], u/[username] —
+ * יש להם DB query) לא מושפעים מזה בכלל, הם כבר פותרים את הכתובת שלהם ב-runtime לפי הבקשה.
+ */
 export const metadata: Metadata = {
   title: 'Soundiform',
   description: 'Turn geometric shapes, drawings, and logos into professional music.',
+  metadataBase: new URL(getSiteUrl()),
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
