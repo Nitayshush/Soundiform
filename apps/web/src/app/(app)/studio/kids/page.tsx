@@ -58,7 +58,7 @@
 
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Maximize, Minimize } from 'lucide-react';
 import { DrawingCanvas } from '@/components/canvas/DrawingCanvas';
@@ -76,6 +76,7 @@ import { ColorPicker } from '@/components/kids/ColorPicker';
 import { ThicknessPicker } from '@/components/kids/ThicknessPicker';
 import { KidsGenrePicker } from '@/components/kids/KidsGenrePicker';
 import { Logo } from '@/components/branding/Logo';
+import { CreationDetailsModal } from '@/components/share/CreationDetailsModal';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useSaveProject } from '@/hooks/useSaveProject';
 import { useDownload } from '@/hooks/useDownload';
@@ -87,6 +88,7 @@ import { useGenrePacksStore } from '@/stores/genrePacksStore';
 import { useShapeStore } from '@/stores/shapeStore';
 import { KIDS_SOUND_DEFAULTS } from '@/lib/kidsSoundDefaults';
 import type { KidsShapeKind } from '@/lib/kidsShapes';
+import { captureKidsSceneSnapshot } from '@/lib/kidsSceneSnapshot';
 
 /** מונע ערימת-אימוג'ים בלתי-מוגבלת אם ילד לוחץ שוב ושוב — הישן ביותר יורד (FIFO). */
 const MAX_STICKERS = 12;
@@ -94,6 +96,8 @@ const DEFAULT_STICKER_SIZE = 40;
 
 function KidsStudioContent() {
   const clear = useShapeStore((state) => state.clear);
+  const paths = useShapeStore((state) => state.paths);
+  const pathStyles = useShapeStore((state) => state.pathStyles);
   const genreId = useGenreStore((state) => state.genreId);
   // ⚠️⚠️ 2026-09-05 (דווח חי: "Genre not found: trance" בלחיצה על Play): studio/page.tsx
   // הרגיל טוען את רשימת ה-genre packs דרך useEffect בתוך GenreSelector.tsx — קומפוננטה
@@ -119,8 +123,6 @@ function KidsStudioContent() {
     renderElapsedSeconds,
   } = useAudioEngine({ soundSelectionsOverride });
   const saveProject = useSaveProject();
-  const { requestDownload, isDownloading, downloadError, statusMessage, unsupportedNotice } =
-    useDownload(saveProject, { defaultVisibility: 'private', soundSelectionsOverride });
   const noteBoardGrid = useNoteBoardGrid();
   const stageContainerRef = useRef<HTMLDivElement>(null);
   // ⭐ 2026-09-05 (לפי בקשה חיה: כפתור הגדלה/הקטנה כמו ב-Studio הרגיל) — פורט נאמן, ראה
@@ -150,6 +152,48 @@ function KidsStudioContent() {
   const [pendingShapeKind, setPendingShapeKind] = useState<KidsShapeKind | null>(null);
   const [pendingEmoji, setPendingEmoji] = useState<string | null>(null);
   const [stickers, setStickers] = useState<EmojiSticker[]>([]);
+
+  // ⭐⭐ 2026-09-13 (לפי בקשה חיה: "היצירה הצבעונית של הילד, לא השלד"): מצלם את הסצנה
+  // (קווים+אימוג'ים כפי שהם *ממש עכשיו*) — ראה kidsSceneSnapshot.ts. containerWidthPx
+  // מ-fittedSize.width, אותו בסיס-נרמול בדיוק ש-addStickerAt (למטה) השתמש בו כשקבע size.
+  // ⚠️⚠️ 2026-09-13 (נתפס בבדיקה חיה: "אי אפשר לצייר, הלוח נעלם"): **לא** כותבים ל-store
+  // בכלל — useDownload.ts מקבל את ה-Blob ישירות ומזין אותו לרינדור מבלי לגעת
+  // ב-shapeStore.previewImageUrl, כי DrawingCanvas.tsx (משותף) מסתיר את כל ה-paths ברגע
+  // שהשדה הזה מוגדר (נכון ל-Studio הרגיל, שיש לו UploadedImageLayer שמראה תמונה במקום —
+  // ב-Kids Studio אין שכבה כזו, אז הלוח פשוט התרוקן).
+  // ⚠️ useCallback עם תלויות מדויקות — בלי זה renderAndDownload (useDownload.ts) היה נבנה
+  // מחדש בכל רינדור (כל תלות שם ב-options?.captureSceneSnapshot), כי פונקציה רגילה כאן
+  // הייתה מקבלת זהות חדשה בכל render.
+  // ⚠️ כשל כאן (למשל קנבס לא נתמך) **לא** אמור להפיל את כל היצירה — בדיוק כמו
+  // decodePreviewImage ב-clientRender.ts ("כישלון קידוד אינו כישלון הורדה"): בלי
+  // תמונה-מצולמת, פשוט נופלים חזרה לשלד השחור-לבן הישן, במקום לאבד את היצירה כולה.
+  const captureSceneSnapshot = useCallback(async (): Promise<Blob | null> => {
+    try {
+      return await captureKidsSceneSnapshot({
+        paths,
+        pathStyles,
+        stickers,
+        containerWidthPx: fittedSize?.width ?? 0,
+      });
+    } catch (caughtError) {
+      console.warn('Kids Studio scene snapshot failed; falling back to the line-art.', caughtError);
+      return null;
+    }
+  }, [paths, pathStyles, stickers, fittedSize]);
+
+  const {
+    requestDownload,
+    isDownloading,
+    downloadError,
+    statusMessage,
+    unsupportedNotice,
+    detailsModalRequest,
+    onResolveDetailsModal,
+  } = useDownload(saveProject, {
+    defaultVisibility: 'private',
+    soundSelectionsOverride,
+    captureSceneSnapshot,
+  });
 
   /** נקרא מ-ShapePlacementOverlay.onCommit — placement הוא ה-cx/cy/size/pathIndex **המדויקים** שאושרו. */
   const addStickerAt = (placement: ShapePlacementResult, emoji: string): void => {
@@ -333,6 +377,13 @@ function KidsStudioContent() {
           Clear
         </button>
       </div>
+      {detailsModalRequest && (
+        <CreationDetailsModal
+          projectId={detailsModalRequest.projectId}
+          defaultTitle={detailsModalRequest.defaultTitle}
+          onDone={onResolveDetailsModal}
+        />
+      )}
     </main>
   );
 }

@@ -257,6 +257,10 @@ export async function runClientRender(input: ClientRenderInput): Promise<ClientR
   let videoFailureReason: string | null = null;
 
   const { drawVideoFrame } = await import('@soundiform/video');
+  // ⭐⭐ 2026-09-13 (נתפס בבדיקה חיה: "בפוסטר רואים את השרטוט, רק אחרי Play רואים את
+  // התמונה"): פוענח כאן, **לפני** ציור הפוסטר — עד עכשיו זה קרה רק בהמשך, בתוך בלוק
+  // הווידאו, אז ציור הפוסטר למטה תמיד קרה בלי backgroundImage בכלל, גם כשהתמונה קיימת.
+  const backgroundImage = await decodePreviewImage(previewImageUrl);
   const posterCanvas = document.createElement('canvas');
   posterCanvas.width = dimensions.width;
   posterCanvas.height = dimensions.height;
@@ -268,6 +272,7 @@ export async function runClientRender(input: ClientRenderInput): Promise<ClientR
       progress: 0.5,
       dimensions,
       watermark: start.video.watermark,
+      ...(backgroundImage && { backgroundImage }),
     });
     const posterBlob = await new Promise<Blob | null>((resolve) => {
       posterCanvas.toBlob(resolve, 'image/jpeg', 0.8);
@@ -295,12 +300,8 @@ export async function runClientRender(input: ClientRenderInput): Promise<ClientR
     // זה גם עמיד בפני כל תקלת-מקודד עתידית בכל דפדפן, במקום לרדוף אחרי כל אחת בנפרד.
     try {
       const { encodeVideoInBrowser } = await import('@/lib/video/encodeVideoInBrowser');
-      // ⭐ 2026-09-02: התמונה המקורית נכנסת לווידאו. היא נלקחת מה-object URL שכבר קיים
-      // בסטודיו (shapeStore.previewImageUrl) — אותו קובץ שהמשתמש רואה על הלוח, כך
-      // ש"פריוויו = פלט" נשמר גם כאן.
-      // ⚠️ פענוח אחד בלבד, לפני הלולאה. כישלון בפענוח **לא מפיל את הווידאו** — מקבלים
-      // קליפ בלי התמונה, בדיוק לפי הכלל שנקבע ב-0ed90b6 ("כישלון קידוד אינו כישלון הורדה").
-      const backgroundImage = await decodePreviewImage(previewImageUrl);
+      // ⭐ 2026-09-02: התמונה המקורית נכנסת לווידאו — אותה backgroundImage שכבר פוענחה
+      // למעלה (לפני הפוסטר), כך ש"פריוויו = פלט" חל גם על הפוסטר וגם על הווידאו עצמו.
       const mp4 = await encodeVideoInBrowser({
         score: start.score,
         shapeData: start.shapeData,

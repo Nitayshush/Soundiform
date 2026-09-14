@@ -22,6 +22,9 @@ import { Header } from '@/components/layout/Header';
 import { GalleryCard } from '@/components/gallery/GalleryCard';
 import { DownloadLinks } from '@/components/share/DownloadLinks';
 import { PublishToggleButton } from '@/components/gallery/PublishToggleButton';
+import { EditDetailsButton } from '@/components/gallery/EditDetailsButton';
+import { DeleteCreationButton } from '@/components/gallery/DeleteCreationButton';
+import { defaultCreationTitle } from '@/lib/creationTitle';
 
 export default async function MyGalleryPage() {
   const supabase = await createClient();
@@ -46,6 +49,10 @@ export default async function MyGalleryPage() {
       renderId: renders.id,
       videoKey: renders.videoKey,
       stemKeys: renders.stemKeys,
+      projectId: projects.id,
+      title: projects.title,
+      description: projects.description,
+      keywords: projects.keywords,
     })
     .from(shares)
     .innerJoin(renders, eq(shares.renderId, renders.id))
@@ -84,18 +91,33 @@ export default async function MyGalleryPage() {
                       ? `/api/renders/${row.renderId}/download?type=poster&inline=1`
                       : null
                   }
+                  title={row.title}
                   genreId={row.genreId}
                   viewCount={row.viewCount}
                   likeCount={likeCountByRenderId.get(row.renderId) ?? 0}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <DownloadLinks
-                      renderId={row.renderId}
-                      hasVideo={Boolean(row.videoKey)}
-                      showMidiAndStems={plan === 'studio'}
-                      stemRoles={Object.keys(row.stemKeys ?? {})}
-                    />
-                    <PublishToggleButton shareId={row.shareId} initialVisibility={row.visibility} />
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <DownloadLinks
+                        renderId={row.renderId}
+                        hasVideo={Boolean(row.videoKey)}
+                        showMidiAndStems={plan === 'studio'}
+                        stemRoles={Object.keys(row.stemKeys ?? {})}
+                      />
+                      <PublishToggleButton
+                        shareId={row.shareId}
+                        initialVisibility={row.visibility}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <EditDetailsButton
+                        projectId={row.projectId}
+                        title={row.title ?? defaultCreationTitle(row.genreId)}
+                        description={row.description}
+                        keywords={row.keywords}
+                      />
+                      <DeleteCreationButton deleteUrl={`/api/shares/${row.shareId}`} />
+                    </div>
                   </div>
                 </GalleryCard>
               </li>

@@ -65,13 +65,22 @@ export function Header() {
         <div className="flex items-center gap-2">
           <div className="hidden items-center gap-2 sm:flex">
             {!isLoading && user && (
-              <Button
-                variant="ghost"
-                nativeButton={false}
-                render={<Link href="/account/gallery" />}
-              >
-                My Gallery
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link href="/account/gallery" />}
+                >
+                  My Gallery
+                </Button>
+                <Button
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link href="/account/drafts" />}
+                >
+                  My Drafts
+                </Button>
+              </>
             )}
           </div>
           {!isLoading && user ? (
@@ -113,14 +122,24 @@ export function Header() {
             </Button>
           ))}
           {!isLoading && user && (
-            <Button
-              variant="ghost"
-              className="justify-start"
-              nativeButton={false}
-              render={<Link href="/account/gallery" onClick={() => setIsMobileMenuOpen(false)} />}
-            >
-              My Gallery
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                nativeButton={false}
+                render={<Link href="/account/gallery" onClick={() => setIsMobileMenuOpen(false)} />}
+              >
+                My Gallery
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                nativeButton={false}
+                render={<Link href="/account/drafts" onClick={() => setIsMobileMenuOpen(false)} />}
+              >
+                My Drafts
+              </Button>
+            </>
           )}
         </nav>
       )}

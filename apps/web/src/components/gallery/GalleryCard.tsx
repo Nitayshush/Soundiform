@@ -26,6 +26,8 @@ export interface GalleryCardCreator {
 export interface GalleryCardProps {
   slug: string;
   posterUrl: string | null;
+  /** ⭐ 2026-09-12: מוצג כשקיים (המשתמש מילא ב-CreationDetailsModal) — ראה projects.title. */
+  title?: string | null;
   genreId: string;
   viewCount: number;
   likeCount?: number;
@@ -40,6 +42,7 @@ export interface GalleryCardProps {
 export function GalleryCard({
   slug,
   posterUrl,
+  title,
   genreId,
   viewCount,
   likeCount,
@@ -62,6 +65,7 @@ export function GalleryCard({
       </Link>
       <div className="flex flex-col gap-2 p-4">
         <Link href={`/s/${slug}`} className="block">
+          {title && <p className="truncate text-sm font-medium">{title}</p>}
           <div className="flex items-center justify-between gap-2">
             <Badge variant="secondary">{genreId}</Badge>
             <span className="text-xs text-muted-foreground">

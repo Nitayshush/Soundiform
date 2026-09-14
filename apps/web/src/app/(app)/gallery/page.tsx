@@ -38,6 +38,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
       genreId: renders.genreId,
       posterKey: renders.posterKey,
       renderId: renders.id,
+      title: projects.title,
       creatorId: users.id,
       creatorUsername: users.username,
       creatorDisplayName: users.displayName,
@@ -96,6 +97,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
                       ? `/api/renders/${row.renderId}/download?type=poster&inline=1`
                       : null
                   }
+                  title={row.title}
                   genreId={row.genreId}
                   viewCount={row.viewCount}
                   likeCount={likeCountByRenderId.get(row.renderId) ?? 0}
@@ -108,7 +110,11 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
                   showFollowButton={Boolean(sessionUser) && sessionUser?.id !== row.creatorId}
                   isFollowingCreator={followingIds.has(row.creatorId)}
                 >
-                  <ShareButtons path={`/s/${row.slug}`} fallbackOrigin={getSiteUrl()} />
+                  <ShareButtons
+                    path={`/s/${row.slug}`}
+                    fallbackOrigin={getSiteUrl()}
+                    title={row.title ?? undefined}
+                  />
                 </GalleryCard>
               </li>
             ))}

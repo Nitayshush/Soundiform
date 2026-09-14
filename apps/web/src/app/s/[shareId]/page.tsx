@@ -15,6 +15,7 @@
  * אבל בפועל קוראים דרך Drizzle (עוקף RLS ממילא, ראה api/projects/route.ts להסבר).
  */
 
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { and, count, eq, sql } from 'drizzle-orm';
@@ -24,15 +25,53 @@ import { RemixButton } from '@/components/share/RemixButton';
 import { SharePlayer } from '@/components/share/SharePlayer';
 import { ShareButtons } from '@/components/share/ShareButtons';
 import { DownloadLinks } from '@/components/share/DownloadLinks';
+import { LinkifiedText } from '@/components/share/LinkifiedText';
 import { FollowButton } from '@/components/account/FollowButton';
 import { LikeButton } from '@/components/gallery/LikeButton';
 import { CommentSection } from '@/components/gallery/CommentSection';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent } from '@/components/ui/card';
 import { getSiteUrl } from '@/lib/siteUrl';
+import { defaultCreationTitle } from '@/lib/creationTitle';
 
 interface SharePageProps {
   params: Promise<{ shareId: string }>;
+}
+
+/**
+ * ⭐ 2026-09-12: לפני זה כל דף שיתוף שיתף את אותה כותרת/תיאור סטטיים מה-root layout — לגוגל,
+ * כל יצירה משותפת נראתה זהה. title/description נאספים ב-CreationDetailsModal.tsx אחרי
+ * הרינדור (ראה useDownload.ts) ונשמרים על ה-project; כשחסרים (המשתמש דילג), נופלים לברירת-מחדל
+ * גנרית שעדיין ייחודית-לפי-ז'אנר.
+ */
+export async function generateMetadata({ params }: SharePageProps): Promise<Metadata> {
+  const { shareId } = await params;
+  const db = getDb();
+  const [row] = await db
+    .select({
+      visibility: shares.visibility,
+      genreId: renders.genreId,
+      title: projects.title,
+      description: projects.description,
+    })
+    .from(shares)
+    .innerJoin(renders, eq(shares.renderId, renders.id))
+    .innerJoin(projects, eq(renders.projectId, projects.id))
+    .where(eq(shares.slug, shareId));
+
+  if (!row || row.visibility === 'private') {
+    return { title: 'Shared creation — Soundiform' };
+  }
+
+  const title = row.title ?? `${defaultCreationTitle(row.genreId)} on Soundiform`;
+  const description =
+    row.description ?? 'A drawing turned into music with Soundiform — draw a shape, hear it play.';
+
+  return {
+    title: `${title} — Soundiform`,
+    description,
+    openGraph: { title, description },
+  };
 }
 
 export default async function SharePage({ params }: SharePageProps) {
@@ -50,6 +89,8 @@ export default async function SharePage({ params }: SharePageProps) {
       posterKey: renders.posterKey,
       shapeData: projects.shapeData,
       creationSettings: projects.creationSettings,
+      title: projects.title,
+      description: projects.description,
       creatorId: users.id,
       creatorUsername: users.username,
       creatorDisplayName: users.displayName,
@@ -102,6 +143,7 @@ export default async function SharePage({ params }: SharePageProps) {
   const likeCount = likeCountRow?.total ?? 0;
   const isLiked = isLikedRows.length > 0;
 
+  const displayTitle = row.title ?? `${defaultCreationTitle(row.genreId)} on Soundiform`;
   const hasVideo = Boolean(row.videoKey);
   const videoUrl = hasVideo ? `/api/renders/${row.renderId}/download?type=video&inline=1` : null;
   const posterUrl = row.posterKey
@@ -112,7 +154,12 @@ export default async function SharePage({ params }: SharePageProps) {
     <>
       <Header />
       <main className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="mb-1 text-3xl font-semibold tracking-tight">Shared creation</h1>
+        <h1 className="mb-1 text-3xl font-semibold tracking-tight">{displayTitle}</h1>
+        {row.description && (
+          <p className="mb-3 whitespace-pre-line text-muted-foreground">
+            <LinkifiedText text={row.description} />
+          </p>
+        )}
         <div className="mb-6 flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
             by{' '}
@@ -151,7 +198,11 @@ export default async function SharePage({ params }: SharePageProps) {
               />
               <DownloadLinks renderId={row.renderId} hasVideo={hasVideo} />
             </div>
-            <ShareButtons path={`/s/${shareId}`} fallbackOrigin={getSiteUrl()} />
+            <ShareButtons
+              path={`/s/${shareId}`}
+              fallbackOrigin={getSiteUrl()}
+              title={displayTitle}
+            />
           </CardContent>
         </Card>
         <div className="mt-6">

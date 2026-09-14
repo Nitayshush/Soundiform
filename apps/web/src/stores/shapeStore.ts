@@ -15,8 +15,14 @@
  *
  * ⭐ Sprint 9: sourceType/uploadKey — מגיעים מ-api/upload (העלאת SVG/raster, ראה UploadButton.tsx),
  * עוברים כמו-שהם ל-api/projects בשמירה כדי שהפרויקט יסומן נכון (ומודרציה תיפתח לו — §8).
- * ציור-יד ידני (addPath) מאפס אותם בחזרה ל-'drawing'/null — ברגע שהמשתמש מצייר על גבי צורה
- * שהועלתה, זו כבר לא "בדיוק הקובץ שהועלה" (§9 remix/provenance מתייחס לזה באופן דומה).
+ *
+ * ⭐⭐ 2026-09-13 (נתפס בבדיקה חיה, שינוי-החלטה מפורש): **בעבר** addPath איפס sourceType/
+ * uploadKey/previewImageUrl בחזרה ל-'drawing'/null ברגע שהמשתמש מוסיף קו על גבי תמונה
+ * שהועלתה — הרציונל היה "זו כבר לא בדיוק התמונה שהועלתה, אז אל תראה משהו שאינו מקור הצליל".
+ * **זה התהפך במפורש**: המשתמש לעולם לא אמור לראות את השלד (potrace) בכלל — רק את התמונה
+ * המקורית, גם אחרי הוספת קווים מעליה. addPath כבר לא נוגע ב-sourceType/uploadKey/
+ * previewImageUrl בכלל — רק savedProjectId מתאפס (הצורה השתנתה, השמירה הקודמת כבר לא
+ * תואמת). ראה uploadedProjectId למטה — זה מה שמאפשר לתמונה לשרוד גם את איפוס savedProjectId.
  *
  * ⭐ 2026-09-04 (Kids Studio v1): pathStyles — עיצוב חזותי בלבד (צבע/עובי קו) לכל path,
  * במקביל ל-paths (index-aligned). **לא חלק מ-ShapeData/shapeHash** — המנוע (core/audio/video)
@@ -83,6 +89,13 @@ interface ShapeStoreState {
    */
   savedProjectId: string | null;
   setSavedProjectId: (projectId: string | null) => void;
+  /**
+   * ⭐⭐ 2026-09-13: זהה ל-savedProjectId **ברגע שנקבע**, אבל בניגוד אליו לא מתאפס ב-addPath —
+   * זה מה שמאפשר ל-UploadedImageLayer.tsx להמשיך למשוך את התמונה המקורית מהשרת גם אחרי
+   * שהמשתמש הוסיף קווים (ש-addPath מאפס בגללם את savedProjectId, כי הצורה כבר לא תואמת
+   * את מה שנשמר). מתעדכן אוטומטית בכל קריאה ל-setSavedProjectId(id) עם id לא-null.
+   */
+  uploadedProjectId: string | null;
   addPath: (path: ShapePath) => void;
   /** מחליף path[index] במקום (לא append) — ראה ⭐ 2026-09-05 למעלה. no-op אם index לא תקף. */
   updatePath: (index: number, path: ShapePath) => void;
@@ -142,8 +155,9 @@ export const useShapeStore = create<ShapeStoreState>()(
       uploadKey: null,
       previewImageUrl: null,
       savedProjectId: null,
+      uploadedProjectId: null,
       setSavedProjectId: (projectId) => {
-        set({ savedProjectId: projectId });
+        set({ savedProjectId: projectId, ...(projectId && { uploadedProjectId: projectId }) });
       },
       addPath: (path) => {
         const nextPaths = [...get().paths, path];
@@ -151,15 +165,12 @@ export const useShapeStore = create<ShapeStoreState>()(
           ...get().pathStyles,
           { color: get().currentColor, strokeWidth: get().currentStrokeWidth },
         ];
-        // ⚠️ ציור-יד אחרי העלאה מבטל את התמונה: הצורה כבר אינה זו שהועלתה, והשארת התמונה
-        // הייתה מציגה למשתמש משהו שאינו מקור הצליל.
-        revokePreview(get().previewImageUrl);
+        // ⚠️ 2026-09-13: sourceType/uploadKey/previewImageUrl **לא** מתאפסים יותר כאן — ראה
+        // ⭐⭐ למעלה. המשתמש ממשיך לראות את התמונה המקורית גם אחרי הוספת קווים מעליה.
+        // savedProjectId כן מתאפס: הצורה השתנתה, השמירה הקודמת כבר לא תואמת את המצב הנוכחי.
         set({
           paths: nextPaths,
           pathStyles: nextStyles,
-          sourceType: 'drawing',
-          uploadKey: null,
-          previewImageUrl: null,
           savedProjectId: null,
         });
         computeShapeHash(toShapeData(nextPaths))
@@ -223,6 +234,10 @@ export const useShapeStore = create<ShapeStoreState>()(
           uploadKey: source?.uploadKey ?? null,
           previewImageUrl: source?.previewImageUrl ?? null,
           savedProjectId: null,
+          // ⚠️ מתאפס כאן; קורא שממשיך מיד ב-setSavedProjectId(id) (ContinueDraftButton.tsx)
+          // יקבע אותו מחדש (setSavedProjectId ממפה אליו כל id לא-null) — קורא שלא (Remix)
+          // בצדק לא משאיר תמונה-קודמת "יתומה".
+          uploadedProjectId: null,
         });
         computeShapeHash(toShapeData(paths))
           .then((hash) => {
@@ -242,6 +257,7 @@ export const useShapeStore = create<ShapeStoreState>()(
           uploadKey: null,
           previewImageUrl: null,
           savedProjectId: null,
+          uploadedProjectId: null,
         });
       },
     }),
@@ -254,9 +270,10 @@ export const useShapeStore = create<ShapeStoreState>()(
         shapeHash: state.shapeHash,
         sourceType: state.sourceType,
         uploadKey: state.uploadKey,
-        // ⚠️ previewImageUrl **לא** נשמר (object URL מת ברענון); savedProjectId כן — הוא
-        // מה שמאפשר למשוך את התמונה מחדש מהשרת.
+        // ⚠️ previewImageUrl **לא** נשמר (object URL מת ברענון); savedProjectId/uploadedProjectId
+        // כן — הם מה שמאפשר למשוך את התמונה מחדש מהשרת אחרי רענון.
         savedProjectId: state.savedProjectId,
+        uploadedProjectId: state.uploadedProjectId,
       }),
     },
   ),

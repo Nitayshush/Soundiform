@@ -26,6 +26,7 @@ import { UploadButton } from '@/components/controls/UploadButton';
 import { Logo } from '@/components/branding/Logo';
 import { AudioDebugHUD } from '@/components/debug/AudioDebugHUD';
 import { Button } from '@/components/ui/button';
+import { CreationDetailsModal } from '@/components/share/CreationDetailsModal';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { useSaveProject } from '@/hooks/useSaveProject';
 import { useDownload } from '@/hooks/useDownload';
@@ -33,10 +34,13 @@ import { useFitAspectRatio } from '@/hooks/useFitAspectRatio';
 import { useNoteBoardGrid } from '@/hooks/useNoteBoardGrid';
 import { useVisibleViewport } from '@/hooks/useVisibleViewport';
 import { useShapeStore } from '@/stores/shapeStore';
+import { useGenreStore } from '@/stores/genreStore';
+import { defaultCreationTitle } from '@/lib/creationTitle';
 
 function StudioContent() {
   const shapeHash = useShapeStore((state) => state.shapeHash);
   const clear = useShapeStore((state) => state.clear);
+  const genreId = useGenreStore((state) => state.genreId);
   const {
     isPlaying,
     isLoading,
@@ -54,8 +58,26 @@ function StudioContent() {
   // ל-why). קריאה כפולה ל-useSaveProject() הייתה יוצרת שני state instances לא-מסונכרנים.
   const saveProject = useSaveProject();
   const { requestSave, isSaving, saveError, savedProjectId } = saveProject;
-  const { requestDownload, isDownloading, downloadError, statusMessage, unsupportedNotice } =
-    useDownload(saveProject);
+  const {
+    requestDownload,
+    isDownloading,
+    downloadError,
+    statusMessage,
+    unsupportedNotice,
+    detailsModalRequest,
+    onResolveDetailsModal,
+  } = useDownload(saveProject);
+  // ⭐ 2026-09-13 (לפי בקשה חיה): גם Save-הפשוט (בלי רינדור/שיתוף) פותח את חלון הפרטים —
+  // לא רק Download. ⚠️ ref ולא רק "savedProjectId קיים": savedProjectId נשאר מוגדר גם אחרי
+  // שהמודאל נסגר, ורענון-דף/mount לא אמור לפתוח אותו מחדש — הדגל מסמן קליק-Save *ידני* בלבד.
+  const manualSaveRequestedRef = useRef(false);
+  const [saveDetailsProjectId, setSaveDetailsProjectId] = useState<string | null>(null);
+  useEffect(() => {
+    if (manualSaveRequestedRef.current && savedProjectId) {
+      manualSaveRequestedRef.current = false;
+      setSaveDetailsProjectId(savedProjectId);
+    }
+  }, [savedProjectId]);
   const noteBoardGrid = useNoteBoardGrid();
   const stageContainerRef = useRef<HTMLDivElement>(null);
   // ⭐ 2026-08-29 (לפי בקשה חיה): מצב-ציור מוגדל בנייד. מימוש ב-CSS (fixed inset-0) ולא דרך
@@ -122,10 +144,12 @@ function StudioContent() {
             >
               {isLoading ? 'Creating…' : isPlaying ? 'Stop' : 'Play'}
             </Button>
-            {/* ⭐ §11 item 8: וידאו-כברירת-מחדל להורדה (נגיש ל-YouTube) — הכפתור הראשון-אי-פעם
-                שבפועל מפעיל את שרשרת render→share→download; ראה useDownload.ts. */}
+            {/* ⭐ §11 item 8: וידאו-כברירת-מחדל (נגיש ל-YouTube) — מפעיל בפועל את שרשרת
+                render→share, ומנווט לדף השיתוף; ראה useDownload.ts. ⭐⭐ 2026-09-13: "Create &
+                Save" ולא "Download" — ההורדה האמיתית למחשב היא צעד נפרד דרך DownloadLinks
+                בדף השיתוף/הגלריה, לא side-effect אוטומטי כאן (ראה ⭐⭐ ב-useDownload.ts). */}
             <Button type="button" onClick={requestDownload} disabled={!canPlay || isDownloading}>
-              {isDownloading ? 'Working…' : 'Download'}
+              {isDownloading ? 'Working…' : 'Create & Save'}
             </Button>
           </div>
         </div>
@@ -141,10 +165,13 @@ function StudioContent() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => requestSave()}
+            onClick={() => {
+              manualSaveRequestedRef.current = true;
+              requestSave();
+            }}
             disabled={!canPlay || isSaving}
           >
-            {isSaving ? 'Saving…' : savedProjectId ? 'Saved ✓' : 'Save'}
+            {isSaving ? 'Saving…' : savedProjectId ? 'Draft saved ✓' : 'Save Draft'}
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
@@ -292,6 +319,22 @@ function StudioContent() {
         </button>
       </div>
       <AudioDebugHUD />
+      {detailsModalRequest ? (
+        <CreationDetailsModal
+          projectId={detailsModalRequest.projectId}
+          defaultTitle={detailsModalRequest.defaultTitle}
+          onDone={onResolveDetailsModal}
+        />
+      ) : (
+        saveDetailsProjectId && (
+          <CreationDetailsModal
+            projectId={saveDetailsProjectId}
+            defaultTitle={defaultCreationTitle(genreId)}
+            variant="draft"
+            onDone={() => setSaveDetailsProjectId(null)}
+          />
+        )
+      )}
     </main>
   );
 }

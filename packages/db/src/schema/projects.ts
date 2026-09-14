@@ -16,6 +16,12 @@
  * ראה api/upload/route.ts + PROJECT.md §7 "מבנה מפתחות"), רק ל-sourceType 'svg'/'raster'.
  * זה מה שמאפשר לאדמין ב-moderation queue לראות את הקובץ שהמשתמש בפועל העלה, לא רק את
  * ה-ShapeData הנגזר ממנו.
+ *
+ * ⭐ 2026-09-12: description/keywords — נכתבים דרך api/projects/[projectId]/route.ts
+ * (PATCH), אחרי שהרינדור מסתיים (ראה CreationDetailsModal.tsx/useDownload.ts). keywords
+ * מחרוזת פשוטה מופרדת-פסיקים, לא מערך — אין שום כלי-אדמין שצריך לשאול "אילו מילות מפתח
+ * קיימות" בנפרד, אז אין תועלת במבנה עשיר יותר. title כבר קיים מקודם (נשאר לא-מנוצל עד
+ * עכשיו — אף מסך לא שלח אותו בפועל).
  */
 
 import { sql } from 'drizzle-orm';
@@ -43,6 +49,8 @@ export const projects = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id').references(() => users.id),
     title: text('title'),
+    description: text('description'),
+    keywords: text('keywords'),
     shapeData: jsonb('shape_data').$type<ShapeData>().notNull(),
     shapeHash: text('shape_hash').notNull(),
     sourceType: text('source_type', { enum: SOURCE_TYPE_VALUES }).notNull(),

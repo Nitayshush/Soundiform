@@ -61,6 +61,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         posterKey: renders.posterKey,
         videoKey: renders.videoKey,
         stemKeys: renders.stemKeys,
+        title: projects.title,
       })
       .from(shares)
       .innerJoin(renders, eq(shares.renderId, renders.id))
@@ -137,6 +138,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                       ? `/api/renders/${creation.renderId}/download?type=poster&inline=1`
                       : null
                   }
+                  title={creation.title}
                   genreId={creation.genreId}
                   viewCount={creation.viewCount}
                   likeCount={likeCountByRenderId.get(creation.renderId) ?? 0}

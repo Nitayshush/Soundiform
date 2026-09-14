@@ -10,6 +10,12 @@
  * חילץ), והשלד ממשיך להתקיים בדיוק כפי שהיה. השכבה הזו רק מכסה אותו ויזואלית, כדי שהמשתמש
  * יראה את התמונה שלו ולא מתאר שחור-לבן. אם היא תוסר, הצליל לא ישתנה בכהוא זה.
  *
+ * ⭐⭐ 2026-09-13 (לפי בקשה חיה, "המשתמש לעולם לא אמור לראות את השרטוט"): fallback-השרת
+ * משתמש ב-`uploadedProjectId`, **לא** `savedProjectId` — addPath מאפס את savedProjectId
+ * בכל קו נוסף (הצורה השתנתה, השמירה הקודמת כבר לא תואמת), אבל uploadedProjectId נשאר קבוע
+ * כל עוד לא התחלנו צורה חדשה לגמרי (loadShape/clear) — כך התמונה ממשיכה להיות מוצגת גם
+ * כשהמשתמש מוסיף קווים על גבי צורה שכבר הועלתה. ראה shapeStore.ts.
+ *
  * ⚠️ **סדר השכבות חשוב.** היא יושבת מעל DrawingCanvas ו-MusicalGrid, אבל **מתחת ל-ScoreStaff** —
  * כך שקו-הסורק, פסי-התווים והבזקי-האור נשארים גלויים מעליה. זו בדיוק ההתנהגות שהתבקשה:
  * התמונה נראית, ומעליה נדלקים ההבזקים במקומות שבהם הסורק פוגש את השלד שמתחת.
@@ -28,7 +34,7 @@ import { useShapeStore } from '@/stores/shapeStore';
 
 export function UploadedImageLayer() {
   const previewImageUrl = useShapeStore((state) => state.previewImageUrl);
-  const savedProjectId = useShapeStore((state) => state.savedProjectId);
+  const uploadedProjectId = useShapeStore((state) => state.uploadedProjectId);
   const sourceType = useShapeStore((state) => state.sourceType);
   const [serverImageFailed, setServerImageFailed] = useState(false);
 
@@ -44,8 +50,8 @@ export function UploadedImageLayer() {
    * onError פשוט מסתיר את השכבה במקום להציג שבור.
    */
   const serverImageUrl =
-    !previewImageUrl && savedProjectId && sourceType === 'raster' && !serverImageFailed
-      ? `/api/projects/${savedProjectId}/upload`
+    !previewImageUrl && uploadedProjectId && sourceType === 'raster' && !serverImageFailed
+      ? `/api/projects/${uploadedProjectId}/upload`
       : null;
   const src = previewImageUrl ?? serverImageUrl;
 

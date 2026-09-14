@@ -6,6 +6,13 @@
  * @created     2026-08-20
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ 2026-09-06 (דווח חי: "Failed to execute 'json' on 'Response': Unexpected end of JSON
+ * input" — הודעת-דפדפן גולמית וקרה בלתי-מובנת). קורה כש-Vercel הורג את הפונקציה (timeout)
+ * לפני שהיא סיימה לכתוב תשובה — גוף התשובה ריק/חתוך, ו-response.json() נכשל עוד לפני
+ * שהקוד שלנו מקבל הזדמנות להציג error.message הגיוני (ראה api/upload/route.ts ל-maxDuration
+ * ולמה זה קורה בעיקר על תמונות-צילום מורכבות). התיקון כאן צד-לקוח בלבד: תופס את כישלון
+ * ה-JSON-parsing עצמו ומחליף אותו בהודעה שמישהו-שאינו-מפתח יכול להבין ולפעול לפיה.
  */
 
 'use client';
@@ -43,7 +50,15 @@ export function UploadButton() {
       const body = new FormData();
       body.append('file', file);
       const response = await fetch('/api/upload', { method: 'POST', body });
-      const parsed = (await response.json()) as UploadResponseBody;
+      let parsed: UploadResponseBody;
+      try {
+        parsed = (await response.json()) as UploadResponseBody;
+      } catch {
+        // ⚠️ גוף-תשובה ריק/לא-JSON — כמעט תמיד timeout בצד השרת (ראה ⭐ למעלה), לא באג בקובץ.
+        throw new Error(
+          'This image took too long to process. Try a smaller or simpler image, or a different format.',
+        );
+      }
       if (!response.ok || !parsed.shape || !parsed.sourceType) {
         throw new Error(parsed.error ?? 'Upload failed');
       }

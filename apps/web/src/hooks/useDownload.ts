@@ -24,6 +24,14 @@
  * ילדים לא יפורסמו לגלריה הציבורית אוטומטית (ראה shares.ts/PublishToggleButton.tsx —
  * המשתמש עדיין יכול לפרסם ידנית מ-My Gallery). נבחר על-פני PATCH אחרי-מעשה כדי לא ליצור
  * חלון-זמן שבו היצירה כן ציבורית לרגע.
+ *
+ * ⭐⭐ 2026-09-13 (לפי בקשה חיה): הכפתור בסטודיו הרגיל נקרא היום "Create & Save" (לא
+ * "Download") — הוסרה ההורדה-האוטומטית לקובץ במכשיר (`window.location.href` לנתיב ה-R2
+ * החתום) בכוונה: לא כל אחד רוצה קובץ נשמר-אוטומטית למחשב שלו. הפעולה כאן עדיין מבצעת את כל
+ * שרשרת render→upload→share ומנווטת ל-`/s/{slug}` בסיום — הורדה אמיתית למחשב היא עכשיו
+ * צעד נפרד ומודע, דרך DownloadLinks (דף השיתוף/הגלריה), לא side-effect אוטומטי כאן.
+ * ⚠️ ה-hook/הפונקציות עצמם (useDownload/requestDownload/isDownloading) **לא** שונו שם —
+ * זה שינוי-ניסוח ב-UI בלבד, לא רפקטור-שמות ברוחב הקוד.
  */
 
 'use client';
@@ -34,6 +42,7 @@ import type { TrackRole } from '@soundiform/core';
 import { useGenreStore } from '@/stores/genreStore';
 import { useSoundSelectionStore } from '@/stores/soundSelectionStore';
 import { useShapeStore } from '@/stores/shapeStore';
+import { defaultCreationTitle } from '@/lib/creationTitle';
 import type { ShareVisibility } from '@soundiform/db';
 import type { UseSaveProjectResult } from './useSaveProject';
 
@@ -46,6 +55,16 @@ export interface UseDownloadOptions {
    * ברירת-מחדל שהילד שמע בפריוויו, בלי לכתוב ל-store המשותף עם Studio הרגיל.
    */
   soundSelectionsOverride?: Partial<Record<TrackRole, string[]>>;
+  /**
+   * ⭐⭐ 2026-09-13 (Kids Studio, לפי בקשה חיה): נקרא בתחילת renderAndDownload, לפני
+   * runClientRender — מצלם את הסצנה הצבעונית (קווים+אימוג'ים, kidsSceneSnapshot.ts) ומחזיר
+   * אותה כ-Blob. renderAndDownload ממיר אותה ל-object URL מקומי ומזין אותה ל-runClientRender
+   * ישירות — **בכוונה לא** דרך ה-store המשותף (shapeStore.previewImageUrl): DrawingCanvas.tsx
+   * הקיים קורא את אותו שדה כדי להסתיר לגמרי paths כשיש "תמונה שמכסה את השלד" (Studio הרגיל,
+   * UploadedImageLayer) — ב-Kids Studio אין שכבה כזו, אז קביעתו שם הייתה משאירה לוח ריק
+   * (נתפס בבדיקה חיה). לא מוגדר ב-Studio הרגיל (אין שם מה "לצלם").
+   */
+  captureSceneSnapshot?: () => Promise<Blob | null>;
 }
 
 const POLL_INTERVAL_MS = 2000;
@@ -128,6 +147,14 @@ export interface UseDownloadResult {
    * היצירה נשמרה ונשתפת כרגיל, רק בלי קובץ mp4. ראה lib/video/webcodecsSupport.ts.
    */
   unsupportedNotice: string | null;
+  /**
+   * ⭐ 2026-09-12: לא-null בדיוק בחלון שבין "הרינדור הסתיים" ל"עונים על המודאל" — הקורא
+   * (studio/page.tsx, studio/kids/page.tsx) מרנדר <CreationDetailsModal> על בסיס זה, ומעביר
+   * את onResolveDetailsModal כ-onDone.
+   */
+  detailsModalRequest: { projectId: string; defaultTitle: string } | null;
+  /** קורא ל-CreationDetailsModal (הן ל-Save והן ל-Skip) — ממשיך את renderAndDownload שממתין. */
+  onResolveDetailsModal: () => void;
 }
 
 /** ⭐ 2026-08-29: טקסט לכל שלב ברינדור-במכשיר (lib/download/clientRender.ts). */
@@ -146,6 +173,7 @@ export function useDownload(
   const router = useRouter();
   const searchParams = useSearchParams();
   const defaultVisibility: ShareVisibility = options?.defaultVisibility ?? 'public';
+  const captureSceneSnapshot = options?.captureSceneSnapshot;
   const genreId = useGenreStore((state) => state.genreId);
   // ⭐ 2026-08-24 (Area 1): נדרש כדי שהוידאו המורד ישקף את אותה בחירת-צליל של הפריוויו החי
   // (useAudioEngine.ts) — בלי זה, הרינדור הסופי היה תמיד ברירת-המחדל של הז'אנר.
@@ -157,11 +185,17 @@ export function useDownload(
   const [renderError, setRenderError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [unsupportedNotice, setUnsupportedNotice] = useState<string | null>(null);
+  const [detailsModalRequest, setDetailsModalRequest] = useState<{
+    projectId: string;
+    defaultTitle: string;
+  } | null>(null);
   // ⚠️ refs ולא state: הם מווסתים את עדכוני-ה-state עצמם, ולכן חייבים לא לגרום ל-render.
   const lastStageRef = useRef<string | null>(null);
   const lastPercentRef = useRef<number | null>(null);
   const pendingDownloadRef = useRef(false);
   const autoDownloadAttemptedRef = useRef(false);
+  /** ⭐ 2026-09-12: מוחזק בין רגע פתיחת CreationDetailsModal לרגע ש-onResolveDetailsModal נקרא. */
+  const detailsModalResolverRef = useRef<(() => void) | null>(null);
   // ⚠️ נלכד פעם אחת ב-mount, לא נקרא reactively מ-searchParams — useSaveProject's autoSave
   // effect עושה router.replace('/studio') אחרי השמירה (מוריד את ה-query params), אז קריאה
   // reactive הייתה עלולה "לפספס" את הדגל בגלל תזמון race מול אותו replace.
@@ -180,13 +214,45 @@ export function useDownload(
       let shareSlug: string | null = null;
       /** האם הוצגה הודעה שהמשתמש צריך זמן לקרוא לפני שהדף מתחלף. */
       let noticeToRead = false;
+      /**
+       * ⭐⭐ 2026-09-13 (Kids Studio, נתפס בבדיקה חיה): **לא** מוחל על ה-store המשותף
+       * (shapeStore.previewImageUrl) — DrawingCanvas.tsx קורא אותו שדה כדי להחליט "יש שכבת-
+       * תמונה שמכסה את השלד, אל תצייר paths בכלל" (נכון ל-Studio הרגיל, שבו UploadedImageLayer
+       * באמת מציג תמונה במקום). ב-Kids Studio אין שכבה כזו — קביעת previewImageUrl שם השאירה
+       * את הלוח *ריק לגמרי* (לא רק בלי-שלד, גם בלי שום דבר אחר). לכן ה-Blob נשאר מקומי כאן,
+       * ומוזן ל-runClientRender ישירות — אף פעם לא נכתב ל-store.
+       */
+      let kidsSnapshotBlobUrl: string | null = null;
       try {
+        // ⭐⭐ 2026-09-13 (Kids Studio): חייב לקרות **לפני** runClientRender למטה — כדי
+        // שהתמונה-המצולמת-הרגע תיכנס לרינדור הזה עצמו, לא רק לרינדור הבא.
+        if (captureSceneSnapshot) {
+          setStatusMessage('Saving your drawing…');
+          const snapshotBlob = await captureSceneSnapshot();
+          if (snapshotBlob) {
+            kidsSnapshotBlobUrl = URL.createObjectURL(snapshotBlob);
+          }
+        }
         // ⭐⭐ 2026-08-29: הרינדור עבר **למכשיר**. ה-worker לא פרוס בשום מקום (רץ בפועל על
         // מחשב מקומי), ולכן ההורדה לקחה דקות; קידוד H.264 בדפדפן נמדד ב-2.13x מהזמן-אמת
         // באנדרואיד — מהר בסדר-גודל. ראה lib/download/clientRender.ts.
         const { runClientRender } = await import('@/lib/download/clientRender');
         // ⭐ 2026-09-02: אותה תמונה שמוצגת על הלוח נכנסת גם לווידאו — "פריוויו = פלט".
-        const { previewImageUrl } = useShapeStore.getState();
+        // ⭐⭐ 2026-09-13: previewImageUrl (blob) קיים רק תוך-כדי-סשן; אחרי "Continue in
+        // Studio" על טיוטה ישנה (בלי רענון-בלוב חדש) הוא null, ו-UploadedImageLayer.tsx
+        // כבר נופל אז ל-uploadedProjectId (שרת) להצגה על המסך — אותה נפילה בדיוק חייבת
+        // לקרות כאן, אחרת הווידאו המיוצא היה מראה את השלד למרות שהמסך מראה את התמונה.
+        const {
+          previewImageUrl: livePreviewImageUrl,
+          uploadedProjectId,
+          sourceType,
+        } = useShapeStore.getState();
+        const previewImageUrl =
+          kidsSnapshotBlobUrl ??
+          livePreviewImageUrl ??
+          (uploadedProjectId && sourceType === 'raster'
+            ? `/api/projects/${uploadedProjectId}/upload`
+            : null);
         const { renderId, hasVideo, downgradedTo, limitedCompatibility } = await runClientRender({
           previewImageUrl,
           projectId,
@@ -243,16 +309,13 @@ export function useDownload(
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ renderId, visibility: defaultVisibility }),
         });
-        const shareBody = (await shareResponse.json()) as { slug?: string };
-
-        // ⚠️ מורידים רק כשיש קובץ שבאמת ייפתח אצל המשתמש. בלי וידאו — אין מה להוריד;
-        // ועם וידאו בתאימות-מוגבלת (Opus) — הורדה אוטומטית הייתה נותנת קובץ שלא נפתח,
-        // ולכן מדלגים עליה במכוון ומסבירים למעלה. בשני המקרים ממשיכים לדף השיתוף,
-        // שם היצירה כן מנוגנת ומשותפת.
-        if (hasVideo && !limitedCompatibility) {
-          setStatusMessage('Starting your download…');
-          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- זה לא ניווט-דף: /api/.../download מפנה (307) לקובץ חתום ב-R2 ומפעיל הורדה בדפדפן, לא render של עמוד Next.js. router.push() לא מתאים כאן.
-          window.location.href = `/api/renders/${renderId}/download?type=video`;
+        const shareBody = (await shareResponse.json()) as { slug?: string; error?: string };
+        // ⚠️ 2026-09-13 (נתפס בבדיקה חיה): עד עכשיו זה לא נבדק — תגובת-שגיאה (401/404/500)
+        // עדיין JSON תקין בלי slug, אז shareSlug נשאר null וה-`if (shareSlug)` למטה פשוט
+        // לא רץ. לא הייתה שום הודעה למשתמש: הוא נשאר תקוע על דף הסטודיו, בלי שגיאה ובלי
+        // מודאל-הפרטים ובלי ניווט. חייב לזרוק במפורש כדי שהמשתמש (ו-renderError) יידעו.
+        if (!shareResponse.ok || !shareBody.slug) {
+          throw new Error(shareBody.error ?? 'Could not create a share link');
         }
 
         shareSlug = shareBody.slug ?? null;
@@ -261,6 +324,11 @@ export function useDownload(
       } finally {
         setIsRendering(false);
         setStatusMessage(null);
+        // ⚠️ runClientRender כבר סיים (הצליח או נכשל) — decodePreviewImage (clientRender.ts)
+        // כבר צרך את ה-blob URL הזה אם בכלל, בטוח לשחרר אותו עכשיו.
+        if (kidsSnapshotBlobUrl) {
+          URL.revokeObjectURL(kidsSnapshotBlobUrl);
+        }
       }
 
       // ⚠️⚠️ 2026-08-29 (נתפס בבדיקה חיה): הניווט לדף השיתוף קרה מיד, והמשתמש לא הספיק
@@ -269,14 +337,27 @@ export function useDownload(
       // והמשתמש רואה מסך שקט עם ההודעה בלבד — ולא "Saving…" מסתובב במשך 5 שניות.
       // כשאין מה לקרוא (ההורדה פשוט הצליחה) — מנווטים מיד, בלי להשהות סתם.
       if (shareSlug) {
+        // ⭐ 2026-09-12 (עודכן 2026-09-13 לפי בקשה חיה: גם Kids Studio מקבל את זה — היצירה
+        // עדיין פרטית, אבל אין סיבה למנוע מהורה/מורה לתת לה שם לצורך ארגון/זיהוי בעצמו):
+        // נשאלים "תן שם ליצירה שלך" **לפני** ההשהיה-לקריאה ולפני הניווט. ראה CreationDetailsModal.tsx.
+        await new Promise<void>((resolve) => {
+          detailsModalResolverRef.current = resolve;
+          setDetailsModalRequest({ projectId, defaultTitle: defaultCreationTitle(genreId) });
+        });
         if (noticeToRead) {
           await sleep(NOTICE_READ_MS);
         }
         router.push(`/s/${shareSlug}`);
       }
     },
-    [genreId, soundSelections, router, defaultVisibility],
+    [genreId, soundSelections, router, defaultVisibility, captureSceneSnapshot],
   );
+
+  const onResolveDetailsModal = useCallback(() => {
+    setDetailsModalRequest(null);
+    detailsModalResolverRef.current?.();
+    detailsModalResolverRef.current = null;
+  }, []);
 
   const requestDownload = useCallback(() => {
     if (savedProjectId) {
@@ -317,5 +398,7 @@ export function useDownload(
     downloadError: saveError ?? renderError,
     statusMessage,
     unsupportedNotice,
+    detailsModalRequest,
+    onResolveDetailsModal,
   };
 }
