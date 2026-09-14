@@ -28,11 +28,13 @@
  * (potrace הוא סינכרוני/CPU-bound, אי אפשר "לבטל" אותו ב-timeout רך בלי thread נפרד), אבל
  * פותר את המקרה הזה ומקרים דומים.
  *
- * ⚠️ 2026-09-13: **אין** כאן `export const maxDuration` בכוונה — הפרויקט מריץ Fluid Compute
- * (Vercel Dashboard → Settings → Functions), שם ברירת-המחדל (וגם התקרה) בתוכנית Hobby היא
- * 300 שניות — הרבה יותר מ-60 שקבענו כאן בטעות בסבב קודם (זה היה נכון רק למודל הישן, בלי
- * Fluid Compute, שם 60 הוא התקרה המקסימלית שניתן לקבוע במפורש). הגדרה מפורשת כאן הייתה
- * בפועל **מצמצמת** את התקרה מ-300 בחזרה ל-60 — רגרסיה, לא תיקון.
+ * ⚠️⚠️ 2026-09-15 (נתפס בבדיקה חיה בפרודקשן — "This image took too long to process" גם
+ * על תמונה שעבדה בסביבת הפיתוח): ב-2026-09-13 הוסר `maxDuration` מכאן במפורש, בהנחה
+ * ש-Fluid Compute (מופעל בפרויקט הזה, Vercel Dashboard → Settings → Functions) נותן 300
+ * שניות **כברירת מחדל בלי צורך בהצהרה מפורשת בקוד**. ההנחה הזו התבררה כשגויה בפועל —
+ * בלי `maxDuration` מפורש, הפונקציה עדיין נחתכת מוקדם בפרודקשן. אין לי דרך לאשר את
+ * ההתנהגות המדויקת של Vercel כאן בלי גישה ל-dashboard בזמן אמת, אז החזרתי הגדרה מפורשת —
+ * הפעם ל-300 (התקרה המתועדת בתוכנית Hobby עם Fluid Compute), לא 60 כמו בפעם הקודמת.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -44,6 +46,8 @@ import { detectFileKind } from '@/lib/upload/detectFileKind';
 import { sanitizeSvg, SvgSanitizeError } from '@/lib/upload/sanitizeSvg';
 import { svgMarkupToShapeData, SvgConversionError } from '@/lib/upload/svgToShapeData';
 import { rasterToShapeData } from '@/lib/upload/rasterToShapeData';
+
+export const maxDuration = 300;
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // §8 שלב 1: מקס 10MB
 
