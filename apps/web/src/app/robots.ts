@@ -8,10 +8,16 @@
  * @created     2026-09-12
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐⭐ 2026-09-14 (נתפס בבדיקה חיה בפרודקשן — אותו באג כמו sitemap.ts): בלי API דינמי,
+ * Next.js פרש את זה כסטטי ורינדר פעם אחת בזמן ה-build — getSiteUrl() קפא על כתובת-fallback
+ * (localhost). force-dynamic מבטיח שהכתובת נקבעת ב-runtime האמיתי בכל בקשה, כמו sitemap.ts.
  */
 
 import type { MetadataRoute } from 'next';
 import { getSiteUrl } from '@/lib/siteUrl';
+
+export const dynamic = 'force-dynamic';
 
 export default function robots(): MetadataRoute.Robots {
   return {
