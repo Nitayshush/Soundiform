@@ -10,6 +10,7 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { and, count, desc, eq, inArray } from 'drizzle-orm';
@@ -23,6 +24,41 @@ import { GalleryCard } from '@/components/gallery/GalleryCard';
 
 interface ProfilePageProps {
   params: Promise<{ username: string }>;
+}
+
+/**
+ * ⭐ 2026-09-14 (לפי בקשה חיה): עד עכשיו כל פרופיל ציבורי ירש את הכותרת/תיאור הגנריים
+ * של האתר — לגוגל, כל יוצר נראה זהה. שאילתה קלה נפרדת (לא חולקת state עם הדף עצמו —
+ * generateMetadata ו-default export רצים כשני חיים נפרדים ב-Next.js) — אותה תבנית כמו
+ * s/[shareId]/page.tsx.
+ */
+export async function generateMetadata({ params }: ProfilePageProps): Promise<Metadata> {
+  const { username } = await params;
+  const db = getDb();
+  const [profile] = await db
+    .select({ id: users.id, username: users.username, displayName: users.displayName })
+    .from(users)
+    .where(eq(users.username, username));
+
+  if (!profile) {
+    return { title: 'Profile not found — Soundiform' };
+  }
+
+  const [creationCountRow] = await db
+    .select({ total: count() })
+    .from(shares)
+    .innerJoin(renders, eq(shares.renderId, renders.id))
+    .innerJoin(projects, eq(renders.projectId, projects.id))
+    .where(and(eq(projects.userId, profile.id), eq(shares.visibility, 'public')));
+  const creationCount = creationCountRow?.total ?? 0;
+
+  const name = profile.displayName ?? `@${profile.username}`;
+  const title = `${name} on Soundiform`;
+  const description =
+    creationCount > 0
+      ? `${String(creationCount)} music creation${creationCount === 1 ? '' : 's'} made from drawings by ${name} on Soundiform.`
+      : `${name}'s creations on Soundiform — music made from drawings.`;
+  return { title, description, openGraph: { title, description } };
 }
 
 export default async function ProfilePage({ params }: ProfilePageProps) {

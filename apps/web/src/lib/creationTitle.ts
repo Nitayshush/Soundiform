@@ -9,6 +9,11 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
+/** "trance" -> "Trance". ⭐ 2026-09-14: מיוצא בנפרד — gallery/page.tsx צריך רק את זה, בלי "creation". */
+export function genreDisplayName(genreId: string): string {
+  return `${genreId.charAt(0).toUpperCase()}${genreId.slice(1)}`;
+}
+
 export function defaultCreationTitle(genreId: string): string {
-  return `${genreId.charAt(0).toUpperCase()}${genreId.slice(1)} creation`;
+  return `${genreDisplayName(genreId)} creation`;
 }

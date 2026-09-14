@@ -11,6 +11,7 @@
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
  */
 
+import type { Metadata } from 'next';
 import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { follows, getDb, likes, renders, shares, users, projects } from '@soundiform/db';
 import { createClient } from '@/lib/supabase/server';
@@ -18,9 +19,23 @@ import { Header } from '@/components/layout/Header';
 import { GalleryCard } from '@/components/gallery/GalleryCard';
 import { ShareButtons } from '@/components/share/ShareButtons';
 import { getSiteUrl } from '@/lib/siteUrl';
+import { genreDisplayName } from '@/lib/creationTitle';
 
 interface GalleryPageProps {
   searchParams: Promise<{ genre?: string }>;
+}
+
+/**
+ * ⭐ 2026-09-14 (לפי בקשה חיה): עד עכשיו הגלריה ירשה את הכותרת/תיאור הגנריים של כל האתר —
+ * לא ייחודי, לא מזמין ללחוץ מתוך תוצאות חיפוש. genre (אופציונלי) הופך כל דף-סינון לייחודי.
+ */
+export async function generateMetadata({ searchParams }: GalleryPageProps): Promise<Metadata> {
+  const { genre } = await searchParams;
+  const title = genre ? `${genreDisplayName(genre)} Gallery — Soundiform` : 'Gallery — Soundiform';
+  const description = genre
+    ? `${genreDisplayName(genre)} music made from drawings, shared by the Soundiform community.`
+    : 'Browse music made from drawings, shapes, and logos — shared by the Soundiform community.';
+  return { title, description, openGraph: { title, description } };
 }
 
 export default async function GalleryPage({ searchParams }: GalleryPageProps) {
@@ -83,7 +98,9 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
     <>
       <Header />
       <main className="mx-auto max-w-5xl px-6 py-12">
-        <h1 className="mb-8 text-3xl font-semibold tracking-tight">Gallery</h1>
+        <h1 className="mb-8 text-3xl font-semibold tracking-tight">
+          {genre ? `${genreDisplayName(genre)} Gallery` : 'Gallery'}
+        </h1>
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">No public creations yet.</p>
         ) : (
