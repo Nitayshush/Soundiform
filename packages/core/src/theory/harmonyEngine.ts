@@ -40,7 +40,11 @@ import {
 import { humanizeTiming, humanizeVelocity } from '../groove/humanize';
 import { createSeededRandom } from '../internal/seededRandom';
 import { at } from '../internal/arrayUtils';
-import { rasterizeShapeToBoard, type BoardRaster } from '../analysis/boardRaster';
+import {
+  computeDrawnXExtent,
+  rasterizeShapeToBoard,
+  type BoardRaster,
+} from '../analysis/boardRaster';
 import { buildEventRaster } from '../analysis/onsetEvents';
 import {
   applyPolicyWithFloor,
@@ -269,6 +273,15 @@ export interface CompositionConfig {
    * בלבד, בדיוק כמו קודם. ראה beatPattern.ts להסבר על ההיברידיות.
    */
   beatPattern?: BeatPattern;
+  /**
+   * ⭐ 2026-09-18 (לפי בקשה חיה: "מה שציירת זה מה שקיבלת"): undefined/'fitToBoard' =
+   * ההתנהגות הישנה (ציר-הזמן של ציור חופשי נמתח כך שהטווח האופקי *של הציור עצמו* ימלא
+   * את כל אורך היצירה, בלי קשר לכמה מרוחב הלוח המקורי הוא בפועל תפס — ראה boardRaster.ts).
+   * 'trueSize' ממפה את ציר-הזמן ישירות מול הקנבס המלא (0–1), בדיוק כמו שציר ה-Y כבר עושה
+   * היום — קו קצר בפינת הלוח נשאר מרוכז בחלק קטן מהזמן, לא נמתח למלוא היצירה. משפיע רק
+   * על buildBoardRasterForScore (ציור חופשי, absoluteNoteBoard); לא על העלאת-תמונה/רגאיי.
+   */
+  sizeMode?: 'trueSize' | 'fitToBoard';
 }
 
 function midiToFrequencyHz(midiPitch: number): number {
@@ -840,6 +853,7 @@ function buildBoardRasterForScore(
     rowCount: resolveBoardRowCount(config.noteBoardRowCount),
     columnCount: Math.max(1, totalDurationBars * COLUMNS_PER_BAR),
     maxVoicesPerColumn: MAX_VOICES_PER_COLUMN,
+    stretchToFillColumns: config.sizeMode !== 'trueSize',
   });
 }
 
@@ -931,6 +945,57 @@ function selectRunsByPolicy(
  */
 type ColumnTimingCache = Map<number, number>;
 
+/**
+ * ⭐ 2026-09-18 (נתפס בבדיקה חיה: "צלילי ה-lead לא נשמעים", תמונה שהועלתה — לוגו Tesla):
+ * תקרה על אורך-**קטע-בודד** שהופך לתו אחד. בלי תקרה, משך-תו נגזר ישירות ממספר העמודות
+ * שהקו נשאר על **אותה שורה** ברציפות — וקטע כמעט-אופקי בתמונה (נפוץ בלוגואים/ציורים עם
+ * שטחים שטוחים) נותן run של עשרות עמודות, שהופך לתו יחיד של **עשרות שניות**. נמדד בפועל:
+ * 44700/65820 טיקים (≈43/63 שניות!) על lead במקצב הפלאק-הקצר שלו (sustain:0.05) — רוב
+ * הזמן המוזיקלי "מוקדש" לתו אחד עצום שכמעט לא נשמע, במקום סדרת הפריטות שהצליל אמור לייצר.
+ *
+ * ⭐ 2026-09-18 (המשך, לפי בקשה חיה: "התו צריך להתחדש לאורך כל הקטע השטוח, לא רק
+ * 2 הברים הראשונים"): run ארוך מהתקרה לא מקוצץ לתו-אחד-ואז-שקט — `runToNotes` (למטה)
+ * מפצל אותו לכמה תווים רצופים, כל אחד עד 2 ברים, שמכסים יחד את **כל** אורך ה-run
+ * המקורי. כל קטע עדיין עובר humanizeTiming/humanizeVelocity משלו (runToNote הרגיל, ללא
+ * שינוי), כך שהחזרות לא נשמעות זהות-רובוטית — יש גיוון-עוצמה/תזמון טבעי בין קטע לקטע,
+ * גם אם הגובה (pitch) נשאר קבוע כי זה בדיוק מה שהשורה השטוחה מייצגת.
+ */
+const MAX_RUN_SPAN_COLUMNS = COLUMNS_PER_BAR * 2;
+
+/** כמה ברים לפני/אחרי טביעת-הרגל תבנית-התופים הקבועה עדיין מנגנת ב-trueSize — "טיפה לפני/אחרי". */
+const DRUM_PATTERN_FOOTPRINT_MARGIN_BARS = 1;
+
+/**
+ * ⭐ 2026-09-21 (בקשה חיה: "שכל הסאונד יתחיל ויסתיים לפי הצורה, רק ב-trueSize"): תבנית-
+ * התופים הקבועה (buildPatternDrumNotes) לא נגזרת מהרסטר כמו לחן/בס/פאד — בלי הפונקציה
+ * הזו היא תמיד מנגנת על כל totalDurationBars, גם כשהציור עצמו תופס רק חלק קטן ממנו
+ * (בדיוק "תופים על אזור-מת" שדווח). ב-fitToBoard (או כשאין shapePaths) מחזירה את הטווח
+ * המלא — בדיוק ההתנהגות הישנה, בלי שינוי.
+ */
+function computeDrumBarRange(
+  config: CompositionConfig,
+  intent: RawMusicalIntent,
+  totalDurationBars: number,
+): { startBar: number; endBar: number } {
+  const fullRange = { startBar: 0, endBar: totalDurationBars };
+  if (config.sizeMode !== 'trueSize' || !intent.shapePaths) {
+    return fullRange;
+  }
+  const extent = computeDrawnXExtent(intent.shapePaths);
+  if (!extent) {
+    return fullRange;
+  }
+  const footprintStartBar = Math.floor(extent.minX * totalDurationBars);
+  const footprintEndBar = Math.max(
+    footprintStartBar + 1,
+    Math.ceil(extent.maxX * totalDurationBars),
+  );
+  return {
+    startBar: Math.max(0, footprintStartBar - DRUM_PATTERN_FOOTPRINT_MARGIN_BARS),
+    endBar: Math.min(totalDurationBars, footprintEndBar + DRUM_PATTERN_FOOTPRINT_MARGIN_BARS),
+  };
+}
+
 function runToNote(
   run: RasterRun,
   startColumn: number,
@@ -960,6 +1025,8 @@ function runToNote(
     timingCache.set(swungStartTick, startTick);
   }
 
+  // ⚠️ run שמגיע לכאן כבר מוגבל ל-MAX_RUN_SPAN_COLUMNS לכל היותר (ראה runToNotes) —
+  // אין עוד קיצוץ כאן, רק חישוב-משך רגיל מתוך הגבולות שכבר סופקו.
   const spannedColumns = run.endColumn - run.startColumn + 1;
   const durationTicks = Math.max(
     ticksPerGridUnit(config.gridSubdivision),
@@ -972,6 +1039,77 @@ function runToNote(
   const velocity = humanizeVelocity(Math.min(1, Math.max(0.05, scaled)), random);
 
   return { startTick, durationTicks, pitch, velocity, articulation };
+}
+
+/**
+ * עוטפת את runToNote: run בגבולות-התקרה נותן תו אחד כרגיל (בלי שינוי-התנהגות). run ארוך
+ * ממנה מפוצל לכמה תווים רצופים-בזמן, כל אחד עד MAX_RUN_SPAN_COLUMNS עמודות, שיחד מכסים
+ * את **כל** טווח ה-run המקורי — כך שמשיכת-עט ארוכה ושטוחה ממשיכה "להתחדש" עד סופה, לא
+ * נעצרת אחרי הקטע הראשון. ⚠️ startColumn (הנקודה-שאחרי-הצמדת-מדיניות) מוסט באותו הפרש
+ * בדיוק כמו run.startColumn של כל קטע, כדי שהתזמון של הקטע הראשון יישאר תואם למה
+ * ש-selectRunsByPolicy כבר קבע.
+ *
+ * ⚠️ `pitch` יכול להיות מספר קבוע (ליד — הגובה נגזר מהשורה של ה-run, וזו כבר אותה שורה
+ * לכל אורכו) **או** פונקציה של עמודת-ההתחלה של כל קטע (בס — הגובה נגזר משורש-האקורד
+ * *של הבר*, שיכול להשתנות כשקטע חוצה גבול-בר; בלי זה קטע מפוצל היה ממשיך לנגן את שורש
+ * הבר הראשון גם בברים עם אקורד אחר לגמרי — נתפס בבדיקה חיה על "הבס מנגן שורש שגוי").
+ */
+function runToNotes(
+  run: RasterRun,
+  startColumn: number,
+  pitch: number | ((segmentStartColumn: number) => number),
+  baseVelocity: number,
+  sustainRatio: number,
+  sections: readonly Section[],
+  config: CompositionConfig,
+  random: () => number,
+  articulation: NonNullable<Note['articulation']>,
+  timingCache: ColumnTimingCache,
+): Note[] {
+  const resolvePitch = typeof pitch === 'function' ? pitch : (): number => pitch;
+  const totalSpan = run.endColumn - run.startColumn + 1;
+  if (totalSpan <= MAX_RUN_SPAN_COLUMNS) {
+    return [
+      runToNote(
+        run,
+        startColumn,
+        resolvePitch(startColumn),
+        baseVelocity,
+        sustainRatio,
+        sections,
+        config,
+        random,
+        articulation,
+        timingCache,
+      ),
+    ];
+  }
+
+  const notes: Note[] = [];
+  let segmentStart = run.startColumn;
+  let segmentAnchor = startColumn;
+  while (segmentStart <= run.endColumn) {
+    const segmentEnd = Math.min(segmentStart + MAX_RUN_SPAN_COLUMNS - 1, run.endColumn);
+    const segmentRun: RasterRun = { row: run.row, startColumn: segmentStart, endColumn: segmentEnd };
+    notes.push(
+      runToNote(
+        segmentRun,
+        segmentAnchor,
+        resolvePitch(segmentAnchor),
+        baseVelocity,
+        sustainRatio,
+        sections,
+        config,
+        random,
+        articulation,
+        timingCache,
+      ),
+    );
+    const segmentLength = segmentEnd - segmentStart + 1;
+    segmentStart += segmentLength;
+    segmentAnchor += segmentLength;
+  }
+  return notes;
 }
 
 /** ליד — אירועי הציור, אחרי מדיניות-הקצב של התפקיד. */
@@ -993,9 +1131,9 @@ function buildRasterLeadNotes(
   const timingCache: ColumnTimingCache = new Map();
   const barCount = Math.max(1, Math.ceil(raster.length / COLUMNS_PER_BAR));
 
-  return selectRunsByPolicy(extractRasterRuns(raster), strengthByColumn, policy, barCount).map(
+  return selectRunsByPolicy(extractRasterRuns(raster), strengthByColumn, policy, barCount).flatMap(
     ({ run, startColumn, strength }) =>
-      runToNote(
+      runToNotes(
         run,
         startColumn,
         wrapPitchIntoRealisticRange(at(boardRows, run.row), LEAD_REALISTIC_RANGE),
@@ -1035,8 +1173,8 @@ function buildRasterBassNotes(
     strengthByColumn,
     policy,
     barCount,
-  ).map(({ run, startColumn }) =>
-    runToNote(
+  ).flatMap(({ run, startColumn }) =>
+    runToNotes(
       run,
       startColumn,
       // ⚠️ **הגובה מהאקורד, הקצב מהציור** (סבב ב'). קודם הבס ניגן את השורה הנמוכה שנחצתה —
@@ -1044,14 +1182,25 @@ function buildRasterBassNotes(
       // הוא חייב לנגן את השורש שלו; בלי זה הפאד יכול לנגן אקורד תקין והאוזן עדיין לא תשמע
       // פונקציה הרמונית. הקצב, לעומת זאת, נשאר נגזר-ציור לגמרי דרך מדיניות-הקצב למעלה —
       // כך שהציור עדיין מוטבע בבס.
-      wrapPitchIntoRealisticRange(
-        scaleDegreeToMidiPitch(
-          root,
-          mode,
-          degreeAtBar(progressionDegrees, Math.floor(startColumn / COLUMNS_PER_BAR)),
+      // ⚠️ 2026-09-18: פונקציה, לא מספר קבוע — run שמפוצל (runToNotes) לכמה תווים יכול
+      // לחצות גבול-בר, וכל קטע חייב לנגן את שורש **הבר שהוא באמת בו**, לא את שורש הבר
+      // שבו ה-run *התחיל*. בלי זה קטע מפוצל שנופל בבר עם אקורד אחר ממשיך לנגן שורש-זר.
+      // ⚠️ 2026-09-20 (בקשה חיה: "הבס לא נשמע טוב ולא מתפקד כבאס"): לנתיב הישן
+      // (buildBassTrack, רגאיי) יש הסטה מפורשת של אוקטבה מתחת לשורש (BASS_DEGREE_OFFSET).
+      // לנתיב הזה לא הייתה הסטה כזו בכלל — scaleDegreeToMidiPitch מחזיר פיץ' באותו
+      // רגיסטר כמו הפאד/ליד הנמוכים (48-59, בערך C3-B3), לא רגיסטר-באס אמיתי. `-12`
+      // (אוקטבה שלמה, בחצאי-טונים — לא בדרגות-סולם, כי כאן כבר עובדים עם MIDI מוחלט)
+      // מוריד את זה לפני wrapPitchIntoRealisticRange, שכבר מוגדר לקפל לתוך
+      // ROLE_PITCH_RANGES.bass (24-60) — הטווח הנמוך נופל שם בנוחות, בלי סיכון-גלישה.
+      (segmentStartColumn: number) =>
+        wrapPitchIntoRealisticRange(
+          scaleDegreeToMidiPitch(
+            root,
+            mode,
+            degreeAtBar(progressionDegrees, Math.floor(segmentStartColumn / COLUMNS_PER_BAR)),
+          ) - 12,
+          ROLE_PITCH_RANGES.bass ?? LEAD_REALISTIC_RANGE,
         ),
-        ROLE_PITCH_RANGES.bass ?? LEAD_REALISTIC_RANGE,
-      ),
       0.62 + intent.velocityHint * 0.2,
       0.92,
       sections,
@@ -1145,13 +1294,17 @@ function buildRasterPadNotes(
  * מקצב ידני → תווים. ⚠️ לא עובר דרך מדיניות-הקצב ולא דרך אירועי-הציור: זו כל הנקודה —
  * המשתמש ביקש גרוב **קבוע** שנותן לסגנון את הזהות שלו, ולא עוד משהו שהציור מזיז.
  * ההומניזציה והסווינג של הסגנון כן חלים, אחרת המקצב נשמע כמו מכונה ולא כמו נגן.
+ *
+ * ⚠️ 2026-09-21 (בקשה חיה: "שכל הסאונד יתחיל ויסתיים לפי הצורה, ב-trueSize"): הלולאה
+ * רצה על [startBar, endBar) ולא על כל totalDurationBars — ראה computeDrumBarRange. ב-
+ * fitToBoard (או כשאין טביעת-רגל) הטווח תמיד [0, totalDurationBars), בדיוק כמו קודם.
  */
 function buildPatternDrumNotes(
   pattern: BeatPattern,
   root: number,
   mode: Mode,
   sections: readonly Section[],
-  totalDurationBars: number,
+  barRange: { startBar: number; endBar: number },
   config: CompositionConfig,
   random: () => number,
 ): Note[] {
@@ -1166,7 +1319,7 @@ function buildPatternDrumNotes(
   // כל הרינדור. נמדד: 930 זוגות כאלה במקצב `jackin` לבדו.
   const timingCache: ColumnTimingCache = new Map();
 
-  for (let barIndex = 0; barIndex < totalDurationBars; barIndex += 1) {
+  for (let barIndex = barRange.startBar; barIndex < barRange.endBar; barIndex += 1) {
     const barStartTick = barIndex * TICKS_PER_BAR;
     const sectionScale = sectionVelocityScale(sections, barIndex);
     for (const hit of barHits) {
@@ -1916,7 +2069,13 @@ export function composeMusicalScore(
           config,
           random,
         ),
-        mixSettings: { volume: 0.52, pan: 0, reverbSend: 0.2, delaySend: 0.15 },
+        // ⭐ 2026-09-17 (לפי בקשה חיה + מדידה חוצת-סגנונות: "רוב הקטע שומעים רק את
+        // התופים"): 0.52→0.68. תופים כבר ב-volume:1 (תקרת הסכימה) ומייצרים היום גם פי
+        // 7-15 יותר אירועי-צליל מכל תפקיד מלודי (נמדד: 160 מול 22/11/100 ב-cinematic,
+        // 290 מול 19/8/45 ב-trance) — הנמכות חוזרות של המלודיה לאורך הזמן (0.6→0.45→0.4
+        // ל-pad, 0.8→0.65→0.58 לבס) הצטברו מעבר לנקודה הנכונה. ⚠️ תיקון-כיוונון, לא מדע
+        // מדויק — כמו כל שינוי קודם בקובץ הזה, צריך אימות-האזנה אחרי הפריסה.
+        mixSettings: { volume: 0.68, pan: 0, reverbSend: 0.2, delaySend: 0.15 },
       }
     : buildLeadTrack(intent, root, mode, sections, config, random);
   const bassTrack = boardRaster
@@ -1934,7 +2093,8 @@ export function composeMusicalScore(
           config,
           random,
         ),
-        mixSettings: { volume: 0.45, pan: 0, reverbSend: 0.1, delaySend: 0.05 },
+        // ⭐ 2026-09-17: 0.45→0.6, ראה ההערה המלאה ב-leadTrack למעלה (אותה סיבה בדיוק).
+        mixSettings: { volume: 0.6, pan: 0, reverbSend: 0.1, delaySend: 0.05 },
       }
     : buildBassTrack(
         root,
@@ -1967,7 +2127,8 @@ export function composeMusicalScore(
           sections,
           config.extendedChords,
         ),
-        mixSettings: { volume: 0.26, pan: 0, reverbSend: 0.3, delaySend: 0.1 },
+        // ⭐ 2026-09-17: 0.26→0.4, ראה ההערה המלאה ב-leadTrack למעלה (אותה סיבה בדיוק).
+        mixSettings: { volume: 0.4, pan: 0, reverbSend: 0.3, delaySend: 0.1 },
       };
     } else {
       swellTrack = buildPadTrack(root, mode, progressionDegrees, config.extendedChords);
@@ -2013,7 +2174,7 @@ export function composeMusicalScore(
           root,
           mode,
           sections,
-          totalDurationBars,
+          computeDrumBarRange(config, intent, totalDurationBars),
           config,
           random,
         ),

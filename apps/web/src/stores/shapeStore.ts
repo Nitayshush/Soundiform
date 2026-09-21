@@ -42,18 +42,19 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { computeShapeHash, type ShapeData, type ShapePath } from '@soundiform/shared';
+import {
+  computeShapeHash,
+  type PathStyle,
+  type ShapeData,
+  type ShapePath,
+} from '@soundiform/shared';
+
+export type { PathStyle };
 
 const SHAPE_VERSION = '1.0.0';
 const STORAGE_KEY = 'soundiform:current-shape';
 
 export type ShapeSourceType = 'drawing' | 'svg' | 'raster';
-
-/** עיצוב חזותי של path בודד — ראה ⭐ 2026-09-04 למעלה. */
-export interface PathStyle {
-  color: string;
-  strokeWidth: number;
-}
 
 // ⚠️ תואמים בכוונה ל-fallback constants ב-DrawingCanvas.tsx (STROKE_COLOR/LINE_WIDTH) — כך
 // שהקו הראשון ב-Kids Studio, לפני שהילד נגע בבורר-הצבע, נראה בדיוק כמו קו רגיל ב-Studio.
@@ -132,9 +133,16 @@ function revokePreview(url: string | null): void {
   }
 }
 
-/** מיוצא (בנוסף לשימוש הפנימי) כדי ש-useAudioEngine יוכל לבנות ShapeData מ-paths.state באותה צורה בדיוק. */
-export function toShapeData(paths: ShapePath[]): ShapeData {
-  return { version: SHAPE_VERSION, paths };
+/**
+ * מיוצא (בנוסף לשימוש הפנימי) כדי ש-useAudioEngine יוכל לבנות ShapeData מ-paths.state באותה צורה בדיוק.
+ *
+ * ⚠️ pathStyles אופציונלי ומיועד רק לנקודת-השמירה (useSaveProject.ts) — לא לקריאות
+ * הפנימיות כאן (computeShapeHash), שממשיכות לקבל רק paths: computeShapeHash כבר מתעלם
+ * מ-pathStyles בעצמו (ראה @soundiform/shared's shapeHash.ts), אז אין סיבה אמיתית לשרשר
+ * אותו לשם — רק שם שבו זה באמת נחוץ (השמירה ל-DB, כדי שהצבעים ישרדו לרינדור/וידאו).
+ */
+export function toShapeData(paths: ShapePath[], pathStyles?: PathStyle[]): ShapeData {
+  return { version: SHAPE_VERSION, paths, ...(pathStyles && pathStyles.length > 0 && { pathStyles }) };
 }
 
 export const useShapeStore = create<ShapeStoreState>()(

@@ -41,12 +41,19 @@ export interface CreationSettings {
   beatPatternId?: string;
   /** undefined = הסולם שהסגנון מגדיר. */
   key?: MusicalKeySelection;
+  /**
+   * ⭐ 2026-09-18 (לפי בקשה חיה: "מה שציירת זה מה שקיבלת"): undefined/'fitToBoard' =
+   * ההתנהגות הישנה (ציר-הזמן של ציור חופשי נמתח למלוא היצירה). 'trueSize' ממפה אותו
+   * ישירות מול הקנבס המלא — ראה CompositionConfig.sizeMode (core), boardRaster.ts.
+   */
+  sizeMode?: 'trueSize' | 'fitToBoard';
 }
 
 interface CreationSettingsState {
   byGenre: Record<string, CreationSettings>;
   setBeatPattern: (genreId: string, beatPatternId: string) => void;
   setKey: (genreId: string, key: MusicalKeySelection) => void;
+  setSizeMode: (genreId: string, sizeMode: 'trueSize' | 'fitToBoard') => void;
   /** מחליף את כל ההגדרות לסגנון — משמש בטעינת פרויקט שמור. */
   replaceSettings: (genreId: string, settings: CreationSettings) => void;
 }
@@ -66,6 +73,11 @@ export const useCreationSettingsStore = create<CreationSettingsState>()(
       setKey: (genreId, key) => {
         set((state) => ({
           byGenre: { ...state.byGenre, [genreId]: { ...state.byGenre[genreId], key } },
+        }));
+      },
+      setSizeMode: (genreId, sizeMode) => {
+        set((state) => ({
+          byGenre: { ...state.byGenre, [genreId]: { ...state.byGenre[genreId], sizeMode } },
         }));
       },
       replaceSettings: (genreId, settings) => {

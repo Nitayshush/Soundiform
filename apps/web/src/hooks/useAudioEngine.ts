@@ -230,7 +230,10 @@ export function useAudioEngine(options?: UseAudioEngineOptions): UseAudioEngineR
         }
         const shape = toShapeData(paths);
         const intent = geometryToMusic(shape, shapeHash);
-        const score = composeMusicalScore(intent, toCompositionConfig(genrePack, overrides));
+        const score = composeMusicalScore(
+          intent,
+          toCompositionConfig(genrePack, overrides, intent.seed),
+        );
         const {
           createBrowserRenderer,
           computeDurationSeconds,

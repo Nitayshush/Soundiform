@@ -262,6 +262,20 @@ export function SoundSelector() {
                         // שם הצמצום הכרחי כי הבנאי של כל provider מקבל ענף אחר של האיחוד).
                         const isSampled =
                           'kind' in option.preset && option.preset.kind === 'sampler';
+                        // ⭐ 2026-09-17: ערכת-תופים אחת בלבד יכולה לנגן בפועל לתפקיד
+                        // (genreAdapter.ts's resolveSynthPresets, .find(isDrumKitPreset))
+                        // — בלי זה שתי ערכות יכולות "להיבחר" יחד בממשק כשרק אחת נשמעת.
+                        const isDrumKit =
+                          'kind' in option.preset && option.preset.kind === 'drumkit';
+                        const exclusiveGroupIds = isDrumKit
+                          ? options
+                              .filter(
+                                (candidate) =>
+                                  'kind' in candidate.preset &&
+                                  candidate.preset.kind === 'drumkit',
+                              )
+                              .map((candidate) => candidate.id)
+                          : undefined;
                         return (
                           <Button
                             key={option.id}
@@ -271,7 +285,7 @@ export function SoundSelector() {
                             className="shrink-0 rounded-full"
                             aria-pressed={isSelected}
                             onClick={() => {
-                              toggleSound(genreId, role, option.id);
+                              toggleSound(genreId, role, option.id, exclusiveGroupIds);
                               void previewSound(role, option.preset);
                             }}
                           >

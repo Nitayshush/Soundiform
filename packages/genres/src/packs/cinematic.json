@@ -17,6 +17,11 @@
   "defaultMode": "aeolian",
   "harmonicTendency": "extended",
   "chordProgression": [0, 5, 2, 6],
+  "chordProgressionOptions": [
+    [0, 5, 2, 6],
+    [0, 2, 5, 6],
+    [0, 6, 5, 2]
+  ],
   "roles": ["bass", "lead", "pad", "drums"],
   "rhythmPatterns": {
     "bass": [

@@ -57,7 +57,9 @@ const GLOW_ALPHA = 0.55;
 const BACKGROUND_PULSE_COLOR = 0x8b7cf6;
 const BURST_LIFETIME_SECONDS = 0.45;
 const BURST_MAX_RADIUS = 22;
-const SHAPE_TRACE_COLOR = 0x6c5fc4; // = frameRenderer.ts SHAPE_TRACE_COLOR
+// ⚠️ 2026-09-21: fallback בלבד — ראה pathStyles להלן. משמש רק כשל-path אין רשומת-סגנון
+// (צורה שנטענה דרך loadShape/Remix, שמאפסת pathStyles ל-[]).
+const SHAPE_TRACE_COLOR = '#6c5fc4'; // = frameRenderer.ts SHAPE_TRACE_COLOR
 const SHAPE_TRACE_LINE_WIDTH = 3;
 const SHAPE_TRACE_ALPHA = 0.8;
 const SHAPE_TRACE_GLOW_ALPHA = 0.5;
@@ -107,7 +109,7 @@ function computeScore(
   }
   const shape = { version: '1.0.0', paths };
   const intent = geometryToMusic(shape, shapeHash);
-  return composeMusicalScore(intent, toCompositionConfig(genrePack, overrides));
+  return composeMusicalScore(intent, toCompositionConfig(genrePack, overrides, intent.seed));
 }
 
 function computeLayout(score: MusicalScore, width: number, height: number): StaffLayout | null {
@@ -149,6 +151,7 @@ function energyAtTick(score: MusicalScore, tick: number): number {
 
 export function ScoreStaff({ progress }: ScoreStaffProps) {
   const paths = useShapeStore((state) => state.paths);
+  const pathStyles = useShapeStore((state) => state.pathStyles);
   const shapeHash = useShapeStore((state) => state.shapeHash);
   // ⭐ 2026-09-02: כשמוצגת התמונה המקורית של המשתמש (UploadedImageLayer), מתאר-הצורה
   // **לא** מצויר מעליה — היא כבר מראה את הצורה, וקו מעליה היה מכסה אותה. הבזקי-האור
@@ -171,9 +174,14 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
   const previousProgressRef = useRef(0);
   const burstsRef = useRef<Burst[]>([]);
   const pathsRef = useRef<ShapePath[]>(paths);
+  // ⭐ 2026-09-21: pathStyles משתנה תמיד באותו set() בדיוק כמו paths (addPath/setPathStyle/
+  // loadShape/clear) — אותו דפוס-ref בדיוק, מאותה סיבה (לא רוצים שהאפקט למטה ירוץ מחדש
+  // כתלות-נפרדת, רק לקרוא את הערך העדכני כשהוא כבר רץ בגלל progress/score).
+  const pathStylesRef = useRef(pathStyles);
   useEffect(() => {
     pathsRef.current = paths;
-  }, [paths]);
+    pathStylesRef.current = pathStyles;
+  }, [paths, pathStyles]);
 
   const overrides = useCompositionOverrides();
   const score = useMemo(
@@ -341,16 +349,27 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
     shapeCrispLayer.clear();
 
     const currentPaths = pathsRef.current;
+    const currentPathStyles = pathStylesRef.current;
     if (currentPaths.length > 0 && !hasOriginalImage) {
       const shapeLayout = projectShapeToStaff(
         { version: '1.0.0', paths: currentPaths },
         { width: app.renderer.width, height: app.renderer.height },
+        overrides.sizeMode !== 'trueSize',
       );
-      for (const points of revealedSegments(shapeLayout, progress)) {
+      // ⭐ 2026-09-21 (לפי בקשה חיה: "צבעי הציור צריכים להישמר"): כל מקטע-חשיפה מצויר בצבע
+      // ה-path המקורי שלו (currentPathStyles[pathIndex]) — לא צבע-קבוע-אחיד לכל הצורה
+      // (SHAPE_TRACE_COLOR נשאר fallback בלבד, לצורות בלי pathStyles — ראה למעלה).
+      // 'transparent' (path-placeholder של סטיקר-אימוג'י) מדולג, בדיוק כמו DrawingCanvas.tsx.
+      for (const { pathIndex, points } of revealedSegments(shapeLayout, progress)) {
+        const style = currentPathStyles[pathIndex];
+        if (style?.color === 'transparent') {
+          continue;
+        }
         const [first, ...rest] = points;
         if (!first) {
           continue;
         }
+        const traceColor = style?.color ?? SHAPE_TRACE_COLOR;
         shapeCrispLayer.moveTo(first.x, first.y);
         shapeGlowLayer.moveTo(first.x, first.y);
         for (const point of rest) {
@@ -359,14 +378,14 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
         }
         shapeCrispLayer.stroke({
           width: SHAPE_TRACE_LINE_WIDTH,
-          color: SHAPE_TRACE_COLOR,
+          color: traceColor,
           alpha: SHAPE_TRACE_ALPHA,
           join: 'round',
           cap: 'round',
         });
         shapeGlowLayer.stroke({
           width: SHAPE_TRACE_LINE_WIDTH,
-          color: SHAPE_TRACE_COLOR,
+          color: traceColor,
           alpha: SHAPE_TRACE_ALPHA * SHAPE_TRACE_GLOW_ALPHA,
           join: 'round',
           cap: 'round',
@@ -412,7 +431,7 @@ export function ScoreStaff({ progress }: ScoreStaffProps) {
     previousProgressRef.current = progress;
     // ⚠️ hasOriginalImage בתלויות: כשהמשתמש מעלה תמונה או מנקה אותה, השכבה צריכה להצטייר
     // מחדש מיד — אחרת מתאר-הצורה היה נשאר על המסך עד ה-progress הבא.
-  }, [progress, score, hasOriginalImage]);
+  }, [progress, score, hasOriginalImage, overrides]);
 
   return <div ref={containerRef} className="pointer-events-none absolute inset-0" />;
 }

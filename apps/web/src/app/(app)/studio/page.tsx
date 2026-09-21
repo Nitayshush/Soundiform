@@ -23,6 +23,11 @@ import { RevealOverlay } from '@/components/canvas/RevealOverlay';
 import { GenreSelector } from '@/components/controls/GenreSelector';
 import { SoundSelector } from '@/components/controls/SoundSelector';
 import { UploadButton } from '@/components/controls/UploadButton';
+import { ColorPicker } from '@/components/kids/ColorPicker';
+import { ThicknessPicker } from '@/components/kids/ThicknessPicker';
+import { ShapeTray } from '@/components/kids/ShapeTray';
+import { ShapePlacementOverlay } from '@/components/kids/ShapePlacementOverlay';
+import type { KidsShapeKind } from '@/lib/kidsShapes';
 import { Logo } from '@/components/branding/Logo';
 import { AudioDebugHUD } from '@/components/debug/AudioDebugHUD';
 import { Button } from '@/components/ui/button';
@@ -87,6 +92,12 @@ function StudioContent() {
   // ⚠️ נמדד רק במצב מורחב — ראה useVisibleViewport.ts: `dvh` לבדו לא הספיק בנייד אחרי סיבוב,
   // ותחתית הלוח (עם כפתור ההקטנה) נחתכה.
   const visibleViewport = useVisibleViewport(isStageExpanded);
+  // ⭐ 2026-09-20 (לפי בקשה חיה: "מערכת הצבעים והצורות של קידס סטודיו גם בסטודיו הכללי") —
+  // אותו דפוס בדיוק כמו studio/kids/page.tsx: ColorPicker/ThicknessPicker/ShapeTray כבר
+  // כותבים ל-shapeStore גנרית (pathStyles, לא חלק מ-ShapeData/shapeHash — לא משפיע על
+  // המוזיקה), אז אין כאן שום שינוי במנוע המוזיקלי, רק הרכבת-UI. SoundSelector/GenreSelector
+  // נשארים בדיוק כמו שהם — לא מיובא KIDS_SOUND_DEFAULTS, ולא מוחלף שום בורר-סאונד קיים.
+  const [pendingShapeKind, setPendingShapeKind] = useState<KidsShapeKind | null>(null);
 
   // ⚠️ יציאה ב-Escape (מקלדת חיצונית/טאבלט) + מניעת גלילת-רקע מאחורי הלוח המוגדל, שגורמת
   // ל"קפיצות" מטרידות תוך כדי ציור בנייד.
@@ -294,6 +305,14 @@ function StudioContent() {
           <UploadedImageLayer />
           <ScoreStaff progress={progress} />
           <RevealOverlay />
+          {pendingShapeKind && (
+            <ShapePlacementOverlay
+              kind={pendingShapeKind}
+              onDone={() => {
+                setPendingShapeKind(null);
+              }}
+            />
+          )}
         </div>
         {/* ⭐ 2026-08-29 (לפי בקשה חיה): כפתור הגדלה/הקטנה כמו בנגני וידאו — **בנייד בלבד**
             (sm:hidden), כי בדסקטופ הלוח ממילא גדול.
@@ -317,6 +336,11 @@ function StudioContent() {
             <Maximize className="size-5" aria-hidden="true" />
           )}
         </button>
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-3 border-t border-border/60 bg-card/60 px-4 py-3">
+        <ColorPicker />
+        <ThicknessPicker />
+        <ShapeTray onSelect={setPendingShapeKind} disabled={pendingShapeKind !== null} />
       </div>
       <AudioDebugHUD />
       {detailsModalRequest ? (

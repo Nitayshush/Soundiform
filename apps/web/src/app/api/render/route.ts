@@ -123,12 +123,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   const projectSettings = storedSettings.success ? storedSettings.data : {};
   const score = composeMusicalScore(
     intent,
-    toCompositionConfig(genrePack, {
-      ...(projectSettings.beatPatternId !== undefined && {
-        beatPatternId: projectSettings.beatPatternId,
-      }),
-      ...(projectSettings.key !== undefined && { key: projectSettings.key }),
-    }),
+    toCompositionConfig(
+      genrePack,
+      {
+        ...(projectSettings.beatPatternId !== undefined && {
+          beatPatternId: projectSettings.beatPatternId,
+        }),
+        ...(projectSettings.key !== undefined && { key: projectSettings.key }),
+        ...(projectSettings.sizeMode !== undefined && { sizeMode: projectSettings.sizeMode }),
+      },
+      intent.seed,
+    ),
   );
   // ⭐ 2026-08-24 (Area 1): toGenreAudioConfig עצמו כבר מאמת כל id מול genrePack.soundOptions
   // (genreAdapter.ts's resolveSynthPresets) — id לא-קיים נופל בשקט ל-synthMap הרגיל, אף פעם

@@ -130,3 +130,42 @@ describe('drawVideoFrame — הצורה הנחשפת נראית מעל סרגל 
     expect(bottomRightDifferences(withoutMark, renderPixels(false, 1))).toBe(0);
   });
 });
+
+describe('drawVideoFrame — צבע הציור נשמר בקו-הצורה הנחשף (2026-09-21)', () => {
+  /** סופר פיקסלים אדומים מובהקים — צבע-הבדיקה (#ff0000), לא בהתנגשות עם שום צבע קיים בפריים. */
+  function countRedPixels(pixels: Uint8ClampedArray): number {
+    let count = 0;
+    for (let index = 0; index < pixels.length; index += 4) {
+      const red = pixels[index] ?? 0;
+      const green = pixels[index + 1] ?? 0;
+      const blue = pixels[index + 2] ?? 0;
+      if (red > 180 && green < 60 && blue < 60) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  it('path עם pathStyles אדום מצייר קו-חשיפה אדום, לא בצבע ברירת-המחדל (הבאג שדווח)', () => {
+    const redShape: ShapeData = {
+      ...makeShape(),
+      pathStyles: [{ color: '#ff0000', strokeWidth: 6 }],
+    };
+    const canvas = createCanvas(DIMENSIONS.width, DIMENSIONS.height);
+    const ctx = canvas.getContext('2d');
+    drawVideoFrame(ctx as unknown as Canvas2DLike, {
+      score: makeDenseScore(),
+      shapeData: redShape,
+      progress: 1,
+      dimensions: DIMENSIONS,
+      watermark: false,
+    });
+    const pixels = ctx.getImageData(0, 0, DIMENSIONS.width, DIMENSIONS.height).data;
+    expect(countRedPixels(pixels)).toBeGreaterThan(50);
+  });
+
+  it('בלי pathStyles (תאימות-לאחור) — עדיין אין פיקסלים אדומים, נופל לצבע ברירת-המחדל', () => {
+    const pixels = renderPixels(false, 1);
+    expect(countRedPixels(pixels)).toBe(0);
+  });
+});

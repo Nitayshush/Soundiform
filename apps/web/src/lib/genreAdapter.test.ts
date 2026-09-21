@@ -276,3 +276,120 @@ describe("composeMusicalScore + genreAdapter — תיקון-ביצועים עם 
     }
   });
 });
+
+describe('resolveBeatPattern — ברירת-מחדל תלוית-צורה (2026-09-17)', () => {
+  it('בלי seed — נשארת ההתנהגות הישנה (תמיד התבנית הראשונה)', () => {
+    const pack = loadGenrePackById('house');
+    expect(pack).not.toBeNull();
+    const firstPatternId = pack!.beatPatterns?.[0]?.id;
+    expect(firstPatternId).toBeDefined();
+    const config = toCompositionConfig(pack!);
+    expect(config.beatPattern?.id).toBe(firstPatternId);
+  });
+
+  it('עם seed — לפחות חלק מהצורות מקבלות תבנית שונה מהראשונה', () => {
+    const pack = loadGenrePackById('house');
+    expect(pack).not.toBeNull();
+    expect((pack!.beatPatterns?.length ?? 0)).toBeGreaterThan(1);
+
+    const chosenIds = new Set<string | undefined>();
+    for (let index = 0; index < 20; index += 1) {
+      const config = toCompositionConfig(pack!, undefined, `shape-seed-${index}`);
+      chosenIds.add(config.beatPattern?.id);
+    }
+    // ⚠️ לא בודקים חלוקה שווה — רק שהגיוון קיים בכלל (לא כל 20 הזרעים נחתו על אותו אינדקס).
+    expect(chosenIds.size).toBeGreaterThan(1);
+  });
+
+  it('אותו seed תמיד נותן אותה תבנית — דטרמיניזם (§1) נשמר', () => {
+    const pack = loadGenrePackById('trance');
+    expect(pack).not.toBeNull();
+    const first = toCompositionConfig(pack!, undefined, 'same-shape-hash');
+    const second = toCompositionConfig(pack!, undefined, 'same-shape-hash');
+    expect(second.beatPattern?.id).toBe(first.beatPattern?.id);
+  });
+
+  it('בחירה מפורשת (id ספציפי או "מהציור") גוברת תמיד על ה-seed', () => {
+    const pack = loadGenrePackById('house');
+    expect(pack).not.toBeNull();
+    const explicitId = pack!.beatPatterns?.[1]?.id;
+    expect(explicitId).toBeDefined();
+    const config = toCompositionConfig(pack!, { beatPatternId: explicitId }, 'some-seed');
+    expect(config.beatPattern?.id).toBe(explicitId);
+
+    const drawingConfig = toCompositionConfig(
+      pack!,
+      { beatPatternId: DRAWING_BEAT_ID },
+      'some-seed',
+    );
+    expect(drawingConfig.beatPattern).toBeUndefined();
+  });
+});
+
+describe('resolveMode — גוון הרמוני תלוי-צורה בלי לגעת בשורש (2026-09-18)', () => {
+  it('בלי seed — נשארת ההתנהגות הישנה (תמיד defaultMode)', () => {
+    const pack = loadGenrePackById('house');
+    expect(pack).not.toBeNull();
+    const config = toCompositionConfig(pack!);
+    expect(config.mode).toBe(pack!.defaultMode);
+  });
+
+  it('עם seed — לפחות חלק מהצורות מקבלות מוד שונה מברירת-המחדל', () => {
+    const pack = loadGenrePackById('house');
+    expect(pack).not.toBeNull();
+    expect(pack!.allowedModes.length).toBeGreaterThan(1);
+
+    const chosenModes = new Set<string>();
+    for (let index = 0; index < 20; index += 1) {
+      const config = toCompositionConfig(pack!, undefined, `mode-shape-seed-${index}`);
+      chosenModes.add(config.mode);
+    }
+    expect(chosenModes.size).toBeGreaterThan(1);
+  });
+
+  it('אותו seed תמיד נותן אותו מוד — דטרמיניזם (§1) נשמר', () => {
+    const pack = loadGenrePackById('trance');
+    expect(pack).not.toBeNull();
+    const first = toCompositionConfig(pack!, undefined, 'same-shape-hash-mode');
+    const second = toCompositionConfig(pack!, undefined, 'same-shape-hash-mode');
+    expect(second.mode).toBe(first.mode);
+  });
+
+  it('בחירת מוד מפורשת (Key panel) גוברת תמיד על ה-seed', () => {
+    const pack = loadGenrePackById('house');
+    expect(pack).not.toBeNull();
+    const explicitMode = pack!.allowedModes[1]!;
+    const config = toCompositionConfig(
+      pack!,
+      { key: { rootPitchClass: 0, mode: explicitMode } },
+      'some-seed',
+    );
+    expect(config.mode).toBe(explicitMode);
+  });
+
+  it('שורש נשאר קבוע-לגמרי (ABSOLUTE_BOARD_ROOT_PITCH_CLASS) — רק המוד משתנה', () => {
+    const pack = loadGenrePackById('house');
+    expect(pack).not.toBeNull();
+    const roots = new Set<number>();
+    for (let index = 0; index < 20; index += 1) {
+      const intent = geometryToMusic(makeSpikyShapeData(), `root-stability-${index}`);
+      const config = toCompositionConfig(pack!, undefined, intent.seed);
+      const score = composeMusicalScore(intent, config);
+      roots.add(score.key.root);
+    }
+    expect(roots.size).toBe(1);
+  });
+});
+
+describe('chordProgressionOptions — צ׳יל וסינמטי מקבלים גיוון-הרמוני (2026-09-18)', () => {
+  it('chill ו-cinematic כבר לא רק פרוגרסיה קבועה אחת', () => {
+    for (const genreId of ['chill', 'cinematic']) {
+      const pack = loadGenrePackById(genreId);
+      expect(pack, genreId).not.toBeNull();
+      expect((pack!.chordProgressionOptions?.length ?? 0), genreId).toBeGreaterThan(1);
+      // ⚠️ האפשרות הראשונה חייבת להישאר זהה ל-chordProgression הקבוע — תאימות-לאחור
+      // ליצירות ישנות שנטענות בלי seed (ראה resolveBeatPattern לאותו עיקרון).
+      expect(pack!.chordProgressionOptions?.[0], genreId).toEqual(pack!.chordProgression);
+    }
+  });
+});

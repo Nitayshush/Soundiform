@@ -41,6 +41,13 @@ export interface ResolvedClientRender {
   shapeHash: string;
   /** אותה מוסכמה בדיוק כמו ה-worker (jobs/renderAudio.ts) — קבצים באותו מקום. */
   keyPrefix: string;
+  /**
+   * ⭐ 2026-09-19: "מה שציירת זה מה שקיבלת" — משפיע גם על ה-score (כבר עבר ל-
+   * toCompositionConfig למטה) וגם על **מסלול-הצורה בווידאו** (drawVideoFrame's
+   * projectShapeToStaff), שהוא קוד-לקוח נפרד ולא נגזר מה-score. בלי השדה הזה כאן,
+   * הבחירה הייתה משפיעה על הפריוויו החי אבל נעלמת ברגע השמירה/הורדה.
+   */
+  sizeMode?: 'trueSize' | 'fitToBoard';
 }
 
 export type ResolveFailure = { error: string; status: 400 | 403 | 404 };
@@ -82,12 +89,17 @@ export async function resolveClientRender(
     settings ?? (storedSettings.success ? storedSettings.data : {});
   const score = composeMusicalScore(
     intent,
-    toCompositionConfig(genrePack, {
-      ...(effectiveSettings.beatPatternId !== undefined && {
-        beatPatternId: effectiveSettings.beatPatternId,
-      }),
-      ...(effectiveSettings.key !== undefined && { key: effectiveSettings.key }),
-    }),
+    toCompositionConfig(
+      genrePack,
+      {
+        ...(effectiveSettings.beatPatternId !== undefined && {
+          beatPatternId: effectiveSettings.beatPatternId,
+        }),
+        ...(effectiveSettings.key !== undefined && { key: effectiveSettings.key }),
+        ...(effectiveSettings.sizeMode !== undefined && { sizeMode: effectiveSettings.sizeMode }),
+      },
+      intent.seed,
+    ),
   );
 
   return {
@@ -97,6 +109,7 @@ export async function resolveClientRender(
     shapeData: project.shapeData,
     shapeHash: project.shapeHash,
     keyPrefix: `renders/${score.seed}/${score.genreId}`,
+    ...(effectiveSettings.sizeMode !== undefined && { sizeMode: effectiveSettings.sizeMode }),
   };
 }
 

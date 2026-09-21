@@ -29,6 +29,8 @@ export const creationSettingsSchema = z.object({
   soundSelections: z.partialRecord(trackRoleSchema, z.array(z.string().min(1))).optional(),
   beatPatternId: z.string().min(1).max(64).optional(),
   key: musicalKeySchema.optional(),
+  /** ⭐ 2026-09-18: "מה שציירת זה מה שקיבלת" — ראה CompositionConfig.sizeMode (core). */
+  sizeMode: z.enum(['trueSize', 'fitToBoard']).optional(),
 });
 
 export type CreationSettingsInput = z.infer<typeof creationSettingsSchema>;

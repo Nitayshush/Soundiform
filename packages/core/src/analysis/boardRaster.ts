@@ -32,6 +32,22 @@ export interface RasterPath {
   closed: boolean;
 }
 
+/**
+ * ⭐ 2026-09-21 (בקשה חיה, גרסה מתוקנת): טביעת-הרגל האופקית (X) שהציור בפועל תופס —
+ * מיוצא כדי ש-harmonyEngine.ts יוכל לתחום גם את תבנית-התופים הקבועה (buildPatternDrumNotes,
+ * שלא נגזרת מהרסטר) לאותו חלון-זמן, בלי לשכפל את חישוב ה-min/max כאן. `null` = אין בכלל
+ * ציר-X (מערך ריק).
+ */
+export function computeDrawnXExtent(
+  paths: readonly RasterPath[],
+): { minX: number; maxX: number } | null {
+  const xs = paths.flatMap((path) => path.points.map((point) => point.x));
+  if (xs.length === 0) {
+    return null;
+  }
+  return { minX: Math.min(...xs), maxX: Math.max(...xs) };
+}
+
 /** לכל עמודת-זמן, אינדקסי-השורות שנחצו — ממוינים מהנמוך לגבוה, בלי כפילויות. */
 export type BoardRaster = readonly (readonly number[])[];
 
@@ -40,6 +56,24 @@ export interface BoardRasterOptions {
   columnCount: number;
   /** תקרת תווים בו-זמנית בעמודה אחת — ראה limitVoices. */
   maxVoicesPerColumn: number;
+  /**
+   * ⭐ 2026-09-18 (לפי בקשה חיה: "מה שציירת זה מה שקיבלת"): ברירת-מחדל `true` — ציר-הזמן
+   * (X) נמתח כך שהטווח האופקי **של הציור עצמו** (minX/maxX) ימלא את כל columnCount, בלי
+   * קשר לכמה מרוחב הלוח המקורי הציור בפועל תפס. `false` ממפה ישירות מול הקנבס המלא
+   * (minX=0, "רוחב"=1) — **בדיוק** אותה שיטה שציר ה-Y כבר משתמש בה
+   * (`quantizeYToRowIndex`, noteBoard.ts) — כך שקו קצר בפינת הלוח נשאר מרוכז בחלק קטן
+   * מהזמן, לא נמתח למלוא היצירה. ⚠️ לא משפיע על הענף המיוחד של קו-אנכי-מושלם (רוחב≈0)
+   * למטה — זה נשאר "אקורד מוחזק" בשני המצבים, כי אין שם בכלל ציר-זמן לפרוס עליו.
+   *
+   * ⚠️⚠️ 2026-09-21 (סבב-תיקון, בדיקה חיה: "שני המצבים נשמעים כמעט זהים"): נוסה כאן קודם
+   * ריפוד-עמודות סביב טביעת-הרגל (כדי לפתור "תופים על אזור-מת") — **הוסר**. הריפוד מתח את
+   * טביעת-הרגל למלא את כל columnCount בדיוק כמו stretchToFillColumns:true, כלומר שני
+   * המצבים נהיו כמעט-שקולים: ציור-קטן עדיין "נמרח" על רוב אורך-היצירה. `false` חוזר להיות
+   * מיפוי-קנבס טהור (בלי מתיחה בכלל) — זה מה ש**באמת** שומר על גודל יחסי (ציור קטן = תוכן
+   * מוזיקלי דחוס בפועל בחלק קטן מהזמן). פתרון "תופים על אזור-מת" עבר למקום הנכון —
+   * composeMusicalScore מתחם את תבנית-התופים הקבועה לטביעת-הרגל בעצמה (ראה computeDrawnXExtent).
+   */
+  stretchToFillColumns?: boolean;
 }
 
 function toColumn(x: number, minX: number, xRange: number, columnCount: number): number {
@@ -83,7 +117,7 @@ export function rasterizeShapeToBoard(
   paths: readonly RasterPath[],
   options: BoardRasterOptions,
 ): BoardRaster {
-  const { rowCount, columnCount, maxVoicesPerColumn } = options;
+  const { rowCount, columnCount, maxVoicesPerColumn, stretchToFillColumns = true } = options;
   const columns: Set<number>[] = Array.from({ length: columnCount }, () => new Set<number>());
 
   const allPoints = paths.flatMap((path) => [...path.points]);
@@ -92,18 +126,23 @@ export function rasterizeShapeToBoard(
   }
 
   const xs = allPoints.map((point) => point.x);
-  const minX = Math.min(...xs);
-  const xRange = Math.max(...xs) - minX;
+  const drawnMinX = Math.min(...xs);
+  const drawnXRange = Math.max(...xs) - drawnMinX;
 
-  // ⚠️ ציור חסר-רוחב (קו אנכי מושלם) — אין ציר-זמן לפרוס עליו. כל השורות שנחצו מושמעות
-  // בכל עמודה, כלומר אקורד מוחזק. זו הפרשנות היחידה שלא ממציאה תנועה שלא צוירה.
-  if (xRange < MIN_X_RANGE) {
+  // ⚠️ ציור חסר-רוחב (קו אנכי מושלם) — אין ציר-זמן לפרוס עליו, בשני המצבים כאחד (זה נשאר
+  // "כמה מרוחב-הקנבס הקו בפועל תפס", לא תלוי אם ממפים מול הקנבס או מול הציור עצמו). כל
+  // השורות שנחצו מושמעות בכל עמודה, כלומר אקורד מוחזק. זו הפרשנות היחידה שלא ממציאה
+  // תנועה שלא צוירה.
+  if (drawnXRange < MIN_X_RANGE) {
     const rows = [
       ...new Set(allPoints.map((point) => quantizeYToRowIndex(point.y, rowCount))),
     ].sort((a, b) => a - b);
     const limited = limitVoices(rows, maxVoicesPerColumn);
     return columns.map(() => [...limited]);
   }
+
+  const minX = stretchToFillColumns ? drawnMinX : 0;
+  const xRange = stretchToFillColumns ? drawnXRange : 1;
 
   for (const path of paths) {
     // path סגור נסגר כאן במפורש (הנקודה הראשונה נוספת בסוף) — אחרת המקטע האחרון, שהוא

@@ -53,6 +53,8 @@ export interface EncodeVideoInput {
    * מכפיל את זמן הקידוד, וזה בדיוק מה שהעברנו למכשיר כדי לחסוך.
    */
   backgroundImage?: ImageBitmap | null;
+  /** ⭐ 2026-09-19: "מה שציירת זה מה שקיבלת" — ראה DrawFrameInput.sizeMode (video). */
+  sizeMode?: 'trueSize' | 'fitToBoard';
   /** הבאפר שכבר רונדר לנגינה — לא מרנדרים אודיו מחדש. */
   audio: AudioBuffer;
   durationSeconds: number;
@@ -130,6 +132,7 @@ export async function encodeVideoInBrowser(input: EncodeVideoInput): Promise<Uin
     score,
     shapeData,
     backgroundImage,
+    sizeMode,
     audio,
     durationSeconds,
     dimensions,
@@ -241,6 +244,7 @@ export async function encodeVideoInBrowser(input: EncodeVideoInput): Promise<Uin
         score,
         shapeData,
         ...(backgroundImage && { backgroundImage }),
+        ...(sizeMode !== undefined && { sizeMode }),
         progress: Math.min(1, frameIndex / scannerFrameCount),
         dimensions,
         watermark,

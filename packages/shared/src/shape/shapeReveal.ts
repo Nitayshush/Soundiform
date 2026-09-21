@@ -17,6 +17,11 @@
  * @created     2026-08-23
  *
  * ⚠️ אין לשנות ללא אישור — ראה PROJECT.md §0.1
+ *
+ * ⭐ 2026-09-21 (לפי בקשה חיה: "צבעי הציור צריכים להישמר גם בקטע שנוצר"): revealedSegments
+ * מחזיר עכשיו pathIndex לצד כל מקטע (לא רק points[] גולמי) — כדי שהצרכן (ScoreStaff.tsx/
+ * drawFrame.ts) יוכל לצייר כל מקטע בצבע ה-path המקורי שלו (ShapeData.pathStyles[pathIndex]),
+ * במקום צבע-קבוע אחיד לכל הצורה.
  */
 
 import type { ShapeData, ShapePoint } from './ShapeData';
@@ -39,24 +44,41 @@ export interface ShapeLayout {
 const MIN_SEGMENT_WIDTH = 1e-9;
 
 /**
- * מקרין את כל נקודות הצורה למערכת-הצירים של הפריים: X ו-Y כל אחד מנורמל *בנפרד* לפי תיבת-
- * התיחום של הצורה (לא לפי 0..1 הגלובלי של קנבס הציור) — אותה פילוסופיית "התאמה לתוכן בפועל"
- * ש-computeLayout/computeScoreLayout כבר מיישמים על התווים עצמם.
+ * מקרין את כל נקודות הצורה למערכת-הצירים של הפריים.
+ *
+ * ⚠️ ברירת-מחדל (`stretchToFillFrame`=true, לא מסופק): X ו-Y כל אחד מנורמל *בנפרד* לפי
+ * תיבת-התיחום של הצורה (לא לפי 0..1 הגלובלי של קנבס הציור) — אותה פילוסופיית "התאמה
+ * לתוכן בפועל" ש-computeLayout/computeScoreLayout כבר מיישמים על התווים עצמם.
+ *
+ * ⭐ 2026-09-19 (לפי בקשה חיה: "גם בסרטון תציג אותה נחשפת ולא תשנה גודל"): `false` מקרין
+ * ישירות מול הקנבס המלא (0..1 על כל ציר, בדיוק כמו שהנקודות כבר מנורמלות מרגע הציור) —
+ * בלי שום התאמה-לתיבת-התיחום. קו קצר בפינת הלוח נשאר מוצג קטן ובפינה, לא נמתח למלוא
+ * הפריים. זו בדיוק אותה עקרון-"גודל אמיתי" כמו CompositionConfig.sizeMode
+ * (packages/core, boardRaster.ts) — כאן זה הצד **הוויזואלי** (התצוגה החיה + הווידאו),
+ * לא הצד המוזיקלי.
  */
-export function projectShapeToStaff(shape: ShapeData, dimensions: FrameDimensions): ShapeLayout {
+export function projectShapeToStaff(
+  shape: ShapeData,
+  dimensions: FrameDimensions,
+  stretchToFillFrame = true,
+): ShapeLayout {
   const allPoints = shape.paths.flatMap((path) => path.points);
   if (allPoints.length === 0) {
     return { paths: [], width: dimensions.width };
   }
 
-  const xs = allPoints.map((point) => point.x);
-  const ys = allPoints.map((point) => point.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const xRange = maxX - minX || 1;
-  const yRange = maxY - minY || 1;
+  let minX = 0;
+  let xRange = 1;
+  let minY = 0;
+  let yRange = 1;
+  if (stretchToFillFrame) {
+    const xs = allPoints.map((point) => point.x);
+    const ys = allPoints.map((point) => point.y);
+    minX = Math.min(...xs);
+    minY = Math.min(...ys);
+    xRange = Math.max(...xs) - minX || 1;
+    yRange = Math.max(...ys) - minY || 1;
+  }
 
   const projectPoint = (point: ShapePoint): ShapePoint => ({
     x: ((point.x - minX) / xRange) * dimensions.width,
@@ -138,11 +160,20 @@ function revealedSubPolylines(
   return result;
 }
 
+/** מקטע-חשיפה אחד — points בתוספת pathIndex (איזה path מקורי הוא הגיע ממנו, ראה ⭐ 2026-09-21 למעלה). */
+export interface RevealedSegment {
+  pathIndex: number;
+  points: ShapePoint[];
+}
+
 /**
  * מחזיר, עבור progress נתון (0–1), את כל תת-הפוליליינים שנמצאים משמאל לקו הסורק
- * (scanX = progress * layout.width) — בלי קשר לסדר שבו הצורה צוירה.
+ * (scanX = progress * layout.width) — בלי קשר לסדר שבו הצורה צוירה. כל מקטע נושא את
+ * pathIndex המקורי שלו, כדי שאפשר יהיה לצייר אותו בצבע ה-path הנכון (ShapeData.pathStyles).
  */
-export function revealedSegments(layout: ShapeLayout, progress: number): ShapePoint[][] {
+export function revealedSegments(layout: ShapeLayout, progress: number): RevealedSegment[] {
   const scanX = Math.max(0, Math.min(1, progress)) * layout.width;
-  return layout.paths.flatMap((path) => revealedSubPolylines(path.points, path.closed, scanX));
+  return layout.paths.flatMap((path, pathIndex) =>
+    revealedSubPolylines(path.points, path.closed, scanX).map((points) => ({ pathIndex, points })),
+  );
 }

@@ -118,6 +118,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       // ⚠️ ה-plan מוחזר לתצוגה בלבד (איזה קבצים בכלל שווה להעלות) — לא מחליף שום בדיקת-שרת.
       plan: resolved.plan,
       uploads,
+      ...(resolved.sizeMode !== undefined && { sizeMode: resolved.sizeMode }),
     },
     { status: 200 },
   );

@@ -54,6 +54,32 @@ describe('projectShapeToStaff', () => {
     expect(points?.at(-1)?.x).toBeCloseTo(DIMENSIONS.width);
   });
 
+  it('stretchToFillFrame:false — ממפה ישירות מול הקנבס המלא, לא מתאים לתיבת-התיחום (2026-09-19)', () => {
+    // קו קצר, מרוכז בפינה (x: 0.1-0.3 מתוך קנבס 0-1 מלא) — לא ממלא את כל רוחב-הצורה.
+    const shortCornerLine: ShapeData = {
+      version: '1.0.0',
+      paths: [
+        {
+          closed: false,
+          points: [
+            { x: 0.1, y: 0.5 },
+            { x: 0.3, y: 0.5 },
+          ],
+        },
+      ],
+    };
+    const stretched = projectShapeToStaff(shortCornerLine, DIMENSIONS);
+    const trueSize = projectShapeToStaff(shortCornerLine, DIMENSIONS, false);
+
+    // stretch (ברירת-מחדל): הקו הקצר עדיין נמתח למלוא רוחב-הפריים.
+    expect(stretched.paths[0]?.points[0]?.x).toBeCloseTo(0);
+    expect(stretched.paths[0]?.points.at(-1)?.x).toBeCloseTo(DIMENSIONS.width);
+
+    // trueSize: הקו נשאר במיקומו/גודלו האמיתי (10%-30% מרוחב הפריים), לא נמתח.
+    expect(trueSize.paths[0]?.points[0]?.x).toBeCloseTo(0.1 * DIMENSIONS.width);
+    expect(trueSize.paths[0]?.points.at(-1)?.x).toBeCloseTo(0.3 * DIMENSIONS.width);
+  });
+
   it('צורה עם טווח-X אפסי לא זורקת (מוגן מחלוקה באפס)', () => {
     const verticalLine: ShapeData = {
       version: '1.0.0',
@@ -81,7 +107,7 @@ describe('revealedSegments', () => {
     const layout = projectShapeToStaff(openLine(), DIMENSIONS);
     const revealed = revealedSegments(layout, 1);
     expect(revealed).toHaveLength(1);
-    expect(revealed[0]?.at(-1)?.x).toBeCloseTo(DIMENSIONS.width);
+    expect(revealed[0]?.points.at(-1)?.x).toBeCloseTo(DIMENSIONS.width);
   });
 
   it('חושף לפי מיקום-X מול הסורק, לא לפי סדר-ציור: אף נקודה חשופה לא חורגת מהסורק', () => {
@@ -89,9 +115,24 @@ describe('revealedSegments', () => {
     // יש לה את ה-X הגבוה ביותר; ב-progress=0.5 היא לא אמורה להיחשף בכלל, למרות סדר הציור.
     const layout = projectShapeToStaff(zigzag(), DIMENSIONS);
     const revealed = revealedSegments(layout, 0.5);
-    const allPoints = revealed.flat();
+    const allPoints = revealed.flatMap((segment) => segment.points);
     expect(allPoints.length).toBeGreaterThan(0);
     expect(allPoints.every((point) => point.x <= DIMENSIONS.width / 2 + 1e-6)).toBe(true);
+  });
+
+  it('⭐ 2026-09-21: כל מקטע נושא את pathIndex של ה-path המקורי שלו, לא רק points גולמי', () => {
+    // שני paths נפרדים (לא zigzag אחד) — pathIndex 0 ו-1, כל אחד חוצה את הסורק פעם אחת.
+    const twoPaths: ShapeData = {
+      version: '1.0.0',
+      paths: [
+        { closed: false, points: [{ x: 0, y: 0.2 }, { x: 1, y: 0.2 }] },
+        { closed: false, points: [{ x: 0, y: 0.8 }, { x: 1, y: 0.8 }] },
+      ],
+    };
+    const layout = projectShapeToStaff(twoPaths, DIMENSIONS);
+    const revealed = revealedSegments(layout, 1);
+    expect(revealed).toHaveLength(2);
+    expect(revealed.map((segment) => segment.pathIndex).sort()).toEqual([0, 1]);
   });
 
   it('צורה שחוצה את הסורק פעמיים (זיגזג) חושפת שני תת-פוליליינים נפרדים', () => {

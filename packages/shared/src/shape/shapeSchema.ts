@@ -19,7 +19,15 @@ export const shapePathSchema = z.object({
   closed: z.boolean(),
 });
 
+/** ⭐ 2026-09-21 — ראה PathStyle ב-ShapeData.ts. */
+export const pathStyleSchema = z.object({
+  color: z.string().min(1),
+  strokeWidth: z.number().nonnegative(),
+});
+
 export const shapeDataSchema = z.object({
   version: z.string().min(1),
   paths: z.array(shapePathSchema).min(1, 'צורה חייבת לפחות מסלול אחד'),
+  // ⚠️ אופציונלי בכוונה — תאימות-לאחור מלאה לפרויקטים שנשמרו לפני ⭐ 2026-09-21.
+  pathStyles: z.array(pathStyleSchema).optional(),
 });

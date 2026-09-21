@@ -38,6 +38,8 @@ const NOTE_BAR_MIN_HEIGHT = 4;
 const NOTE_BAR_ALPHA = 0.85;
 const GLOW_BLUR_PX = 14;
 const BACKGROUND_PULSE_COLOR = '#8b7cf6';
+// ⚠️ 2026-09-21: fallback בלבד — ראה shapeData.pathStyles ב-drawShapeTrace למטה. משמש רק
+// כשל-path אין רשומת-סגנון (צורה בלי pathStyles, למשל SVG/raster מיובאים).
 const SHAPE_TRACE_COLOR = '#211b4a';
 const SHAPE_TRACE_GLOW_PX = 10;
 const SHAPE_TRACE_ALPHA = 0.95;
@@ -195,23 +197,37 @@ function drawShapeTrace(
   shapeData: ShapeData,
   dimensions: FrameDimensions,
   progress: number,
+  stretchToFillFrame: boolean,
 ): void {
-  const polylines = revealedSegments(projectShapeToStaff(shapeData, dimensions), progress);
-  if (polylines.length === 0) {
+  const segments = revealedSegments(
+    projectShapeToStaff(shapeData, dimensions, stretchToFillFrame),
+    progress,
+  );
+  if (segments.length === 0) {
     return;
   }
-  ctx.strokeStyle = SHAPE_TRACE_COLOR;
-  ctx.shadowColor = SHAPE_TRACE_COLOR;
-  ctx.shadowBlur = SHAPE_TRACE_GLOW_PX;
   ctx.lineWidth = Math.max(SHAPE_TRACE_MIN_WIDTH, dimensions.width * SHAPE_TRACE_WIDTH_RATIO);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.globalAlpha = SHAPE_TRACE_ALPHA;
-  for (const points of polylines) {
+  // ⭐ 2026-09-21 (לפי בקשה חיה: "צבעי הציור צריכים להישמר גם בקטע שנוצר"): כל מקטע מצויר
+  // בצבע ה-path המקורי שלו (shapeData.pathStyles[pathIndex]) — מגיע "בחינם" כי pathStyles
+  // כבר יושב בתוך shapeData עצמו (נשמר ב-DB יחד איתו, ראה ShapeData.ts). fallback ל-
+  // SHAPE_TRACE_COLOR הקבוע רק כשאין רשומת-סגנון בכלל. 'transparent' (path-placeholder
+  // של סטיקר-אימוג'י) מדולג — בדיוק כמו ScoreStaff.tsx/DrawingCanvas.tsx.
+  for (const { pathIndex, points } of segments) {
+    const style = shapeData.pathStyles?.[pathIndex];
+    if (style?.color === 'transparent') {
+      continue;
+    }
     const [first, ...rest] = points;
     if (!first) {
       continue;
     }
+    const traceColor = style?.color ?? SHAPE_TRACE_COLOR;
+    ctx.strokeStyle = traceColor;
+    ctx.shadowColor = traceColor;
+    ctx.shadowBlur = SHAPE_TRACE_GLOW_PX;
     ctx.beginPath();
     ctx.moveTo(first.x, first.y);
     for (const point of rest) {
@@ -239,6 +255,13 @@ export interface DrawFrameInput {
    * וקו-הסורק כן נשארים, והם מה שמראה איפה הסאונד נוגע בשלד שמתחת.
    */
   backgroundImage?: CanvasImageLike | null;
+  /**
+   * ⭐ 2026-09-19 (לפי בקשה חיה: "גם בסרטון תציג אותה נחשפת ולא תשנה גודל"): undefined/
+   * 'fitToBoard' = ההתנהגות הישנה (מתאר-הצורה נמתח למלוא הפריים). 'trueSize' מציג אותו
+   * בגודלו/מיקומו האמיתיים על הקנבס — ראה projectShapeToStaff (shapeReveal.ts). אותו
+   * ערך בדיוק כמו CompositionConfig.sizeMode (core) — כאן זה הצד הוויזואלי.
+   */
+  sizeMode?: 'trueSize' | 'fitToBoard';
 }
 
 /**
@@ -267,7 +290,7 @@ function drawContainedImage(
 }
 
 export function drawVideoFrame(ctx: Canvas2DLike, input: DrawFrameInput): void {
-  const { score, shapeData, progress, dimensions, watermark, backgroundImage } = input;
+  const { score, shapeData, progress, dimensions, watermark, backgroundImage, sizeMode } = input;
   const { width, height } = dimensions;
 
   ctx.globalAlpha = 1;
@@ -292,7 +315,7 @@ export function drawVideoFrame(ctx: Canvas2DLike, input: DrawFrameInput): void {
   // ⭐ מעל התווים — ראה הערת-התיקון בראש הקובץ.
   // ⚠️ מדולג כשיש תמונה מקורית: היא כבר מראה את הצורה, ומתאר מעליה היה מסתיר אותה.
   if (!backgroundImage) {
-    drawShapeTrace(ctx, shapeData, dimensions, progress);
+    drawShapeTrace(ctx, shapeData, dimensions, progress, sizeMode !== 'trueSize');
   }
 
   const scanX = progress * width;

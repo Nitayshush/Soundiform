@@ -76,6 +76,8 @@ function extractRhythmPatternOptions(
 export interface CompositionOverrides {
   beatPatternId?: string;
   key?: { rootPitchClass: number; mode: GenrePack['defaultMode'] };
+  /** ⭐ 2026-09-18: "מה שציירת זה מה שקיבלת" — ראה CompositionConfig.sizeMode (core). */
+  sizeMode?: 'trueSize' | 'fitToBoard';
 }
 
 /**
@@ -90,10 +92,19 @@ export interface CompositionOverrides {
  * ⚠️ "מהציור" נשאר זמין, אבל עכשיו הוא **בחירה מפורשת** (DRAWING_BEAT_ID) ולא היעדר-בחירה.
  * מזהה לא-מוכר נופל לברירת המחדל של הסגנון, לא לשקט — אחרי החלפת סגנון עדיף גרוב שגוי
  * מאשר תופים בלי דופק.
+ *
+ * ⭐ 2026-09-17 (לפי ניתוח חי: "כל ציור באותו סגנון מקבל בדיוק את אותו קצב"): ברירת-המחדל
+ * הייתה **תמיד** `beatPatterns[0]` — כל סגנון כבר מגדיר 2-4 תבניות-קצב חלופיות
+ * (house: classic-house/jackin/shuffle/deep וכו') שאף פעם לא נבחרות אוטומטית. עכשיו,
+ * כשלא נבחר ביט מפורשות, הבחירה תלוית-`seed` (hash הצורה) — אותה טכניקה בדיוק כמו
+ * ברירת-המחדל של בחירת-כלי (`seededIndex`, למטה). `seed` אופציונלי בכוונה: קריאות
+ * ישנות/טסטים שלא מעבירים `seed` ממשיכות לקבל בדיוק את ההתנהגות הקודמת (`patterns[0]`)
+ * — שום דבר לא נשבר, רק נוסף מקור-גיוון לקריאות שכן מעבירות אותו.
  */
 function resolveBeatPattern(
   pack: GenrePack,
   beatPatternId: string | undefined,
+  seed: string | undefined,
 ): NonNullable<GenrePack['beatPatterns']>[number] | undefined {
   if (beatPatternId === DRAWING_BEAT_ID) {
     return undefined;
@@ -101,7 +112,41 @@ function resolveBeatPattern(
   const chosen = beatPatternId
     ? pack.beatPatterns?.find((candidate) => candidate.id === beatPatternId)
     : undefined;
-  return chosen ?? pack.beatPatterns?.[0];
+  if (chosen) {
+    return chosen;
+  }
+  const patterns = pack.beatPatterns;
+  if (!patterns || patterns.length === 0) {
+    return undefined;
+  }
+  if (!seed) {
+    return patterns[0];
+  }
+  return patterns[seededIndex(seed, 'beatPattern', patterns.length)];
+}
+
+/**
+ * ⭐ 2026-09-18 (לפי בקשה חיה: "אם השורש ישתנה, הסגנון מאבד משמעות — אבל איך יוצרים שוני
+ * בלי לגעת בשורש?"): המוד קבוע-לסגנון היום (תמיד defaultMode) בכל לוח-תווים-אבסולוטי,
+ * גם כשיש כמה מודים מותרים (allowedModes) שאף פעם לא נבחרים בפועל — בדיוק כמו שהביט היה
+ * לפני 2026-09-17. בחירה תלוית-seed מתוך allowedModes נותנת גוון הרמוני שונה (למשל House:
+ * Dorian מול Mixolydian) בין ציורים שונים, בלי לגעת בשורש — אותה טכניקה בדיוק כמו
+ * resolveBeatPattern למעלה. שורש נשאר קבוע-לגמרי-לסגנון (ABSOLUTE_BOARD_ROOT_PITCH_CLASS,
+ * core), וזה מה ששומר על זהות-הסגנון — רק הצבע-ההרמוני בתוכו יכול להשתנות.
+ */
+function resolveMode(
+  pack: GenrePack,
+  overrideMode: GenrePack['defaultMode'] | undefined,
+  seed: string | undefined,
+): GenrePack['defaultMode'] {
+  if (overrideMode) {
+    return overrideMode;
+  }
+  const modes = pack.allowedModes;
+  if (modes.length <= 1 || !seed) {
+    return pack.defaultMode;
+  }
+  return modes[seededIndex(seed, 'mode', modes.length)] ?? pack.defaultMode;
 }
 
 function withSkankOverride(
@@ -114,10 +159,11 @@ function withSkankOverride(
 export function toCompositionConfig(
   pack: GenrePack,
   overrides?: CompositionOverrides,
+  seed?: string,
 ): CompositionConfig {
   const rhythmPatterns = extractRhythmPatterns(pack);
   const rhythmPatternOptions = extractRhythmPatternOptions(pack);
-  const beatPattern = resolveBeatPattern(pack, overrides?.beatPatternId);
+  const beatPattern = resolveBeatPattern(pack, overrides?.beatPatternId, seed);
   // ⭐ 2026-09-02: פיגורת הסקאנק של הגרוב הנבחר. הסקאנק נמדד כ-50%-59% מאנרגיית המיקס,
   // והוא היה זהה בכל הביטים — כלומר רוב מה שהמשתמש שומע לא השתנה כשהחליף ביט.
   const skankFigure: RhythmStepPattern | undefined = beatPattern?.skank
@@ -126,7 +172,7 @@ export function toCompositionConfig(
   return {
     genreId: pack.id,
     tempoBpm: pack.tempo.default,
-    mode: overrides?.key?.mode ?? pack.defaultMode,
+    mode: resolveMode(pack, overrides?.key?.mode, seed),
     gridSubdivision: pack.grid.subdivision,
     swingAmount: pack.grid.swingAmount,
     chordProgression: pack.chordProgression,
@@ -171,6 +217,7 @@ export function toCompositionConfig(
         pieces: beatPattern.pieces as BeatPattern['pieces'],
       },
     }),
+    ...(overrides?.sizeMode !== undefined && { sizeMode: overrides.sizeMode }),
   };
 }
 

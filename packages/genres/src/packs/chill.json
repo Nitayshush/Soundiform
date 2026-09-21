@@ -17,6 +17,11 @@
   "defaultMode": "lydian",
   "harmonicTendency": "extended",
   "chordProgression": [1, 4, 0, 5],
+  "chordProgressionOptions": [
+    [1, 4, 0, 5],
+    [1, 0, 4, 5],
+    [1, 5, 4, 0]
+  ],
   "roles": ["bass", "lead", "pad", "drums"],
   "rhythmPatterns": {
     "bass": [

@@ -32,6 +32,7 @@ export function useCompositionOverrides(): CompositionOverrides {
     return {
       ...(beatPatternId !== undefined && { beatPatternId }),
       ...(settings?.key !== undefined && { key: settings.key }),
+      ...(settings?.sizeMode !== undefined && { sizeMode: settings.sizeMode }),
     };
   }, [settings]);
 }

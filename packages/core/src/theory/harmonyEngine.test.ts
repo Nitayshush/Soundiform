@@ -639,27 +639,34 @@ describe('composeMusicalScore — לוח-תווים אבסולוטי (absoluteNo
       };
     }
 
-    it('200 צורות אקראיות: אף חלק-ערכה לא נפגע פעמיים באותו startTick', () => {
-      const random = createSeededRandom('drum-simultaneity-sweep');
-      for (let index = 0; index < 200; index += 1) {
-        const score = composeMusicalScore(
-          geometryToMusic(randomShape(random), `drum-sweep-${String(index)}`),
-          ABSOLUTE_CONFIG,
-        );
-        const drums = score.tracks.find((track) => track.role === 'drums')?.notes ?? [];
-        const lastStart = new Map<string, number>();
-        for (const note of drums) {
-          const piece = note.drumPiece ?? 'unknown';
-          const previous = lastStart.get(piece);
-          // בדיוק התנאי ש-Tone.Source.start אוכף: גדול **ממש**.
-          expect(
-            previous === undefined || note.startTick > previous,
-            `shape ${String(index)}`,
-          ).toBe(true);
-          lastStart.set(piece, note.startTick);
+    it(
+      '200 צורות אקראיות: אף חלק-ערכה לא נפגע פעמיים באותו startTick',
+      () => {
+        const random = createSeededRandom('drum-simultaneity-sweep');
+        for (let index = 0; index < 200; index += 1) {
+          const score = composeMusicalScore(
+            geometryToMusic(randomShape(random), `drum-sweep-${String(index)}`),
+            ABSOLUTE_CONFIG,
+          );
+          const drums = score.tracks.find((track) => track.role === 'drums')?.notes ?? [];
+          const lastStart = new Map<string, number>();
+          for (const note of drums) {
+            const piece = note.drumPiece ?? 'unknown';
+            const previous = lastStart.get(piece);
+            // בדיוק התנאי ש-Tone.Source.start אוכף: גדול **ממש**.
+            expect(
+              previous === undefined || note.startTick > previous,
+              `shape ${String(index)}`,
+            ).toBe(true);
+            lastStart.set(piece, note.startTick);
+          }
         }
-      }
-    });
+      },
+      // ⭐ 2026-09-18: 5000→20000. runToNotes (lead/bass, ראה ההערה שם) מפצל run ארוך
+      // לכמה תווים במקום תו-אחד-מקוצץ — נכון מוזיקלית, אבל בין 200 צורות אקראיות יש כאלה
+      // עם run ארוך-במיוחד (קטע כמעט-שטוח), וזה מוסיף עבודה אמיתית, לא רגרסיית-ביצועים.
+      20000,
+    );
 
     it('איחוד מכות שומר על העוצמה החזקה מביניהן, לא על האחרונה', () => {
       // קו אנכי חוצה את כל השורות בבת אחת — הדרך הישירה ביותר לייצר התנגשות.
@@ -1062,6 +1069,25 @@ describe('composeMusicalScore — לוח-תווים אבסולוטי שלב 2: �
     }
   });
 
+  it('הבס יושב אוקטבה שלמה מתחת לפאד — לא באותו רגיסטר (תיקון 2026-09-20)', () => {
+    // ⚠️ לפני התיקון buildRasterBassNotes לא הוריד אוקטבה בכלל, והבס יצא באותו רגיסטר
+    // כמו הפאד — לא נשמע/פעל כבאס אמיתי. עכשיו ההפרש הממוצע צריך להיות קרוב ל-12
+    // חצאי-טונים (אוקטבה), לא קרוב ל-0.
+    for (const shape of [makeTriangleShapeData(), makeSquareShapeData(), makeCircleShapeData()]) {
+      const score = composeMusicalScore(
+        geometryToMusic(shape, 'seed-bass-octave'),
+        ABSOLUTE_CONFIG,
+      );
+      const bass = score.tracks.find((track) => track.role === 'bass')?.notes ?? [];
+      const pad = score.tracks.find((track) => track.role === 'pad')?.notes ?? [];
+      expect(bass.length).toBeGreaterThan(0);
+      expect(pad.length).toBeGreaterThan(0);
+      const avg = (notes: typeof bass) =>
+        notes.reduce((sum, note) => sum + note.pitch, 0) / notes.length;
+      expect(avg(pad) - avg(bass)).toBeGreaterThan(6);
+    }
+  });
+
   it('validateConstitution ריק (כולל note-in-scale/realistic-range) על כמה צורות שונות', () => {
     for (const shape of [makeTriangleShapeData(), makeSquareShapeData(), makeCircleShapeData()]) {
       const score = composeMusicalScore(
@@ -1103,5 +1129,73 @@ describe('composeMusicalScore — לוח-תווים אבסולוטי שלב 2: �
     const drumsTrack = score.tracks.find((track) => track.role === 'drums');
     const distinctPitches = new Set(drumsTrack?.notes.map((note) => note.pitch));
     expect(distinctPitches.size).toBe(1);
+  });
+});
+
+describe('composeMusicalScore — sizeMode "trueSize": כל הסאונד מתחיל/מסתיים לפי הצורה (2026-09-21)', () => {
+  const ABSOLUTE_CONFIG: CompositionConfig = {
+    ...DEFAULT_TEST_CONFIG,
+    absoluteNoteBoard: true,
+    beatPattern: {
+      id: 'four-on-floor',
+      stepsPerBar: 16,
+      pieces: { kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] },
+    },
+  };
+
+  /** צורה עם טביעת-רגל אופקית צרה (x: 0.3-0.5 בלבד מתוך הלוח) אבל מספיק "פינות" כדי ליצור
+   * יצירה בת כמה ברים (motifSize/sizeHint) — כדי שיהיה בכלל מה למדוד. */
+  function narrowFootprintShape(): ShapeData {
+    return {
+      version: '1.0.0',
+      paths: [
+        {
+          closed: false,
+          points: Array.from({ length: 100 }, (_, index) => ({
+            x: 0.3 + (0.2 * index) / 99,
+            y: index % 2 === 0 ? 0.02 : 0.98,
+          })),
+        },
+      ],
+    };
+  }
+
+  function kickBars(score: ReturnType<typeof composeMusicalScore>): number[] {
+    const drums = score.tracks.find((track) => track.role === 'drums');
+    const bars = new Set(
+      (drums?.notes ?? [])
+        .filter((note) => note.drumPiece === 'kick')
+        .map((note) => Math.floor(note.startTick / (4 * 480))),
+    );
+    return [...bars].sort((a, b) => a - b);
+  }
+
+  it('⚠️ הבאג שדווח בבדיקה חיה: trueSize תיקון-הריפוד הישן הפך אותו כמעט-שקול ל-fitToBoard — עכשיו שונה באמת', () => {
+    const intent = geometryToMusic(narrowFootprintShape(), 'seed-narrow-footprint');
+    const trueScore = composeMusicalScore(intent, { ...ABSOLUTE_CONFIG, sizeMode: 'trueSize' });
+    const fitScore = composeMusicalScore(intent, { ...ABSOLUTE_CONFIG, sizeMode: 'fitToBoard' });
+    expect(trueScore.durationBars).toBe(fitScore.durationBars); // אורך-היצירה עצמו לא משתנה.
+    const trueBars = kickBars(trueScore);
+    const fitBars = kickBars(fitScore);
+    // fitToBoard תמיד ממלא את כל הברים בתבנית-הקצב הקבועה — ההתנהגות הישנה, בלי שינוי.
+    expect(fitBars).toEqual(
+      Array.from({ length: trueScore.durationBars }, (_, index) => index),
+    );
+    // trueSize: התופים מוגבלים לטביעת-הרגל של הציור (+שולי-בר) — לא כל אורך היצירה.
+    expect(trueBars.length).toBeLessThan(fitBars.length);
+    expect(trueBars.every((bar) => fitBars.includes(bar))).toBe(true);
+  });
+
+  it('fitToBoard לא מושפע כלל — עדיין ממלא את כל הברים, גם עם טביעת-רגל צרה', () => {
+    const intent = geometryToMusic(narrowFootprintShape(), 'seed-fit-unaffected');
+    const score = composeMusicalScore(intent, { ...ABSOLUTE_CONFIG, sizeMode: 'fitToBoard' });
+    expect(kickBars(score)).toHaveLength(score.durationBars);
+  });
+
+  it('בלי sizeMode בכלל (ברירת-מחדל, תאימות-לאחור) — מתנהג כמו fitToBoard, לא משתנה', () => {
+    const intent = geometryToMusic(narrowFootprintShape(), 'seed-no-sizemode');
+    const withoutSizeMode = composeMusicalScore(intent, ABSOLUTE_CONFIG);
+    const explicitFit = composeMusicalScore(intent, { ...ABSOLUTE_CONFIG, sizeMode: 'fitToBoard' });
+    expect(kickBars(withoutSizeMode)).toEqual(kickBars(explicitFit));
   });
 });

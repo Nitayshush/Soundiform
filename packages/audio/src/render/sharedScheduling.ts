@@ -103,10 +103,38 @@ export interface TrackRuntime {
  * הזנב הוא **ריפוד** בסוף היצירה שבו כבר לא מתנגן שום תו — רק דעיכה. סינמטי קיבל 5 שניות
  * כאלה ו-צ'יל 4, ועם הסורק שמגיע עכשיו לסוף יחד עם התו האחרון (ראה
  * computeMusicalDurationSeconds) זה היה משאיר את התמונה קפואה 5 שניות.
+ *
+ * ⭐ 2026-09-17 (לפי בקשה חיה: "המנגינה ממשיכה אחרי שהסורק סיים לסרוק"): 3→0. הריפוד
+ * עצמו בוטל — הסורק וה**אודיו** נגמרים עכשיו באותו רגע בדיוק, במחיר שדעיכת-הריוורב של
+ * התו האחרון נחתכת בפתאומיות במקום להיכבות טבעית. זו פשרה מכוונת לטובת סנכרון מדויק
+ * על פני "טבעיות" הזנב — הוחלט אחרי שהזנב עצמו זוהה כגורם לתחושת חוסר-אמינות.
  * ⚠️ זה **לא** משנה את הריוורב עצמו — `reverbDecaySeconds` ממשיך להיקרא כמו שהוא ע"י
- * createSharedReverbBus למטה. רק אורך הריפוד נחתך, ובנקודה הזו הדעיכה כבר מתחת ל--30dB.
+ * createSharedReverbBus למטה, רק אורך-הבאפר בפועל כבר לא כולל ריפוד אחריו.
  */
-const MAX_RELEASE_TAIL_SECONDS = 3;
+const MAX_RELEASE_TAIL_SECONDS = 0;
+
+/**
+ * ⭐ 2026-09-17 (לפי בקשה חיה: "כל צליל חייב להיות ייחודי, ואם בחרנו כמה הם חייבים
+ * להישמע יחד"): כשתפקיד אחד מנגן כמה providers (כמה כלים נבחרו — סינת'ים/דגימות/ערכה),
+ * כולם קיבלו עד עכשיו בדיוק את אותו `time` — התחלה/סיום בו-זמניים לחלוטין. זה בדיוק
+ * מה שגורם ל"היתוך שמיעתי": כמה קולות שתמיד מתחילים ונגמרים יחד נשמעים לאוזן כאובייקט
+ * קולי אחד, לא כמה כלים מובחנים שמנגנים ביחד (תזמורת אמיתית לא מסונכרנת ברמת-הדגימה).
+ *
+ * ⚠️ היסט **חיובי בלבד** (מאחר, לא מקדים) — Tone.js/Web Audio מתזמנים בביטחון קדימה,
+ * לא אחורה. הפרובайדר הראשון (i=0) נשאר בלי היסט בכלל — "העוגן" שקובע את התזמון
+ * המקורי. הערכים נבחרו עמוק בתוך הסף שבו אוזן אנושית עדיין שומעת "יחד" (חוסר-סנכרון
+ * נתפס בערך מ-20-30ms) — נקודת-פתיחה, ניתנת לכיוונון לפי בדיקת-האזנה.
+ *
+ * ⚠️ לא נוגע ב-Note/MusicalScore עצמם (§1: נשארים טהורים מהצורה) — ההיסט מיושם רק כאן,
+ * בזמן-תזמון-הניגון, ונגזר מסדר `providers` הקיים (כבר דטרמיניסטי) — כך שאותה צורה +
+ * אותן בחירות ממשיכות לתת בדיוק את אותו פלט (§1 נשמר במלואו).
+ */
+const LAYER_OFFSET_STEP_SECONDS = 0.006;
+const MAX_LAYER_OFFSET_SECONDS = 0.018;
+
+function layerOffsetSeconds(providerIndex: number): number {
+  return Math.min(providerIndex * LAYER_OFFSET_STEP_SECONDS, MAX_LAYER_OFFSET_SECONDS);
+}
 
 /**
  * ⭐ 2026-09-01: האורך ה**מוזיקלי** — עד התו האחרון, בלי זנב-הריוורב שמרופד אחריו.
@@ -203,9 +231,11 @@ export async function createTrackRuntime(
   }));
   const part = new Part<ScheduledNoteEvent>((time, event) => {
     // ⚠️ אותו תו נשלח לכל ה-providers של הטראק — זה מה שגורם לסינת' ולדגימה להישמע יחד.
-    for (const provider of providers) {
-      provider.playNote(event.note, time);
-    }
+    // ⭐ 2026-09-17: כל provider מקבל היסט-זמן זעיר משלו (layerOffsetSeconds) — ראה התיעוד
+    // למעלה. עדיין "יחד" לאוזן, אבל שובר את הסנכרון המושלם שממזג כמה קולות לאחד.
+    providers.forEach((provider, index) => {
+      provider.playNote(event.note, time + layerOffsetSeconds(index));
+    });
   }, events);
   part.start(0);
 
@@ -300,7 +330,9 @@ export async function createAllTrackRuntimes(
         audioConfig,
         reverbBus?.input,
         delayBus?.input,
-        track.role === 'drums' ? undefined : (sidechainDuck?.gain ?? undefined),
+        // ⚠️ 2026-09-20: צומת נפרד לכל טראק (createTrackGain), לא sidechainDuck.gain משותף —
+        // ראה sidechain.ts להסבר המלא על באג-סיכום-האודיו שזה מתקן.
+        track.role === 'drums' ? undefined : sidechainDuck?.createTrackGain(),
       ),
     ),
   );

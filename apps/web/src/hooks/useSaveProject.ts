@@ -49,6 +49,7 @@ export function useSaveProject(): UseSaveProjectResult {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paths = useShapeStore((state) => state.paths);
+  const pathStyles = useShapeStore((state) => state.pathStyles);
   const shapeHash = useShapeStore((state) => state.shapeHash);
   const sourceType = useShapeStore((state) => state.sourceType);
   const uploadKey = useShapeStore((state) => state.uploadKey);
@@ -73,7 +74,9 @@ export function useSaveProject(): UseSaveProjectResult {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          shape: toShapeData(paths),
+          // ⭐ 2026-09-21 (לפי בקשה חיה): pathStyles נכתב לתוך ה-shape הנשמר, כדי שהצבעים
+          // שנבחרו ישרדו גם ברינדור/בווידאו — לא רק בפריוויו החי (ראה ShapeData.ts).
+          shape: toShapeData(paths, pathStyles),
           shapeHash,
           sourceType,
           ...(uploadKey && { uploadKey }),
@@ -100,7 +103,7 @@ export function useSaveProject(): UseSaveProjectResult {
     } finally {
       setIsSaving(false);
     }
-  }, [paths, shapeHash, sourceType, uploadKey, searchParams, genreId, soundSelections]);
+  }, [paths, pathStyles, shapeHash, sourceType, uploadKey, searchParams, genreId, soundSelections]);
 
   const requestSave = useCallback(
     (extraNextParams?: string) => {

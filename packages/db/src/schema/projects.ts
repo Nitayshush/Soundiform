@@ -41,6 +41,8 @@ export interface ProjectCreationSettings {
   soundSelections?: Record<string, string[]>;
   beatPatternId?: string;
   key?: { rootPitchClass: number; mode: string };
+  /** ⭐ 2026-09-18: "מה שציירת זה מה שקיבלת" — ראה CompositionConfig.sizeMode (core). */
+  sizeMode?: 'trueSize' | 'fitToBoard';
 }
 
 export const projects = pgTable(

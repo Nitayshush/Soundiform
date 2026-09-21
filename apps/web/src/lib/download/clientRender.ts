@@ -90,6 +90,8 @@ interface StartResponse {
   video: { aspectRatio: string; quality: '720p' | '1080p' | '4k'; watermark: boolean };
   uploads: Record<string, { key: string; url: string }>;
   error?: string;
+  /** ⭐ 2026-09-19: "מה שציירת זה מה שקיבלת" — ראה DrawFrameInput.sizeMode (video). */
+  sizeMode?: 'trueSize' | 'fitToBoard';
 }
 
 const QUALITY_SHORT_SIDE: Record<string, number> = { '720p': 720, '1080p': 1080, '4k': 2160 };
@@ -273,6 +275,7 @@ export async function runClientRender(input: ClientRenderInput): Promise<ClientR
       dimensions,
       watermark: start.video.watermark,
       ...(backgroundImage && { backgroundImage }),
+      ...(start.sizeMode !== undefined && { sizeMode: start.sizeMode }),
     });
     const posterBlob = await new Promise<Blob | null>((resolve) => {
       posterCanvas.toBlob(resolve, 'image/jpeg', 0.8);
@@ -306,6 +309,7 @@ export async function runClientRender(input: ClientRenderInput): Promise<ClientR
         score: start.score,
         shapeData: start.shapeData,
         ...(backgroundImage && { backgroundImage }),
+        ...(start.sizeMode !== undefined && { sizeMode: start.sizeMode }),
         audio: videoAudio,
         durationSeconds,
         dimensions: { width: videoDimensions.width, height: videoDimensions.height },

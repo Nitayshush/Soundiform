@@ -24,7 +24,24 @@ export interface ShapePath {
   closed: boolean;
 }
 
+/**
+ * ⭐ 2026-09-21 (לפי בקשה חיה: "שצבעי הציור יישמרו גם ביצירת המוזיקה"): עיצוב חזותי
+ * (צבע/עובי-קו) של path בודד — index-aligned עם ShapeData.paths. הוגדר כאן (לא רק ב-
+ * apps/web's shapeStore.ts, שם נולד לראשונה ב-Kids Studio) כדי שיוכל לנסוע בתוך ShapeData
+ * עצמו דרך כל הצנרת הקיימת (שמירה→DB→רינדור-במכשיר/worker) בלי שרשור נפרד בכל שכבה.
+ */
+export interface PathStyle {
+  color: string;
+  strokeWidth: number;
+}
+
 export interface ShapeData {
   version: string;
   paths: ShapePath[];
+  /**
+   * ⚠️ אופציונלי ולא חלק מ-computeShapeHash (shapeHash.ts בונה אובייקט-קנוני ידני שקורא
+   * רק paths) — צבע לעולם לא משפיע על המוזיקה שנוצרת, רק על התצוגה (§4.2). כשחסר/קצר
+   * מ-paths, כל צרכן נופל לברירת-המחדל שלו (ראה DrawingCanvas.tsx/ScoreStaff.tsx/drawFrame.ts).
+   */
+  pathStyles?: PathStyle[];
 }

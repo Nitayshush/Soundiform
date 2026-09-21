@@ -90,7 +90,7 @@ describe('offlineRenderer — רינדור-מראש בדפדפן דרך Tone.Off
     expect(rendered.buffer.numberOfChannels).toBe(2);
     expect(rendered.sampleRate).toBe(PREVIEW_SAMPLE_RATE);
     expect(rendered.durationSeconds).toBeGreaterThan(0);
-    // אורך הבאפר חייב לכסות את כל היצירה כולל זנב-הריוורב (computeDurationSeconds).
+    // אורך הבאפר חייב לתאום בדיוק ל-computeDurationSeconds (2026-09-17: כבר בלי זנב-ריוורב).
     expect(rendered.buffer.length).toBe(Math.round(rendered.durationSeconds * PREVIEW_SAMPLE_RATE));
     expect(rendered.renderMilliseconds).toBeGreaterThanOrEqual(0);
 

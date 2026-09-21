@@ -18,6 +18,19 @@
  * ⭐ 2026-08-24 (Area 2): depth/releaseSeconds הפכו לפרמטרים (היו קבועים גלובליים) — כדי
  * שכל GenrePack יוכל לכוונן "פאמפינג" הדוק (release קצר) מול "נושם" (release ארוך), ראה
  * GenrePack.sidechainDepth/sidechainReleaseSeconds (packages/genres/src/schema.ts).
+ *
+ * ⭐ 2026-09-20 (באג אמיתי שנתפס בבדיקה חיה — "הבס מייצר רעשי רקע"): עד עכשיו `gain` היה
+ * צומת-Gain **משותף אחד** לכל הטראקים הלא-תופיים. mixChain.ts מחבר את האודיו של כל טראק
+ * *לתוך* הצומת הזה (`postEqNode.connect(sidechainDuck)`) — וב-Web Audio, חיבור כמה מקורות
+ * שונים לאותה כניסת-צומת **מסכם אותם שם בפועל**. כלומר כל טראק שקיבל את אותו duck קיבל גם
+ * את האודיו המסוכם של *כל* הטראקים האחרים שחולקים אותו — לא רק מעטפת-עוצמה משותפת. זה
+ * בדיוק ה"רעש רקע" שדווח. התיקון: `createTrackGain()` — כל טראק מקבל צומת-Gain **נפרד**
+ * משלו, וכולם רשומים לקבל את **אותה** אוטומציית-דחיקה (מ-Part אחד משותף) בו-זמנית. משתף
+ * את התזמון, לא את הצומת. mixChain.ts לא משתנה בכלל — הוא כבר מקבל Gain גנרי.
+ *
+ * ⭐ 2026-09-20: נוסף גם רמפ-כניסה קצר (ATTACK_SECONDS) לצניחת-הדחיקה, במקום קפיצה מיידית —
+ * קפיצת-gain רגעית על תו-באס מוחזק (legato) יכולה ליצור נקישה שמיעתית; דחיסה אמיתית תמיד
+ * משתמשת ב-attack לא-אפס בדיוק מהסיבה הזו.
  */
 
 import { Gain, Part } from 'tone';
@@ -28,16 +41,22 @@ import { ticksToSeconds } from '../internal/audioUtils';
 export const DEFAULT_DUCK_DEPTH = 0.35;
 export const DEFAULT_DUCK_RELEASE_SECONDS = 0.15;
 
+/** רמפ-כניסה לצניחת-הדחיקה — קצר מספיק כדי עדיין להישמע כ"פאמפינג" חד, לא כדחיסה עצלה. */
+const ATTACK_SECONDS = 0.008;
+
 export interface SidechainDuck {
-  /** מכניסים בין panner ל-outputGain של כל טראק שצריך "להידחק" (לא של ה-drums עצמו). */
-  readonly gain: Gain;
+  /**
+   * יוצר צומת-Gain **חדש ונפרד** ורושם אותו לקבל את אותה מעטפת-דחיקה כמו כל צומת אחר
+   * שנוצר מאותו SidechainDuck — קוראים לזה פעם אחת לכל טראק (§ ראה ההערה למעלה: אסור
+   * לשתף Gain יחיד בין טראקים, זה מסכם את האודיו שלהם בפועל).
+   */
+  createTrackGain(): Gain;
   dispose(): void;
 }
 
 /**
- * בונה gain node משותף ש"שוקע" (duck) בכל פגיעת-קיק ומתאושש (release) לפני הפגיעה הבאה —
- * חיבור אותו טראק אחד ליותר מטראק (panner→duck→outputGain של כל טראק) מדמה sidechain אמיתי,
- * כי כל הטראקים חולקים את אותה מעטפת-דיכוי בו-זמנית.
+ * בונה מתזמן-דחיקה משותף (Part אחד על פגיעות-הקיק) שמפעיל את אותה מעטפת-gain על כל צומת
+ * שנוצר דרך `createTrackGain()` — כל טראק מקבל צומת נפרד, כולם "שוקעים" ומתאוששים יחד.
  * @param depth  ה-gain (0-1) שאליו הצליל *שוקע* בכל פגיעת-קיק — לא "כמות ההנחתה" אלא הערך
  *               הנותר בפועל (0.35 = יורד ל-35% מהעוצמה, כלומר הנחתה של 65%). ערך *נמוך* יותר
  *               = "דחיקה" עמוקה/דרמטית יותר.
@@ -48,20 +67,30 @@ export function createSidechainDuck(
   depth: number = DEFAULT_DUCK_DEPTH,
   releaseSeconds: number = DEFAULT_DUCK_RELEASE_SECONDS,
 ): SidechainDuck {
-  const duckGain = new Gain(1);
+  const trackGains = new Set<Gain>();
   const events = kickNotes.map((note) => ({ time: ticksToSeconds(note.startTick, tempoBpm) }));
   const part = new Part<{ time: number }>((time) => {
-    duckGain.gain.cancelScheduledValues(time);
-    duckGain.gain.setValueAtTime(depth, time);
-    duckGain.gain.exponentialRampToValueAtTime(1, time + releaseSeconds);
+    for (const trackGain of trackGains) {
+      trackGain.gain.cancelScheduledValues(time);
+      trackGain.gain.setValueAtTime(trackGain.gain.value, time);
+      trackGain.gain.linearRampToValueAtTime(depth, time + ATTACK_SECONDS);
+      trackGain.gain.exponentialRampToValueAtTime(1, time + ATTACK_SECONDS + releaseSeconds);
+    }
   }, events);
   part.start(0);
 
   return {
-    gain: duckGain,
+    createTrackGain: () => {
+      const trackGain = new Gain(1);
+      trackGains.add(trackGain);
+      return trackGain;
+    },
     dispose: () => {
       part.dispose();
-      duckGain.dispose();
+      for (const trackGain of trackGains) {
+        trackGain.dispose();
+      }
+      trackGains.clear();
     },
   };
 }

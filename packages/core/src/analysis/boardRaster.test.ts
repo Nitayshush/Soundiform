@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { rasterizeShapeToBoard, type RasterPath } from './boardRaster';
+import { computeDrawnXExtent, rasterizeShapeToBoard, type RasterPath } from './boardRaster';
 
 const ROWS = 15;
 const COLUMNS = 32;
@@ -207,6 +207,82 @@ describe('rasterizeShapeToBoard — תקרת קולות', () => {
     for (const rows of raster) {
       expect([...rows]).toEqual([...new Set(rows)].sort((a, b) => a - b));
     }
+  });
+});
+
+describe('rasterizeShapeToBoard — stretchToFillColumns ("מה שציירת זה מה שקיבלת", 2026-09-18)', () => {
+  /** קו קצר, מרוכז בפינת-הלוח (x: 0.1-0.3 בלבד, לא כל הרוחב). */
+  function shortCornerLine(): RasterPath {
+    return {
+      points: Array.from({ length: 16 }, (_, index) => ({
+        x: 0.1 + (0.2 * index) / 15,
+        y: 0.5,
+      })),
+      closed: false,
+    };
+  }
+
+  it('ברירת-מחדל (לא מציינים כלל) — זהה ל-stretchToFillColumns:true, ממלא את כל הלוח', () => {
+    const withDefault = rasterizeShapeToBoard([shortCornerLine()], OPTIONS);
+    const withExplicitTrue = rasterizeShapeToBoard([shortCornerLine()], {
+      ...OPTIONS,
+      stretchToFillColumns: true,
+    });
+    expect(withDefault).toEqual(withExplicitTrue);
+    // הקו הקצר עדיין נמתח למלוא ה-32 עמודות — אף עמודה לא ריקה.
+    expect(withDefault.every((rows) => rows.length > 0)).toBe(true);
+  });
+
+  it('stretchToFillColumns:false — הקו נשאר מרוכז בחלק שלו מהלוח, לא נמתח', () => {
+    const raster = rasterizeShapeToBoard([shortCornerLine()], {
+      ...OPTIONS,
+      stretchToFillColumns: false,
+    });
+    const nonEmptyColumns = raster
+      .map((rows, index) => (rows.length > 0 ? index : -1))
+      .filter((index) => index >= 0);
+    // הקו תפס x:0.1-0.3 מתוך קנבס מלא — כלומר בערך העמודות 10%-30% מתוך 32, לא יותר.
+    expect(Math.min(...nonEmptyColumns)).toBeGreaterThan(0);
+    expect(Math.max(...nonEmptyColumns)).toBeLessThan(COLUMNS * 0.4);
+    // ורוב הלוח (אחרי הקטע הקצר) נשאר ריק — זה בדיוק ההבדל מ-stretch:true.
+    expect(raster.some((rows) => rows.length === 0)).toBe(true);
+  });
+
+  it('ציור-חסר-רוחב (קו אנכי) לא מושפע מהדגל — עדיין אקורד מוחזק בשני המצבים', () => {
+    const verticalLine: RasterPath = {
+      points: [
+        { x: 0.5, y: 0.1 },
+        { x: 0.5, y: 0.9 },
+      ],
+      closed: false,
+    };
+    const stretched = rasterizeShapeToBoard([verticalLine], { ...OPTIONS, stretchToFillColumns: true });
+    const trueSize = rasterizeShapeToBoard([verticalLine], { ...OPTIONS, stretchToFillColumns: false });
+    expect(stretched).toEqual(trueSize);
+  });
+
+});
+
+describe('computeDrawnXExtent (2026-09-21 — מחליף את ריפוד-העמודות שהוסר מלמעלה)', () => {
+  it('מחזיר את טווח-ה-X האמיתי של הציור, לא של הקנבס', () => {
+    const middleLine: RasterPath = {
+      points: [
+        { x: 0.4, y: 0.5 },
+        { x: 0.6, y: 0.5 },
+      ],
+      closed: false,
+    };
+    expect(computeDrawnXExtent([middleLine])).toEqual({ minX: 0.4, maxX: 0.6 });
+  });
+
+  it('כמה paths — הטווח המשולב של כולם', () => {
+    const pathA: RasterPath = { points: [{ x: 0.1, y: 0.5 }], closed: false };
+    const pathB: RasterPath = { points: [{ x: 0.9, y: 0.5 }], closed: false };
+    expect(computeDrawnXExtent([pathA, pathB])).toEqual({ minX: 0.1, maxX: 0.9 });
+  });
+
+  it('בלי paths — null, לא זורק', () => {
+    expect(computeDrawnXExtent([])).toBeNull();
   });
 });
 

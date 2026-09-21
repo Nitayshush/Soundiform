@@ -14,6 +14,12 @@
  * ⭐ 2026-08-25 (בחירת-צליל מרובה): optionId בודד → מערך optionId[] — כמה תתי-צלילים
  * ביחד לאותו role, לא רק אחד. genreAdapter.ts's mergeSynthPresets ממזג את השכבות (layers)
  * של כל האופציות הנבחרות לפריסט אחד. MUTED_SOUND_OPTION_ID נשאר מצב-יחיד (מנקה הכל).
+ *
+ * ⭐ 2026-09-17 (נתפס מול יצירה חיה אמיתית, share pMsRTjn5): `exclusiveGroupIds` ב-
+ * `toggleSound` — genreAdapter.ts's resolveSynthPresets תומך **בערכת-תופים אחת בלבד**
+ * לתפקיד (`selected.find(isDrumKitPreset)` — כל השאר נדרסות בשקט). בלי המנגנון הזה
+ * המשתמש יכול לבחור שתי ערכות בממשק (שתיהן מוצגות "נבחרות", סגול), כשבפועל רק
+ * הראשונה-שנוספה-לרשימה משמיעה משהו — צליל שנבחר ומוצג כפעיל אבל לעולם לא נשמע.
  */
 
 'use client';
@@ -39,7 +45,17 @@ type GenreSoundSelections = Partial<Record<TrackRole, string[]>>;
 
 interface SoundSelectionState {
   selectionsByGenre: Record<string, GenreSoundSelections>;
-  toggleSound: (genreId: string, role: TrackRole, optionId: string) => void;
+  /**
+   * ⭐ 2026-09-17: `exclusiveGroupIds` — כשמסופק, כל id ברשימה חוץ מ-`optionId` עצמו
+   * מוסר מהבחירה הנוכחית *לפני* שאר ההיגיון (למשל: שתי ערכות-תופים לא יכולות להיבחר
+   * יחד — ראה SoundSelector.tsx). אופציונלי כדי לא לחייב כל קורא-קיים להעביר משהו.
+   */
+  toggleSound: (
+    genreId: string,
+    role: TrackRole,
+    optionId: string,
+    exclusiveGroupIds?: readonly string[],
+  ) => void;
   /**
    * ⭐ 2026-08-31 (סבב א'): מחליף את כל הבחירות לסגנון בבת אחת — משמש בטעינת יצירה קיימת
    * (רמיקס). ⚠️ החלפה ולא מיזוג: רמיקס אמור להתחיל **בדיוק** מאיפה שהמקור היה, ומיזוג עם
@@ -52,9 +68,15 @@ export const useSoundSelectionStore = create<SoundSelectionState>()(
   persist(
     (set) => ({
       selectionsByGenre: {},
-      toggleSound: (genreId, role, optionId) => {
+      toggleSound: (genreId, role, optionId, exclusiveGroupIds) => {
         set((state) => {
-          const current = state.selectionsByGenre[genreId]?.[role] ?? [];
+          const stored = state.selectionsByGenre[genreId]?.[role] ?? [];
+          // ⚠️ מוסר את שאר בני-הקבוצה-הבלעדית (למשל ערכות-תופים אחרות) *לפני* כל שאר
+          // ההיגיון — כך שאם המשתמש בוחר ערכה חדשה, הישנה יוצאת קודם ולא "תופסת מקום"
+          // בתקרת MAX_SELECTED_PER_ROLE במקום פריט לא-קשור.
+          const current = exclusiveGroupIds
+            ? stored.filter((id) => id === optionId || !exclusiveGroupIds.includes(id))
+            : stored;
           let next: string[];
           if (optionId === MUTED_SOUND_OPTION_ID) {
             next = [MUTED_SOUND_OPTION_ID];

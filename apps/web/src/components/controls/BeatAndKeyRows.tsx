@@ -49,11 +49,13 @@ export function BeatAndKeyRows({ pack }: BeatAndKeyRowsProps) {
   const settings = useCreationSettingsStore((state) => state.byGenre[pack.id]);
   const setBeatPattern = useCreationSettingsStore((state) => state.setBeatPattern);
   const setKey = useCreationSettingsStore((state) => state.setKey);
+  const setSizeMode = useCreationSettingsStore((state) => state.setSizeMode);
 
   // ⚠️ ברירת המחדל היא הביט הראשון של הסגנון, לא "מהציור" — ראה resolveBeatPattern.
   const activeBeatId = settings?.beatPatternId ?? pack.beatPatterns?.[0]?.id ?? DRAWING_BEAT_ID;
   const activeRoot = settings?.key?.rootPitchClass ?? pack.noteBoardRootPitchClass ?? 0;
   const activeMode = settings?.key?.mode ?? pack.defaultMode;
+  const activeSizeMode = settings?.sizeMode ?? 'fitToBoard';
   const beatPatterns = pack.beatPatterns ?? [];
 
   return (
@@ -135,6 +137,40 @@ export function BeatAndKeyRows({ pack }: BeatAndKeyRowsProps) {
                 {MODE_LABEL[mode]}
               </Button>
             ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* ⭐ 2026-09-18 (לפי בקשה חיה: "מה שציירת זה מה שקיבלת"): מנגנון מקביל, לא החלפה —
+          ברירת-המחדל ("Fit to board") נשארת ההתנהגות הקיימת. ראה CompositionConfig.sizeMode. */}
+      {pack.absoluteNoteBoard ? (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Drawing Size</span>
+          <div className="flex flex-col gap-1" role="group" aria-label="Drawing size">
+            <Button
+              type="button"
+              size="sm"
+              variant={activeSizeMode === 'fitToBoard' ? 'default' : 'outline'}
+              className="w-full justify-start rounded-md"
+              aria-pressed={activeSizeMode === 'fitToBoard'}
+              onClick={() => {
+                setSizeMode(pack.id, 'fitToBoard');
+              }}
+            >
+              Fit to board
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activeSizeMode === 'trueSize' ? 'default' : 'outline'}
+              className="w-full justify-start rounded-md"
+              aria-pressed={activeSizeMode === 'trueSize'}
+              onClick={() => {
+                setSizeMode(pack.id, 'trueSize');
+              }}
+            >
+              True size
+            </Button>
           </div>
         </div>
       ) : null}
