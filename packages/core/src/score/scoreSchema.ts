@@ -70,6 +70,8 @@ export const musicalScoreSchema = z.object({
   durationBars: z.number().int().positive(),
   /** ⭐ 2026-08-31 — ראה MusicalScore.gridSubdivision. אופציונלי = תואם-לאחור. */
   gridSubdivision: z.union([z.literal(8), z.literal(16), z.literal(32)]).optional(),
+  /** ⭐ 2026-09-24 — ראה MusicalScore.noteBoardRowCount. אופציונלי = תואם-לאחור. */
+  noteBoardRowCount: z.number().int().positive().optional(),
   tracks: z.array(trackSchema),
   sections: z.array(sectionSchema),
   metadata: z.object({

@@ -47,6 +47,24 @@ describe('rasterToShapeData — §8 שלב 4 (sharp re-encode) + potrace (מעק
     expect(widthSpan / heightSpan).toBeLessThan(2);
   });
 
+  it('⭐ 2026-09-24 (בקשה חיה: "גודל טבעי לא עובד אחרי העלאת-תמונה"): השוליים הלבנים סביב הריבוע נשמרים, לא נמחקים', async () => {
+    // הריבוע השחור תופס רק את המחצית האמצעית של הקנבס (50px שוליים מכל צד, מתוך 200px) —
+    // אם השוליים נשמרים, ה-span הצפוי הוא ~0.5 (100/200), לא ~1.0 (כל הקנבס, הבאג הישן).
+    const { shapeData } = await rasterToShapeData(await blackSquareOnWhitePng());
+    const primary = shapeData.paths.reduce((longest, candidate) =>
+      candidate.points.length > longest.points.length ? candidate : longest,
+    );
+    const xs = primary.points.map((p) => p.x);
+    const ys = primary.points.map((p) => p.y);
+    const widthSpan = Math.max(...xs) - Math.min(...xs);
+    const heightSpan = Math.max(...ys) - Math.min(...ys);
+    expect(widthSpan).toBeCloseTo(0.5, 1);
+    expect(heightSpan).toBeCloseTo(0.5, 1);
+    // וממורכז — לא רק בגודל הנכון אלא גם במיקום הנכון (0.25 עד 0.75, לא צמוד לפינה).
+    expect(Math.min(...xs)).toBeCloseTo(0.25, 1);
+    expect(Math.max(...xs)).toBeCloseTo(0.75, 1);
+  });
+
   it('מסיר EXIF metadata מהגרסה הנשמרת (§8 "מסיר EXIF ו-payloads")', async () => {
     const original = await blackSquareOnWhitePng();
     const originalMeta = await sharp(original).metadata();

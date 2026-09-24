@@ -199,9 +199,57 @@ function clampUnit(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-/** מתאים-לריבוע (fit-to-square) תוך שמירת יחס-רוחב-גובה, ממורכז — ראה הערת הקובץ. */
-function normalizeSubpaths(subpaths: FlatSubpath[]): ShapePath[] {
-  const { minX, minY, width, height } = boundingBoxOf(subpaths);
+interface CanvasExtent {
+  minX: number;
+  minY: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * ⭐ 2026-09-24 (בקשה חיה: "גודל טבעי לא עובד אחרי העלאת-תמונה"): `viewBox` מגדיר את
+ * מרחב-הקואורדינטות שבו path-data כבר מבוטא — מהימן יותר מ-width/height (שיכולים לתאר
+ * גודל-תצוגה שונה מהקואורדינטות הפנימיות). ⚠️ פורמט "minX minY width height".
+ */
+function parseViewBox(svgRoot: Element): CanvasExtent | null {
+  const numbers = numbersOf(svgRoot.getAttribute('viewBox'));
+  if (numbers.length !== 4) {
+    return null;
+  }
+  const [minX, minY, width, height] = numbers;
+  if (minX === undefined || minY === undefined || width === undefined || height === undefined) {
+    return null;
+  }
+  return width > 0 && height > 0 ? { minX, minY, width, height } : null;
+}
+
+/** ⚠️ מספרים פשוטים בלבד (בדיוק כמו ש-potrace מפיק) — יחידות כמו "200px"/"10cm" נכשלות ב-attr()
+ *  (Number(...) מחזיר NaN) ונופלות בבטחה ל-null, לא לערך שגוי. */
+function parseWidthHeight(svgRoot: Element): CanvasExtent | null {
+  const width = attr(svgRoot, 'width');
+  const height = attr(svgRoot, 'height');
+  return width > 0 && height > 0 ? { minX: 0, minY: 0, width, height } : null;
+}
+
+function resolveCanvasExtent(svgRoot: Element): CanvasExtent | null {
+  return parseViewBox(svgRoot) ?? parseWidthHeight(svgRoot);
+}
+
+/**
+ * מתאים-לריבוע (fit-to-square) תוך שמירת יחס-רוחב-גובה, ממורכז — ראה הערת הקובץ.
+ *
+ * ⭐ 2026-09-24: `canvasExtent` (מ-`resolveCanvasExtent`, כשקיים) הוא הבסיס לריבוע — לא
+ * תיבת-התיחום הצרה של הצורה עצמה. ⚠️ למה זה קריטי: בלי זה, כל שוליים/ריפוד שהיו סביב
+ * הצורה בתמונה/ב-SVG המקוריים נחתכים ונשכחים כאן — לוגו קטן וממורכז על קנבס גדול נמתח
+ * למלוא ה-[0,1], ו"גודל טבעי" (CompositionConfig.sizeMode) כבר לא יכול לשחזר את זה, כי
+ * המידע כבר אבד לפני שהוא בכלל נכנס לתמונה. `canvasExtent: null` (SVG בלי viewBox/width/
+ * height תקינים) נופל בדיוק להתנהגות הישנה (bbox של הצורה) — אפס שינוי-התנהגות שם.
+ */
+function normalizeSubpaths(
+  subpaths: FlatSubpath[],
+  canvasExtent: CanvasExtent | null,
+): ShapePath[] {
+  const { minX, minY, width, height } = canvasExtent ?? boundingBoxOf(subpaths);
   const side = Math.max(width, height, MIN_MEANINGFUL_EXTENT);
   const offsetX = (side - width) / 2;
   const offsetY = (side - height) / 2;
@@ -245,5 +293,8 @@ export function svgMarkupToShapeData(svgMarkup: string): ShapeData {
     throw new SvgConversionError('No geometric shape found in the SVG');
   }
 
-  return { version: SHAPE_VERSION, paths: normalizeSubpaths(validSubpaths) };
+  return {
+    version: SHAPE_VERSION,
+    paths: normalizeSubpaths(validSubpaths, resolveCanvasExtent(svgRoot)),
+  };
 }

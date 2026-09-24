@@ -34,6 +34,7 @@ import type { Application, Graphics as PixiGraphics, BlurFilter } from 'pixi.js'
 import {
   composeMusicalScore,
   geometryToMusic,
+  resolveBoardPitchRange,
   TICKS_PER_BEAT,
   type MusicalScore,
   type Note,
@@ -112,14 +113,27 @@ function computeScore(
   return composeMusicalScore(intent, toCompositionConfig(genrePack, overrides, intent.seed));
 }
 
+/**
+ * ⭐ 2026-09-24 (בקשה חיה: "הציור על הלוח צריך להיות תואם למוזיקה שנוצרת"): טווח-הפיצ'
+ * לצורך תצוגה — הלוח **הקבוע** (`resolveBoardPitchRange`, אותו טווח בדיוק שהרשת
+ * ב-`useNoteBoardGrid` כבר מציגה) כשקיים, כדי שהפסים-הצבעוניים יצוירו על אותו סרגל-מדידה
+ * כמו הרשת. `null` (רגאיי, בלי לוח-קבוע) — נופל לטווח הדינמי הישן, בלי שינוי-התנהגות.
+ */
 function computeLayout(score: MusicalScore, width: number, height: number): StaffLayout | null {
   const totalTicks = score.durationBars * score.timeSignature[0] * TICKS_PER_BEAT;
-  const allPitches = score.tracks.flatMap((track) => track.notes.map((note) => note.pitch));
-  if (allPitches.length === 0) {
-    return null;
+  const boardRange = resolveBoardPitchRange(score);
+  let minPitch: number;
+  let maxPitch: number;
+  if (boardRange) {
+    ({ minPitch, maxPitch } = boardRange);
+  } else {
+    const allPitches = score.tracks.flatMap((track) => track.notes.map((note) => note.pitch));
+    if (allPitches.length === 0) {
+      return null;
+    }
+    minPitch = Math.min(...allPitches);
+    maxPitch = Math.max(...allPitches);
   }
-  const minPitch = Math.min(...allPitches);
-  const maxPitch = Math.max(...allPitches);
   const pitchRange = Math.max(1, maxPitch - minPitch);
   const barHeight = Math.max(NOTE_BAR_MIN_HEIGHT, height / (pitchRange + 4));
   return { totalTicks, minPitch, pitchRange, barHeight, width, height };
@@ -131,7 +145,13 @@ function noteRect(
 ): { x: number; y: number; width: number; height: number } {
   const x = (note.startTick / layout.totalTicks) * layout.width;
   const noteWidth = Math.max(2, (note.durationTicks / layout.totalTicks) * layout.width);
-  const pitchNormalized = (note.pitch - layout.minPitch) / layout.pitchRange;
+  // ⭐ 2026-09-24: מהודק ל-[0,1] — תו שחורג מהלוח-הקבוע (למשל באס שיושב מתחת לשורה
+  // התחתונה, ראה noteBoard.ts's resolveBoardPitchRange) עדיין נראה, צמוד לקצה, ולא נעלם
+  // מחוץ ל-canvas — "התו לא במקום המדויק" פחות מבלבל מ"התו פשוט לא מופיע".
+  const pitchNormalized = Math.min(
+    1,
+    Math.max(0, (note.pitch - layout.minPitch) / layout.pitchRange),
+  );
   const y = (1 - pitchNormalized) * (layout.height - layout.barHeight);
   return { x, y, width: noteWidth, height: layout.barHeight };
 }

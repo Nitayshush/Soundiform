@@ -68,12 +68,11 @@ import {
   MELODY_DEGREE_RANGE,
   quantizeYToRowIndex,
   resolveBoardRowCount,
+  ROOT_OCTAVE_BASE_MIDI,
 } from './noteBoard';
 
 const SCORE_FORMAT_VERSION = '1.0.0';
 const DEFAULT_TIME_SIGNATURE: [number, number] = [4, 4];
-/** מרכז אוקטבת השורש (MIDI) — C3-ish, בסיס נוח לכל שלושת הטראקים סביבו. */
-const ROOT_OCTAVE_BASE_MIDI = 48;
 /** כמה תווים "יושבים" בבר אחד לצורך חישוב durationBars מתוך motifSize. */
 const NOTES_PER_BAR = 4;
 /**
@@ -2305,6 +2304,12 @@ export function composeMusicalScore(
     genreId: config.genreId,
     durationBars: totalDurationBars,
     gridSubdivision: config.gridSubdivision,
+    // ⭐ 2026-09-24 (בקשה חיה: "הציור על הלוח צריך להיות תואם למוזיקה") — ראה
+    // MusicalScore.noteBoardRowCount/resolveBoardPitchRange (noteBoard.ts). רק לסגנונות
+    // עם לוח-אבסולוטי; רגאיי ממשיך בלי השדה (תצוגה דינמית ישנה, בלי שינוי-התנהגות).
+    ...(config.absoluteNoteBoard && {
+      noteBoardRowCount: resolveBoardRowCount(config.noteBoardRowCount),
+    }),
     tracks,
     sections,
     metadata: {

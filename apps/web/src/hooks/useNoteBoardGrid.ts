@@ -18,13 +18,13 @@ import {
   ABSOLUTE_BOARD_ROOT_PITCH_CLASS,
   buildNoteBoardRows,
   COLUMNS_PER_BAR,
+  ROOT_OCTAVE_BASE_MIDI,
 } from '@soundiform/core';
 import { useGenreStore } from '@/stores/genreStore';
 import { useGenrePacksStore } from '@/stores/genrePacksStore';
 import { useCompositionOverrides } from '@/hooks/useCompositionOverrides';
 
 const CHROMATIC_NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
-const ROOT_OCTAVE_BASE_MIDI = 48;
 
 function noteName(midi: number): string {
   const name = CHROMATIC_NAMES[((midi % 12) + 12) % 12];

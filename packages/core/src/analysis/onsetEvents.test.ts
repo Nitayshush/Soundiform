@@ -142,3 +142,52 @@ describe('buildEventRaster — עוצמות ואירועים', () => {
     expect(result.raster).toHaveLength(COLUMNS);
   });
 });
+
+describe('buildEventRaster — קיצון שמגיעים אליו בהדרגה ונעצרים בו (2026-09-23)', () => {
+  /**
+   * ⭐ הבאג שדווח בבדיקה חיה: ירידה הדרגתית (שורה אחת בכל פעם, לא קפיצה) עד שפל, עצירה
+   * ארוכה שם (פלאטו — בדיוק מה שצויר), ואז עלייה חזרה. אומת ישירות מול פרויקט אמיתי
+   * ("draft 1") — הרצף הגולמי-לפני-דירוג ירד בהדרגה ל-1 והוחזק שם 28 עמודות; הרסטר
+   * המדורג הישן **אף פעם לא הכיל את הערך 1**, לא בזמן הפלאטו ולא אחריו.
+   *
+   * מדמה כאן את אותה צורת-רצף (ירידה הדרגתית → פלאטו ארוך על השפל → עלייה הדרגתית בחזרה)
+   * דרך צורה מצוירת אמיתית, לא נתונים גולמיים — כדי שהבדיקה תרוץ דרך אותה צנרת בדיוק
+   * (rasterizeShapeToBoard → buildEventRaster) שהמשתמש עובר בפועל.
+   */
+  const gradualDipAndPlateau: RasterPath = {
+    points: [
+      // יורד בהדרגה, שורה אחת כל כמה עמודות (לא קפיצה) — מ-y=0.05 (שורה גבוהה) עד השפל
+      // האמיתי (y=0.99 -> row 0 מתוך 15 שורות, ראה quantizeYToRowIndex ב-noteBoard.ts).
+      ...Array.from({ length: 24 }, (_, i) => ({ x: (0.4 * i) / 23, y: 0.05 + (0.94 * i) / 23 })),
+      // פלאטו ארוך בדיוק על השפל (y קבוע) — בדיוק מה שצויר ב-draft 1.
+      ...Array.from({ length: 20 }, (_, i) => ({ x: 0.4 + (0.2 * i) / 19, y: 0.99 })),
+      // עולה בהדרגה חזרה למעלה.
+      ...Array.from({ length: 24 }, (_, i) => ({ x: 0.6 + (0.4 * i) / 23, y: 0.99 - (0.94 * i) / 23 })),
+    ],
+    closed: false,
+  };
+
+  it('השפל שמצוירים אליו בהדרגה ונעצרים בו קיים ברסטר המדורג (לא רק בגולמי)', () => {
+    const raw = rasterOf([gradualDipAndPlateau]);
+    const rawMinRow = Math.min(...raw.flatMap((rows) => rows));
+    // ⚠️ מוודאים קודם שהצורה באמת יורדת עד השפל האמיתי (לא רק "קרוב") — אחרת הבדיקה
+    // הייתה יכולה לעבור בטעות גם בלי לתפוס את הבאג.
+    expect(rawMinRow).toBe(0);
+
+    const { raster } = buildEventRaster(raw, EVENT_OPTIONS);
+    const eventedRows = new Set(raster.flatMap((rows) => rows));
+    expect(eventedRows.has(rawMinRow)).toBe(true);
+  });
+
+  it('כשהשפל נרשם, יש לו עוצמה ממשית (לא 0) — הוא אירוע אמיתי, לא רק ״נדחס פנימה״', () => {
+    const raw = rasterOf([gradualDipAndPlateau]);
+    const rawMinRow = Math.min(...raw.flatMap((rows) => rows));
+    const { raster, strengthByColumn } = buildEventRaster(raw, EVENT_OPTIONS);
+    const columnsWithMinRow = raster
+      .map((rows, index) => (rows.includes(rawMinRow) ? index : -1))
+      .filter((index) => index >= 0);
+    expect(columnsWithMinRow.length).toBeGreaterThan(0);
+    const hasRealStrength = columnsWithMinRow.some((column) => (strengthByColumn[column] ?? 0) > 0);
+    expect(hasRealStrength).toBe(true);
+  });
+});

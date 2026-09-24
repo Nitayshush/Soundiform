@@ -1199,3 +1199,35 @@ describe('composeMusicalScore — sizeMode "trueSize": כל הסאונד מתח�
     expect(kickBars(withoutSizeMode)).toEqual(kickBars(explicitFit));
   });
 });
+
+describe('composeMusicalScore — noteBoardRowCount על ה-score (2026-09-24, לתצוגה: ScoreStaff.tsx/drawFrame.ts)', () => {
+  it('עם absoluteNoteBoard: מחזיר בדיוק resolveBoardRowCount(config.noteBoardRowCount)', () => {
+    const config: CompositionConfig = {
+      ...DEFAULT_TEST_CONFIG,
+      absoluteNoteBoard: true,
+      noteBoardRowCount: 13,
+    };
+    const score = composeMusicalScore(
+      geometryToMusic(makeSquareShapeData(), 'seed-board-rowcount'),
+      config,
+    );
+    expect(score.noteBoardRowCount).toBe(13);
+  });
+
+  it('עם absoluteNoteBoard בלי noteBoardRowCount מפורש: נופל לברירת-המחדל (15)', () => {
+    const config: CompositionConfig = { ...DEFAULT_TEST_CONFIG, absoluteNoteBoard: true };
+    const score = composeMusicalScore(
+      geometryToMusic(makeSquareShapeData(), 'seed-board-rowcount-default'),
+      config,
+    );
+    expect(score.noteBoardRowCount).toBe(15);
+  });
+
+  it('בלי absoluteNoteBoard (רגאיי) — השדה undefined, תאימות-לאחור מלאה', () => {
+    const score = composeMusicalScore(
+      geometryToMusic(makeSquareShapeData(), 'seed-board-rowcount-legacy'),
+      DEFAULT_TEST_CONFIG,
+    );
+    expect(score.noteBoardRowCount).toBeUndefined();
+  });
+});

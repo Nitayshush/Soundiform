@@ -61,6 +61,25 @@ function laneRowAt(rows: readonly number[], lane: Lane): number | null {
 /**
  * מדרגת נתיב יחיד: מחזירה את הגובה **המוחזק** בכל עמודה, ואת עוצמת האירוע בעמודות שבהן
  * הוא התחלף.
+ *
+ * ⭐ 2026-09-23 (בקשה חיה + אומת עם נתוני-אמת מ-`draft 1`: "ציור שיורד בהדרגה לשפל ונעצר
+ * שם — השפל האמיתי אף פעם לא נשמע"): `hasDrifted` נבדק היסטורית מול `row - heldRow` בלבד —
+ * כשהירידה **מדורגת** (שורה אחת בכל פעם, לא קפיצה), ה-heldRow "מתעדכן" בכל פעם שההפרש
+ * המצטבר מגיע *בדיוק* ל-driftRows ואז **מתאפס** ל-row הנוכחי. אם הציור עוצר על שפל
+ * שנמצא רק driftRows-1 מההצמדה האחרונה (פלאטו אמיתי, בדיוק מה שצויר), ההפרש הנותר לעולם
+ * לא חוצה את הסף — אין קפיצה נוספת ואין נקודת-מפנה (הכיוון עדיין אותו כיוון) עד שהקו
+ * *כבר עלה בחזרה*, ואז ה-row באותו רגע כבר לא השפל האמיתי. השפל לא נרשם אף פעם, לא בזמנו
+ * ולא בדיעבד. זו לא נקודה-עיוורת ספציפית ל"למטה" — כל קיצון שמגיעים אליו בהדרגה ונעצרים בו.
+ *
+ * התיקון: `extremeRow` עוקב אחרי הקיצון **האמיתי** שהושג מאז ההצמדה האחרונה (לא רק ה-row
+ * הנוכחי), ומשמש גם כבסיס-ההשוואה לסף-הנדידה וגם כיעד-ההצמדה בפועל — כך ירידה הדרגתית
+ * שמצטברת ל-driftRows **בסך-הכל מאז ההצמדה האחרונה** (גם אם כל צעד קטן מהסף) נתפסת,
+ * וההצמדה היא לקיצון עצמו, לא לאן שהקו נמצא ברגע שההצמדה קרתה (שיכול כבר להיות בדרך חזרה).
+ *
+ * ⚠️ מגבלה ידועה, לא בהיקף התיקון הזה: ה-heldRow עדיין מתעדכן רק כשמזוהה האירוע (בד"כ
+ * בנקודת-המפנה) — כלומר משך-התו בפועל (extractRasterRuns) עדיין לא משקף במדויק "רוב-הזמן
+ * בקיצון האמיתי, רגע קצר במעבר". זה ידרוש lookahead/שני-סבבים במקום streaming עמודה-אחר-
+ * עמודה — סיכון/היקף גדולים בהרבה. מה שכן נפתר: הקיצון **קיים בפלט**, במקום לא-קיים בכלל.
  */
 function stepLane(
   laneRows: readonly (number | null)[],
@@ -71,6 +90,7 @@ function stepLane(
 
   let heldRow: number | null = null;
   let direction = 0;
+  let extremeRow: number | null = null;
 
   for (let column = 0; column < laneRows.length; column += 1) {
     const row = laneRows[column] ?? null;
@@ -78,30 +98,43 @@ function stepLane(
       // מרווח בציור — מרווח במוזיקה. התו הבא ייחשב תחילת-משיכה.
       heldRow = null;
       direction = 0;
+      extremeRow = null;
       continue;
     }
 
     if (heldRow === null) {
       heldRow = row;
+      extremeRow = row;
       strength[column] = 1; // תחילת משיכה — האירוע החזק ביותר.
       stepped[column] = heldRow;
       continue;
     }
 
-    const delta = row - heldRow;
     const previous = laneRows[column - 1] ?? null;
     const localDirection = previous === null ? direction : Math.sign(row - previous);
     // שיא או שפל: הקו שינה כיוון. זו נקודת-מבטא טבעית בציור, ולכן גם במוזיקה.
     const isTurningPoint = localDirection !== 0 && direction !== 0 && localDirection !== direction;
-    const hasDrifted = Math.abs(delta) >= driftRows;
+
+    // ⭐ מעדכנים את הקיצון הנעקב כל עוד לא התהפכנו וה-row הנוכחי רחוק יותר מ-heldRow
+    // מהקיצון שכבר נרשם — זה מה שתופס ירידה/עלייה הדרגתית, לא רק קפיצה חדה.
+    if (
+      !isTurningPoint &&
+      Math.abs(row - heldRow) > Math.abs((extremeRow ?? heldRow) - heldRow)
+    ) {
+      extremeRow = row;
+    }
+    const effectiveExtreme = extremeRow ?? row;
+    const hasDrifted = Math.abs(effectiveExtreme - heldRow) >= driftRows;
 
     if (hasDrifted || isTurningPoint) {
-      heldRow = row;
+      const delta = effectiveExtreme - heldRow;
+      heldRow = effectiveExtreme; // ⭐ מצמידים לקיצון שהושג, לא ל-row הנוכחי.
       // נדידה גדולה = מבטא חזק; נקודת-מפנה מקבלת רצפה משלה גם כשהיא קטנה.
       strength[column] = Math.min(
         1,
         Math.max(isTurningPoint ? 0.6 : 0, Math.abs(delta) / Math.max(1, driftRows * 2)),
       );
+      extremeRow = row; // איפוס למעקב-קיצון חדש מכאן.
     }
     if (localDirection !== 0) {
       direction = localDirection;

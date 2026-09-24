@@ -83,3 +83,51 @@ describe('svgMarkupToShapeData', () => {
     expect(() => svgMarkupToShapeData('not svg at all')).toThrow(SvgConversionError);
   });
 });
+
+describe('svgMarkupToShapeData — קנבס-אמיתי (viewBox/width+height) לא נחתך (2026-09-24)', () => {
+  it('עם width/height על ה-<svg>: צורה קטנה וממורכזת נשארת קטנה וממורכזת, לא נמתחת', () => {
+    // קנבס 200x100, ריבוע 20x20 ממורכז בתוכו (x:90-110, y:40-60) — 10% מהרוחב, 20% מהגובה.
+    const shape = svgMarkupToShapeData(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">' +
+        '<rect x="90" y="40" width="20" height="20"/></svg>',
+    );
+    const xs = shape.paths[0]?.points.map((p) => p.x) ?? [];
+    const ys = shape.paths[0]?.points.map((p) => p.y) ?? [];
+    // side=max(200,100)=200 → x: (90..110)/200=0.45..0.55; y: קנבס-100 ממורכז בריבוע-200
+    // (offsetY=50), אז (40+50..60+50)/200=0.45..0.55 — לא 0..1 (הבאג הישן).
+    expect(Math.min(...xs)).toBeCloseTo(0.45, 2);
+    expect(Math.max(...xs)).toBeCloseTo(0.55, 2);
+    expect(Math.min(...ys)).toBeCloseTo(0.45, 2);
+    expect(Math.max(...ys)).toBeCloseTo(0.55, 2);
+  });
+
+  it('עם viewBox על ה-<svg>: אותו עיקרון, כולל minX/minY לא-אפסיים', () => {
+    const shape = svgMarkupToShapeData(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 10 200 100">' +
+        '<rect x="100" y="50" width="20" height="20"/></svg>',
+    );
+    const xs = shape.paths[0]?.points.map((p) => p.x) ?? [];
+    // x בתוך ה-viewBox: 100-10=90 עד 120-10=110, מתוך רוחב-200 → 0.45..0.55 (אחרי איזון-ריבוע).
+    expect(Math.min(...xs)).toBeCloseTo(0.45, 2);
+    expect(Math.max(...xs)).toBeCloseTo(0.55, 2);
+  });
+
+  it('בלי viewBox/width/height על ה-<svg> — נופל בדיוק להתנהגות הישנה (bbox של הצורה)', () => {
+    // אותו טסט כמו "שומר יחס-רוחב-גובה" הקיים — מוודא שהתיקון לא שינה את ברירת-המחדל.
+    const shape = svgMarkupToShapeData(
+      '<svg xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="200" height="100"/></svg>',
+    );
+    const ys = shape.paths[0]?.points.map((p) => p.y) ?? [];
+    expect(Math.min(...ys)).toBeCloseTo(0.25, 2);
+    expect(Math.max(...ys)).toBeCloseTo(0.75, 2);
+  });
+
+  it('width/height עם יחידות לא-מספריות ("200px") נופל בבטחה לברירת-המחדל, לא זורק/משתגע', () => {
+    expect(() =>
+      svgMarkupToShapeData(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="200px" height="100px">' +
+          '<rect x="0" y="0" width="50" height="50"/></svg>',
+      ),
+    ).not.toThrow();
+  });
+});

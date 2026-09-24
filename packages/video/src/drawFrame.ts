@@ -25,7 +25,7 @@
  */
 
 import type { MusicalScore, Note, TrackRole } from '@soundiform/core';
-import { TICKS_PER_BEAT } from '@soundiform/core';
+import { resolveBoardPitchRange, TICKS_PER_BEAT } from '@soundiform/core';
 import type { ShapeData } from '@soundiform/shared';
 import { projectShapeToStaff, revealedSegments } from '@soundiform/shared';
 import type { Canvas2DLike, CanvasImageLike, FrameDimensions } from './canvas2d';
@@ -66,14 +66,26 @@ interface ScoreLayout {
   secondsPerTick: number;
 }
 
+/**
+ * ⭐ 2026-09-24 — ראה ScoreStaff.tsx's computeLayout (אותה עקרון בדיוק, "פריוויו ≈ פלט
+ * סופי"): טווח-הפיצ' הוא הלוח **הקבוע** (`resolveBoardPitchRange`) כשקיים, כדי שהפסים
+ * יצוירו באותו מקום כמו בפריוויו החי — לא טווח דינמי שנגזר מהתווים בפועל.
+ */
 function computeScoreLayout(score: MusicalScore, dimensions: FrameDimensions): ScoreLayout | null {
   const totalTicks = score.durationBars * score.timeSignature[0] * TICKS_PER_BEAT;
-  const allPitches = score.tracks.flatMap((track) => track.notes.map((note) => note.pitch));
-  if (allPitches.length === 0) {
-    return null;
+  const boardRange = resolveBoardPitchRange(score);
+  let minPitch: number;
+  let maxPitch: number;
+  if (boardRange) {
+    ({ minPitch, maxPitch } = boardRange);
+  } else {
+    const allPitches = score.tracks.flatMap((track) => track.notes.map((note) => note.pitch));
+    if (allPitches.length === 0) {
+      return null;
+    }
+    minPitch = Math.min(...allPitches);
+    maxPitch = Math.max(...allPitches);
   }
-  const minPitch = Math.min(...allPitches);
-  const maxPitch = Math.max(...allPitches);
   const pitchRange = Math.max(1, maxPitch - minPitch);
   const barHeight = Math.max(NOTE_BAR_MIN_HEIGHT, dimensions.height / (pitchRange + 4));
   const secondsPerTick = 60 / (score.tempo * TICKS_PER_BEAT);
@@ -91,7 +103,12 @@ function noteRect(note: Note, layout: ScoreLayout, dimensions: FrameDimensions):
   const { width, height } = dimensions;
   const x = (note.startTick / layout.totalTicks) * width;
   const noteWidth = Math.max(2, (note.durationTicks / layout.totalTicks) * width);
-  const pitchNormalized = (note.pitch - layout.minPitch) / layout.pitchRange;
+  // ⭐ 2026-09-24 — ראה ScoreStaff.tsx: מהודק ל-[0,1] כדי שתו שחורג מהלוח-הקבוע (למשל
+  // באס נמוך מהשורה התחתונה) עדיין ייראה, צמוד לקצה, ולא ייעלם מחוץ לפריים.
+  const pitchNormalized = Math.min(
+    1,
+    Math.max(0, (note.pitch - layout.minPitch) / layout.pitchRange),
+  );
   const y = (1 - pitchNormalized) * (height - layout.barHeight);
   return { x, y, width: noteWidth, height: layout.barHeight };
 }

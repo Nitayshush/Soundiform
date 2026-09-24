@@ -12,9 +12,18 @@
 
 import type { Mode } from '../score/MusicalScore';
 import { scaleDegreeToMidiPitch } from './scales';
+import { at } from '../internal/arrayUtils';
 
 /** כמה עמודות-זמן בבר אחד — תואם stepsPerBar הקיים בפועל בכל תבניות-הקצב (16). */
 export const COLUMNS_PER_BAR = 16;
+
+/**
+ * ⭐ 2026-09-24: אוקטבת-הבסיס למרה מ-pitch class (0-11) ל-MIDI מוחלט (root=48+pitchClass).
+ * הועבר לכאן (במקום קבוע פרטי בתוך harmonyEngine.ts, וכפילות מקומית ב-apps/web's
+ * useNoteBoardGrid.ts) כדי ש-noteBoard.ts יהיה מקור-האמת היחיד — גם ליצירת המנגינה וגם
+ * לכל מי שצריך לחשב מחדש את אותו לוח לצורך תצוגה (ראה resolveBoardPitchRange למטה).
+ */
+export const ROOT_OCTAVE_BASE_MIDI = 48;
 
 /**
  * שורש-הלוח **כברירת מחדל** (pitch class, 0=C). תואם את הדוגמאות שכבר הוצגו ואושרו
@@ -78,4 +87,30 @@ export function buildNoteBoardRows(root: number, mode: Mode, rowCount?: number):
 export function quantizeYToRowIndex(y: number, rowCount: number): number {
   const clampedY = Math.min(1, Math.max(0, y));
   return Math.round((1 - clampedY) * (rowCount - 1));
+}
+
+/**
+ * ⭐ 2026-09-24 (בקשה חיה: "הציור על הלוח צריך להיות תואם למוזיקה שנוצרת"): טווח-הפיצ'
+ * **הקבוע** של הלוח שה-score הזה נוצר מולו — לא טווח דינמי שנגזר מהתווים שבפועל יצאו.
+ *
+ * ⚠️ למה זה קריטי: הרשת החזותית (MusicalGrid.tsx/useNoteBoardGrid.ts) כבר מציגה את הלוח
+ * הקבוע הזה בדיוק (שורש+מוד+מספר-שורות). אם ScoreStaff.tsx/drawFrame.ts מחשבים את מיקום-
+ * הפסים-הצבעוניים לפי טווח-פיצ'ים **דינמי** (מינימום/מקסימום על התווים בפועל, שיכול לזוז
+ * בין יצירה ליצירה — למשל כשבאס יושב הרחק מתחת ללוח), שני "סרגלי-מדידה" שונים מצוירים אחד
+ * על השני, והפסים נראים "במקום הלא-נכון" ביחס לרשת — למרות שהמוזיקה עצמה נכונה. `null`
+ * מסמן "אין לוח-קבוע" (למשל רגאיי) — הקורא נופל לטווח הדינמי הישן, בלי שינוי-התנהגות.
+ */
+export function resolveBoardPitchRange(score: {
+  key: { root: number; mode: Mode };
+  noteBoardRowCount?: number;
+}): { minPitch: number; maxPitch: number } | null {
+  if (score.noteBoardRowCount === undefined) {
+    return null;
+  }
+  const rows = buildNoteBoardRows(
+    ROOT_OCTAVE_BASE_MIDI + score.key.root,
+    score.key.mode,
+    score.noteBoardRowCount,
+  );
+  return { minPitch: at(rows, 0), maxPitch: at(rows, rows.length - 1) };
 }
