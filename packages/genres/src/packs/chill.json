@@ -315,11 +315,33 @@
             "release": 0.4
           },
           "polyphonic": false,
-          "filter": {
-            "type": "lowpass",
-            "frequencyHz": 700,
-            "resonance": 0.7
-          }
+          "layers": [
+            {
+              "oscillatorType": "sine",
+              "envelope": {
+                "attack": 0.05,
+                "decay": 0.2,
+                "sustain": 0.7,
+                "release": 0.4
+              },
+              "gain": 1
+            },
+            {
+              "oscillatorType": "triangle",
+              "envelope": {
+                "attack": 0.05,
+                "decay": 0.2,
+                "sustain": 0.65,
+                "release": 0.4
+              },
+              "gain": 0.5,
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 900,
+                "resonance": 0.7
+              }
+            }
+          ]
         }
       },
       {
