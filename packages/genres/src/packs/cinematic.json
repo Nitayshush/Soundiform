@@ -361,7 +361,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "contrabass-arco",
-          "notes": ["C2", "F#2", "C#3", "G#3"],
+          "notes": ["E1", "F#1", "G1", "A#1", "C2", "D2", "E2", "F#2", "G#2", "C#3", "E3", "G#3", "B3"],
           "extension": "mp3",
           "release": 1
         }
@@ -375,7 +375,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "tuba",
-          "notes": ["A#1", "D#2", "A#2", "D3", "A#3"],
+          "notes": ["F1", "A#1", "D#2", "F2", "A#2", "D3", "F3", "A#3", "D4"],
           "extension": "mp3",
           "release": 0.5
         }
@@ -389,7 +389,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "bassoon",
-          "notes": ["F2", "C3", "G3", "C4", "E4", "G4"],
+          "notes": ["F2", "A2", "C3", "E3", "G3", "A3", "C4", "E4", "G4", "C5"],
           "extension": "mp3",
           "release": 0.5
         }

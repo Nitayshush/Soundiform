@@ -353,7 +353,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "contrabass-pizz",
-          "notes": ["A#1", "E2", "A2", "G#3"],
+          "notes": ["A#1", "C2", "E2", "A2", "G#3"],
           "extension": "mp3",
           "release": 0.3
         }
@@ -367,7 +367,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "bassoon",
-          "notes": ["F2", "C3", "G3", "C4", "E4", "G4"],
+          "notes": ["F2", "A2", "C3", "E3", "G3", "A3", "C4", "E4", "G4", "C5"],
           "extension": "mp3",
           "release": 0.5
         }

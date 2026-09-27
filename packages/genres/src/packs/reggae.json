@@ -412,7 +412,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "tuba",
-          "notes": ["A#1", "D#2", "A#2", "D3", "A#3"],
+          "notes": ["F1", "A#1", "D#2", "F2", "A#2", "D3", "F3", "A#3", "D4"],
           "extension": "mp3",
           "release": 0.5
         }
@@ -440,7 +440,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "contrabass-pizz",
-          "notes": ["A#1", "E2", "A2", "G#3"],
+          "notes": ["A#1", "C2", "E2", "A2", "G#3"],
           "extension": "mp3",
           "release": 0.3
         }
