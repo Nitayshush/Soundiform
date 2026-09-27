@@ -169,7 +169,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "solo-violin",
-          "notes": ["C4", "G4", "E5", "C6"],
+          "notes": ["A3", "C4", "E4", "G4", "A4", "C5", "E5", "G5", "A5", "C6", "E6", "G6", "A6", "C7"],
           "extension": "mp3",
           "release": 1
         }
@@ -183,7 +183,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "french-horn",
-          "notes": ["F3", "C4", "D5", "F5"],
+          "notes": ["A1", "C2", "D#2", "G2", "A#2", "D3", "F3", "A3", "C4", "D5", "F5"],
           "extension": "mp3",
           "release": 1
         }
@@ -197,7 +197,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "concert-harp",
-          "notes": ["G3", "D4", "A4", "E5", "B5"],
+          "notes": ["D2", "F2", "G3", "A2", "C3", "D4", "E3", "A4", "E5", "B5", "G5", "D6", "F6", "D7"],
           "extension": "mp3",
           "release": 0.7
         }
@@ -225,7 +225,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "trumpet",
-          "notes": ["F3", "A#3", "D4", "G4", "D5", "A5"],
+          "notes": ["F3", "A3", "A#3", "C4", "D4", "D#4", "G4", "A#4", "D5", "F5", "A5", "C6"],
           "extension": "mp3",
           "release": 0.4
         }
@@ -253,7 +253,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "clarinet",
-          "notes": ["D3", "A#3", "F4", "A#4", "D5", "A#5"],
+          "notes": ["D3", "F3", "A#3", "F4", "A#4", "D5", "A#5", "F6"],
           "extension": "mp3",
           "release": 0.5
         }

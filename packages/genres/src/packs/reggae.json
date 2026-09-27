@@ -300,7 +300,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "trumpet",
-          "notes": ["F3", "A#3", "D4", "G4", "D5", "A5"],
+          "notes": ["F3", "A3", "A#3", "C4", "D4", "D#4", "G4", "A#4", "D5", "F5", "A5", "C6"],
           "extension": "mp3",
           "release": 0.4
         }
@@ -370,7 +370,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "flute",
-          "notes": ["C4", "A4", "E5", "C6"],
+          "notes": ["C4", "E4", "A4", "E5", "C6"],
           "extension": "mp3",
           "release": 0.8
         }

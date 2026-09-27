@@ -171,7 +171,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "flute",
-          "notes": ["C4", "A4", "E5", "C6"],
+          "notes": ["C4", "E4", "A4", "E5", "C6"],
           "extension": "mp3",
           "release": 0.8
         }
@@ -185,7 +185,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "marimba",
-          "notes": ["G3", "F4", "C5", "G5"],
+          "notes": ["F2", "G3", "B3", "F4", "C5", "G5", "B5", "C7"],
           "extension": "mp3",
           "release": 0.5
         }
@@ -227,7 +227,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "clarinet",
-          "notes": ["D3", "A#3", "F4", "A#4", "D5", "A#5"],
+          "notes": ["D3", "F3", "A#3", "F4", "A#4", "D5", "A#5", "F6"],
           "extension": "mp3",
           "release": 0.5
         }
@@ -293,7 +293,7 @@
         "preset": {
           "kind": "sampler",
           "instrumentId": "clarinet",
-          "notes": ["D3", "A#3", "F4", "A#4", "D5", "A#5"],
+          "notes": ["D3", "F3", "A#3", "F4", "A#4", "D5", "A#5", "F6"],
           "extension": "mp3",
           "release": 0.5
         }
