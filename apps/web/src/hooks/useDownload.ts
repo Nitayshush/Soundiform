@@ -153,8 +153,14 @@ export interface UseDownloadResult {
    * את onResolveDetailsModal כ-onDone.
    */
   detailsModalRequest: { projectId: string; defaultTitle: string } | null;
-  /** קורא ל-CreationDetailsModal (הן ל-Save והן ל-Skip) — ממשיך את renderAndDownload שממתין. */
-  onResolveDetailsModal: () => void;
+  /**
+   * קורא ל-CreationDetailsModal (הן ל-Save והן ל-Skip) — ממשיך את renderAndDownload שממתין.
+   * ⭐⭐ 2026-09-27: מקבל את ה-visibility שהמשתמש בחר במודאל (Public/Private) ומעביר אותו
+   * הלאה ליצירת ה-share.
+   */
+  onResolveDetailsModal: (visibility: ShareVisibility) => void;
+  /** ⭐⭐ 2026-09-27: ערך התחלתי ל-toggle הפרטיות של CreationDetailsModal — ראה options.defaultVisibility. */
+  defaultVisibility: ShareVisibility;
 }
 
 /** ⭐ 2026-08-29: טקסט לכל שלב ברינדור-במכשיר (lib/download/clientRender.ts). */
@@ -194,8 +200,12 @@ export function useDownload(
   const lastPercentRef = useRef<number | null>(null);
   const pendingDownloadRef = useRef(false);
   const autoDownloadAttemptedRef = useRef(false);
-  /** ⭐ 2026-09-12: מוחזק בין רגע פתיחת CreationDetailsModal לרגע ש-onResolveDetailsModal נקרא. */
-  const detailsModalResolverRef = useRef<(() => void) | null>(null);
+  /**
+   * ⭐ 2026-09-12: מוחזק בין רגע פתיחת CreationDetailsModal לרגע ש-onResolveDetailsModal נקרא.
+   * ⭐⭐ 2026-09-27: מחזיר עכשיו את ה-visibility שנבחר במודאל (Public/Private) — ראה
+   * CreationDetailsModal.tsx ומקום השימוש למטה.
+   */
+  const detailsModalResolverRef = useRef<((visibility: ShareVisibility) => void) | null>(null);
   // ⚠️ נלכד פעם אחת ב-mount, לא נקרא reactively מ-searchParams — useSaveProject's autoSave
   // effect עושה router.replace('/studio') אחרי השמירה (מוריד את ה-query params), אז קריאה
   // reactive הייתה עלולה "לפספס" את הדגל בגלל תזמון race מול אותו replace.
@@ -303,11 +313,21 @@ export function useDownload(
           );
         }
 
+        // ⭐⭐ 2026-09-27 (פידבק בדיקה חיה: "היצירה הופכת לציבורית אוטומטית, ורק אחר-כך רואים
+        // את הכפתור Public ב-My Gallery"): נשאלים "תן שם ליצירה שלך" **ובוחרים פרטיות** לפני
+        // יצירת ה-share, לא אחריו — כך שאף שורת shares לא נכתבת ל-DB עם visibility שהמשתמש
+        // לא בחר בפועל. ראה CreationDetailsModal.tsx. defaultVisibility עדיין קובע את הערך
+        // ההתחלתי של ה-toggle (Kids Studio ממשיך לפתוח על 'private').
+        const chosenVisibility = await new Promise<ShareVisibility>((resolve) => {
+          detailsModalResolverRef.current = resolve;
+          setDetailsModalRequest({ projectId, defaultTitle: defaultCreationTitle(genreId) });
+        });
+
         setStatusMessage('Creating your share link…');
         const shareResponse = await fetch('/api/shares', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ renderId, visibility: defaultVisibility }),
+          body: JSON.stringify({ renderId, visibility: chosenVisibility }),
         });
         const shareBody = (await shareResponse.json()) as { slug?: string; error?: string };
         // ⚠️ 2026-09-13 (נתפס בבדיקה חיה): עד עכשיו זה לא נבדק — תגובת-שגיאה (401/404/500)
@@ -337,25 +357,20 @@ export function useDownload(
       // והמשתמש רואה מסך שקט עם ההודעה בלבד — ולא "Saving…" מסתובב במשך 5 שניות.
       // כשאין מה לקרוא (ההורדה פשוט הצליחה) — מנווטים מיד, בלי להשהות סתם.
       if (shareSlug) {
-        // ⭐ 2026-09-12 (עודכן 2026-09-13 לפי בקשה חיה: גם Kids Studio מקבל את זה — היצירה
-        // עדיין פרטית, אבל אין סיבה למנוע מהורה/מורה לתת לה שם לצורך ארגון/זיהוי בעצמו):
-        // נשאלים "תן שם ליצירה שלך" **לפני** ההשהיה-לקריאה ולפני הניווט. ראה CreationDetailsModal.tsx.
-        await new Promise<void>((resolve) => {
-          detailsModalResolverRef.current = resolve;
-          setDetailsModalRequest({ projectId, defaultTitle: defaultCreationTitle(genreId) });
-        });
+        // ⭐ 2026-09-12 (עודכן 2026-09-27: המודאל עצמו כבר נשאל למעלה, לפני יצירת ה-share —
+        // כאן רק ההשהיה-לקריאה שנשארה במקומה המקורי, לפני הניווט).
         if (noticeToRead) {
           await sleep(NOTICE_READ_MS);
         }
         router.push(`/s/${shareSlug}`);
       }
     },
-    [genreId, soundSelections, router, defaultVisibility, captureSceneSnapshot],
+    [genreId, soundSelections, router, captureSceneSnapshot],
   );
 
-  const onResolveDetailsModal = useCallback(() => {
+  const onResolveDetailsModal = useCallback((visibility: ShareVisibility) => {
     setDetailsModalRequest(null);
-    detailsModalResolverRef.current?.();
+    detailsModalResolverRef.current?.(visibility);
     detailsModalResolverRef.current = null;
   }, []);
 
@@ -400,5 +415,9 @@ export function useDownload(
     unsupportedNotice,
     detailsModalRequest,
     onResolveDetailsModal,
+    // ⭐⭐ 2026-09-27: ערך התחלתי ל-toggle הפרטיות של CreationDetailsModal — כך שהקורא
+    // (studio/page.tsx, studio/kids/page.tsx) לא צריך לעקוב אחרי options?.defaultVisibility
+    // בעצמו כדי להעביר אותו הלאה למודאל.
+    defaultVisibility,
   };
 }

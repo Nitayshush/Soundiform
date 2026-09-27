@@ -23,12 +23,20 @@
  * לא רק אחרי Download. ⚠️ קריטי: הטקסט **חייב** להיות שונה מ-'create' — Save לא יוצר וידאו/
  * share בכלל (ראה useSaveProject.ts/useDownload.ts), אז "Name your creation… when you share
  * it" היה מטעה: המשתמש חשב שהיצירה "נשמרה ושותפה" בפועל, בעוד שרק הציור עצמו נשמר כטיוטה.
+ *
+ * ⭐⭐ 2026-09-27 (פידבק בדיקה חיה: "היצירה הופכת לציבורית אוטומטית, ורק אחר-כך רואים את
+ * הכפתור Public ב-My Gallery"): variant='create' מקבל עכשיו גם בחירת Public/Private —
+ * useDownload.ts קורא למודאל הזה **לפני** יצירת ה-share (לא אחריו כמו קודם), כך שהבחירה
+ * כאן היא זו שקובעת את visibility ביצירת ה-share, לא ברירת-מחדל קבועה. 'edit'/'draft' לא
+ * נוגעים ב-share בכלל (הוא עוד לא קיים ב-draft, וכבר קיים וקבוע ב-edit — יש PublishToggleButton
+ * נפרד לזה), אז אין להם UI של פרטיות.
  */
 
 'use client';
 
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import type { ShareVisibility } from '@soundiform/db';
 
 export interface CreationDetails {
   title: string;
@@ -46,7 +54,9 @@ export interface CreationDetailsModalProps {
    * 'edit' — נפתח מ-My Gallery ליצירה קיימת. 'draft' — נפתח אחרי Save-פשוט, בלי וידאו/share.
    */
   variant?: 'create' | 'edit' | 'draft';
-  onDone: () => void;
+  /** ⭐⭐ 2026-09-27: ערך התחלתי ל-toggle הפרטיות (רק ב-variant='create'). ברירת מחדל 'public'. */
+  initialVisibility?: ShareVisibility;
+  onDone: (visibility: ShareVisibility) => void;
 }
 
 function errorMessage(error: unknown): string {
@@ -59,11 +69,13 @@ export function CreationDetailsModal({
   initialDescription = '',
   initialKeywords = '',
   variant = 'create',
+  initialVisibility = 'public',
   onDone,
 }: CreationDetailsModalProps) {
   const [title, setTitle] = useState(defaultTitle);
   const [description, setDescription] = useState(initialDescription);
   const [keywords, setKeywords] = useState(initialKeywords);
+  const [visibility, setVisibility] = useState<ShareVisibility>(initialVisibility);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +96,7 @@ export function CreationDetailsModal({
         const body = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? 'Could not save details');
       }
-      onDone();
+      onDone(visibility);
     } catch (caughtError) {
       setError(errorMessage(caughtError));
     } finally {
@@ -146,11 +158,53 @@ export function CreationDetailsModal({
             className="rounded-lg border border-border/60 bg-background px-3 py-2"
           />
         </label>
+        {variant === 'create' && (
+          <div className="flex flex-col gap-1 text-sm">
+            <span>Who can see this?</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setVisibility('public');
+                }}
+                aria-pressed={visibility === 'public'}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
+                  visibility === 'public'
+                    ? 'border-primary bg-primary/10 font-medium'
+                    : 'border-border/60 text-muted-foreground'
+                }`}
+              >
+                🌐 Public
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setVisibility('private');
+                }}
+                aria-pressed={visibility === 'private'}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
+                  visibility === 'private'
+                    ? 'border-primary bg-primary/10 font-medium'
+                    : 'border-border/60 text-muted-foreground'
+                }`}
+              >
+                🔒 Private
+              </button>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {visibility === 'public'
+                ? 'Anyone can find this in the public gallery.'
+                : 'Only visible to you — you can make it public later from My Gallery.'}
+            </span>
+          </div>
+        )}
         {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="mt-1 flex items-center justify-between">
           <button
             type="button"
-            onClick={onDone}
+            onClick={() => {
+              onDone(visibility);
+            }}
             disabled={isSaving}
             className="text-sm text-muted-foreground underline hover:text-foreground"
           >

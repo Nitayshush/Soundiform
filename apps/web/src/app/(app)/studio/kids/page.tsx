@@ -189,6 +189,7 @@ function KidsStudioContent() {
     unsupportedNotice,
     detailsModalRequest,
     onResolveDetailsModal,
+    defaultVisibility,
   } = useDownload(saveProject, {
     defaultVisibility: 'private',
     soundSelectionsOverride,
@@ -381,6 +382,7 @@ function KidsStudioContent() {
         <CreationDetailsModal
           projectId={detailsModalRequest.projectId}
           defaultTitle={detailsModalRequest.defaultTitle}
+          initialVisibility={defaultVisibility}
           onDone={onResolveDetailsModal}
         />
       )}

@@ -13,7 +13,7 @@
     "subdivision": 8,
     "swingAmount": 0
   },
-  "allowedModes": ["aeolian", "phrygian"],
+  "allowedModes": ["aeolian", "phrygian", "dorian"],
   "defaultMode": "aeolian",
   "harmonicTendency": "extended",
   "chordProgression": [0, 5, 2, 6],

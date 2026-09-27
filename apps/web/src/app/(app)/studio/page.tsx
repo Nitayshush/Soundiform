@@ -45,6 +45,8 @@ import { defaultCreationTitle } from '@/lib/creationTitle';
 function StudioContent() {
   const shapeHash = useShapeStore((state) => state.shapeHash);
   const clear = useShapeStore((state) => state.clear);
+  const paths = useShapeStore((state) => state.paths);
+  const removePath = useShapeStore((state) => state.removePath);
   const genreId = useGenreStore((state) => state.genreId);
   const {
     isPlaying,
@@ -71,6 +73,7 @@ function StudioContent() {
     unsupportedNotice,
     detailsModalRequest,
     onResolveDetailsModal,
+    defaultVisibility,
   } = useDownload(saveProject);
   // ⭐ 2026-09-13 (לפי בקשה חיה): גם Save-הפשוט (בלי רינדור/שיתוף) פותח את חלון הפרטים —
   // לא רק Download. ⚠️ ref ולא רק "savedProjectId קיים": savedProjectId נשאר מוגדר גם אחרי
@@ -219,6 +222,18 @@ function StudioContent() {
           <span className="hidden font-mono text-xs sm:inline" title="shapeHash — determinism, §1">
             {shapeHash ? shapeHash.slice(0, 12) : 'Draw a shape'}
           </span>
+          {/* ⭐ 2026-09-27 (פידבק בדיקה חיה): מסיר רק את ה-path האחרון — הבטוח ביותר להסרה
+              (שום path אחר לא צריך להזיז אינדקס). משתמש חוזר ב-removePath הקיים. */}
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              removePath(paths.length - 1);
+            }}
+            disabled={paths.length === 0}
+          >
+            Undo
+          </Button>
           <Button type="button" variant="ghost" onClick={clear}>
             Clear
           </Button>
@@ -347,6 +362,7 @@ function StudioContent() {
         <CreationDetailsModal
           projectId={detailsModalRequest.projectId}
           defaultTitle={detailsModalRequest.defaultTitle}
+          initialVisibility={defaultVisibility}
           onDone={onResolveDetailsModal}
         />
       ) : (

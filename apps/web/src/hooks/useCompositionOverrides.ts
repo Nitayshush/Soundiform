@@ -23,6 +23,8 @@ import { useCreationSettingsStore } from '@/stores/creationSettingsStore';
 export function useCompositionOverrides(): CompositionOverrides {
   const genreId = useGenreStore((state) => state.genreId);
   const settings = useCreationSettingsStore((state) => state.byGenre[genreId]);
+  // ⭐⭐ 2026-09-27: sizeMode אינו לפי-ז'אנר יותר — ראה creationSettingsStore.ts.
+  const globalSizeMode = useCreationSettingsStore((state) => state.globalSizeMode);
 
   return useMemo(() => {
     // ⚠️ 2026-09-01: הסמל **כן** מועבר הלאה עכשיו. מאז שברירת המחדל היא הביט של הסגנון,
@@ -32,7 +34,7 @@ export function useCompositionOverrides(): CompositionOverrides {
     return {
       ...(beatPatternId !== undefined && { beatPatternId }),
       ...(settings?.key !== undefined && { key: settings.key }),
-      ...(settings?.sizeMode !== undefined && { sizeMode: settings.sizeMode }),
+      ...(globalSizeMode !== undefined && { sizeMode: globalSizeMode }),
     };
-  }, [settings]);
+  }, [settings, globalSizeMode]);
 }

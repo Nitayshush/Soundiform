@@ -13,7 +13,7 @@
     "subdivision": 16,
     "swingAmount": 0.12
   },
-  "allowedModes": ["lydian", "ionian"],
+  "allowedModes": ["lydian", "ionian", "dorian", "mixolydian"],
   "defaultMode": "lydian",
   "harmonicTendency": "extended",
   "chordProgression": [1, 4, 0, 5],

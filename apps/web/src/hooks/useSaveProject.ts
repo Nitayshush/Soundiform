@@ -28,7 +28,7 @@ import { toShapeData, useShapeStore } from '@/stores/shapeStore';
 import { useSupabaseUser } from './useSupabaseUser';
 import { useGenreStore } from '@/stores/genreStore';
 import { useSoundSelectionStore } from '@/stores/soundSelectionStore';
-import { readCreationSettings } from '@/stores/creationSettingsStore';
+import { readCreationSettings, readGlobalSizeMode } from '@/stores/creationSettingsStore';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Save failed';
@@ -86,6 +86,9 @@ export function useSaveProject(): UseSaveProjectResult {
           creationSettings: {
             ...readCreationSettings(genreId),
             ...(soundSelections && { soundSelections }),
+            // ⭐⭐ 2026-09-27: sizeMode חי כהעדפה גלובלית, לא ב-byGenre — readCreationSettings
+            // לבדה כבר לא מכילה אותו, אז ממזגים אותו במפורש כדי שהפרויקט השמור ישקף אותו.
+            ...(readGlobalSizeMode() !== undefined && { sizeMode: readGlobalSizeMode() }),
           },
         }),
       });

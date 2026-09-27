@@ -49,13 +49,16 @@ export function BeatAndKeyRows({ pack }: BeatAndKeyRowsProps) {
   const settings = useCreationSettingsStore((state) => state.byGenre[pack.id]);
   const setBeatPattern = useCreationSettingsStore((state) => state.setBeatPattern);
   const setKey = useCreationSettingsStore((state) => state.setKey);
-  const setSizeMode = useCreationSettingsStore((state) => state.setSizeMode);
+  // ⭐⭐ 2026-09-27: sizeMode אינו לפי-ז'אנר (ראה creationSettingsStore.ts) — נשמר בין
+  // מעברי ז'אנר בכוונה, בניגוד ל-beatPattern/key שכן משתייכים לסגנון הנוכחי.
+  const globalSizeMode = useCreationSettingsStore((state) => state.globalSizeMode);
+  const setGlobalSizeMode = useCreationSettingsStore((state) => state.setGlobalSizeMode);
 
   // ⚠️ ברירת המחדל היא הביט הראשון של הסגנון, לא "מהציור" — ראה resolveBeatPattern.
   const activeBeatId = settings?.beatPatternId ?? pack.beatPatterns?.[0]?.id ?? DRAWING_BEAT_ID;
   const activeRoot = settings?.key?.rootPitchClass ?? pack.noteBoardRootPitchClass ?? 0;
   const activeMode = settings?.key?.mode ?? pack.defaultMode;
-  const activeSizeMode = settings?.sizeMode ?? 'fitToBoard';
+  const activeSizeMode = globalSizeMode ?? 'fitToBoard';
   const beatPatterns = pack.beatPatterns ?? [];
 
   return (
@@ -154,7 +157,7 @@ export function BeatAndKeyRows({ pack }: BeatAndKeyRowsProps) {
               className="w-full justify-start rounded-md"
               aria-pressed={activeSizeMode === 'fitToBoard'}
               onClick={() => {
-                setSizeMode(pack.id, 'fitToBoard');
+                setGlobalSizeMode('fitToBoard');
               }}
             >
               Fit to board
@@ -166,7 +169,7 @@ export function BeatAndKeyRows({ pack }: BeatAndKeyRowsProps) {
               className="w-full justify-start rounded-md"
               aria-pressed={activeSizeMode === 'trueSize'}
               onClick={() => {
-                setSizeMode(pack.id, 'trueSize');
+                setGlobalSizeMode('trueSize');
               }}
             >
               True size
