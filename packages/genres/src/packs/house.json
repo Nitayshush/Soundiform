@@ -237,16 +237,16 @@
         "preset": {
           "oscillatorType": "triangle",
           "envelope": {
-            "attack": 0.01,
-            "decay": 0.15,
-            "sustain": 0.6,
-            "release": 0.2
+            "attack": 0.001,
+            "decay": 0.08,
+            "sustain": 0.2,
+            "release": 0.08
           },
           "polyphonic": false,
           "filter": {
             "type": "lowpass",
-            "frequencyHz": 900,
-            "resonance": 1
+            "frequencyHz": 1400,
+            "resonance": 1.5
           }
         }
       },
@@ -269,7 +269,35 @@
             "type": "lowpass",
             "frequencyHz": 700,
             "resonance": 1.4
-          }
+          },
+          "layers": [
+            {
+              "oscillatorType": "sine",
+              "envelope": {
+                "attack": 0.003,
+                "decay": 0.18,
+                "sustain": 0.55,
+                "release": 0.15
+              },
+              "gain": 1
+            },
+            {
+              "oscillatorType": "square",
+              "envelope": {
+                "attack": 0.001,
+                "decay": 0.08,
+                "sustain": 0.3,
+                "release": 0.08
+              },
+              "gain": 0.4,
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 600,
+                "resonance": 1.5
+              },
+              "driveAmount": 0.15
+            }
+          ]
         }
       },
       {
@@ -281,17 +309,44 @@
         "preset": {
           "oscillatorType": "sine",
           "envelope": {
-            "attack": 0.02,
-            "decay": 0.2,
-            "sustain": 0.7,
-            "release": 0.35
+            "attack": 0.03,
+            "decay": 0.3,
+            "sustain": 0.85,
+            "release": 0.7
           },
           "polyphonic": false,
           "filter": {
             "type": "lowpass",
-            "frequencyHz": 750,
-            "resonance": 0.8
-          }
+            "frequencyHz": 500,
+            "resonance": 0.5
+          },
+          "layers": [
+            {
+              "oscillatorType": "sine",
+              "envelope": {
+                "attack": 0.03,
+                "decay": 0.3,
+                "sustain": 0.85,
+                "release": 0.7
+              },
+              "gain": 1
+            },
+            {
+              "oscillatorType": "triangle",
+              "envelope": {
+                "attack": 0.05,
+                "decay": 0.3,
+                "sustain": 0.8,
+                "release": 0.8
+              },
+              "gain": 0.35,
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 450,
+                "resonance": 0.6
+              }
+            }
+          ]
         }
       },
       {
@@ -707,7 +762,7 @@
           "en": "Rich Pad"
         },
         "preset": {
-          "oscillatorType": "sine",
+          "oscillatorType": "triangle",
           "envelope": {
             "attack": 0.25,
             "decay": 0.2,
@@ -723,7 +778,39 @@
           "unison": {
             "count": 5,
             "spreadCents": 28
-          }
+          },
+          "layers": [
+            {
+              "oscillatorType": "triangle",
+              "envelope": {
+                "attack": 0.25,
+                "decay": 0.2,
+                "sustain": 0.75,
+                "release": 0.7
+              },
+              "gain": 1,
+              "filter": {
+                "type": "lowpass",
+                "frequencyHz": 2600,
+                "resonance": 1
+              },
+              "unison": {
+                "count": 5,
+                "spreadCents": 28
+              }
+            },
+            {
+              "oscillatorType": "sine",
+              "envelope": {
+                "attack": 0.3,
+                "decay": 0.25,
+                "sustain": 0.8,
+                "release": 0.8
+              },
+              "gain": 0.4,
+              "detuneSemitones": -12
+            }
+          ]
         }
       },
       {
@@ -733,18 +820,18 @@
           "en": "Deep Pad"
         },
         "preset": {
-          "oscillatorType": "sine",
+          "oscillatorType": "sawtooth",
           "envelope": {
-            "attack": 0.3,
-            "decay": 0.25,
-            "sustain": 0.75,
-            "release": 0.8
+            "attack": 0.5,
+            "decay": 0.3,
+            "sustain": 0.8,
+            "release": 1
           },
           "polyphonic": true,
           "filter": {
             "type": "lowpass",
-            "frequencyHz": 1600,
-            "resonance": 0.8
+            "frequencyHz": 700,
+            "resonance": 0.6
           }
         }
       },
