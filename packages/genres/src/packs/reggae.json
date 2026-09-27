@@ -227,7 +227,28 @@
         "preset": {
           "kind": "drumkit",
           "instrumentId": "acoustic-kit",
-          "pieces": ["kick", "tom", "snare", "clap", "hihat-closed", "hihat-open", "crash"],
+          "pieces": [
+            "kick_pp",
+            "kick_mp",
+            "kick_mf",
+            "kick_ff",
+            "tom_pp",
+            "tom_mf",
+            "tom_ff",
+            "snare_pp",
+            "snare_mp",
+            "snare_mf",
+            "snare_ff",
+            "clap",
+            "hihat-closed_pp",
+            "hihat-closed_mp",
+            "hihat-closed_mf",
+            "hihat-closed_ff",
+            "hihat-open",
+            "crash_pp",
+            "crash_mp",
+            "crash_ff"
+          ],
           "extension": "mp3",
           "gain": 1
         }
