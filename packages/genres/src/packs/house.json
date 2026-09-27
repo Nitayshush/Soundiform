@@ -259,43 +259,42 @@
         "preset": {
           "oscillatorType": "sine",
           "envelope": {
-            "attack": 0.005,
-            "decay": 0.18,
-            "sustain": 0.55,
-            "release": 0.15
+            "attack": 0.003,
+            "decay": 0.15,
+            "sustain": 0.6,
+            "release": 0.12
           },
           "polyphonic": false,
-          "filter": {
-            "type": "lowpass",
-            "frequencyHz": 700,
-            "resonance": 1.4
-          },
           "layers": [
             {
               "oscillatorType": "sine",
               "envelope": {
                 "attack": 0.003,
-                "decay": 0.18,
-                "sustain": 0.55,
-                "release": 0.15
+                "decay": 0.15,
+                "sustain": 0.6,
+                "release": 0.12
               },
               "gain": 1
             },
             {
-              "oscillatorType": "square",
+              "oscillatorType": "sawtooth",
               "envelope": {
-                "attack": 0.001,
-                "decay": 0.08,
-                "sustain": 0.3,
-                "release": 0.08
+                "attack": 0.003,
+                "decay": 0.15,
+                "sustain": 0.55,
+                "release": 0.12
               },
-              "gain": 0.4,
+              "gain": 0.85,
               "filter": {
                 "type": "lowpass",
-                "frequencyHz": 600,
-                "resonance": 1.5
+                "frequencyHz": 900,
+                "resonance": 2
               },
-              "driveAmount": 0.15
+              "unison": {
+                "count": 7,
+                "spreadCents": 35
+              },
+              "driveAmount": 0.3
             }
           ]
         }
@@ -309,42 +308,38 @@
         "preset": {
           "oscillatorType": "sine",
           "envelope": {
-            "attack": 0.03,
-            "decay": 0.3,
+            "attack": 0.02,
+            "decay": 0.25,
             "sustain": 0.85,
-            "release": 0.7
+            "release": 0.5
           },
           "polyphonic": false,
-          "filter": {
-            "type": "lowpass",
-            "frequencyHz": 500,
-            "resonance": 0.5
-          },
           "layers": [
             {
               "oscillatorType": "sine",
               "envelope": {
-                "attack": 0.03,
-                "decay": 0.3,
+                "attack": 0.02,
+                "decay": 0.25,
                 "sustain": 0.85,
-                "release": 0.7
+                "release": 0.5
               },
               "gain": 1
             },
             {
-              "oscillatorType": "triangle",
+              "oscillatorType": "square",
               "envelope": {
-                "attack": 0.05,
-                "decay": 0.3,
+                "attack": 0.03,
+                "decay": 0.25,
                 "sustain": 0.8,
-                "release": 0.8
+                "release": 0.55
               },
-              "gain": 0.35,
+              "gain": 0.75,
               "filter": {
                 "type": "lowpass",
-                "frequencyHz": 450,
-                "resonance": 0.6
-              }
+                "frequencyHz": 550,
+                "resonance": 1
+              },
+              "driveAmount": 0.4
             }
           ]
         }
@@ -758,80 +753,40 @@
       {
         "id": "rich-pad",
         "displayName": {
-          "he": "פאד עשיר",
-          "en": "Rich Pad"
+          "he": "צ'לי",
+          "en": "Cello Section"
         },
         "preset": {
-          "oscillatorType": "triangle",
-          "envelope": {
-            "attack": 0.25,
-            "decay": 0.2,
-            "sustain": 0.75,
-            "release": 0.7
-          },
-          "polyphonic": true,
-          "filter": {
-            "type": "lowpass",
-            "frequencyHz": 2600,
-            "resonance": 1
-          },
-          "unison": {
-            "count": 5,
-            "spreadCents": 28
-          },
-          "layers": [
-            {
-              "oscillatorType": "triangle",
-              "envelope": {
-                "attack": 0.25,
-                "decay": 0.2,
-                "sustain": 0.75,
-                "release": 0.7
-              },
-              "gain": 1,
-              "filter": {
-                "type": "lowpass",
-                "frequencyHz": 2600,
-                "resonance": 1
-              },
-              "unison": {
-                "count": 5,
-                "spreadCents": 28
-              }
-            },
-            {
-              "oscillatorType": "sine",
-              "envelope": {
-                "attack": 0.3,
-                "decay": 0.25,
-                "sustain": 0.8,
-                "release": 0.8
-              },
-              "gain": 0.4,
-              "detuneSemitones": -12
-            }
-          ]
+          "kind": "sampler",
+          "instrumentId": "cello-section",
+          "notes": ["G2", "D3", "A3", "E4", "B4"],
+          "extension": "mp3",
+          "release": 1.2
         }
       },
       {
         "id": "deep-pad",
         "displayName": {
-          "he": "פאד עמוק",
-          "en": "Deep Pad"
+          "he": "פאד סופר-סאו",
+          "en": "Supersaw Pad"
         },
         "preset": {
           "oscillatorType": "sawtooth",
           "envelope": {
-            "attack": 0.5,
+            "attack": 0.4,
             "decay": 0.3,
             "sustain": 0.8,
-            "release": 1
+            "release": 0.9
           },
           "polyphonic": true,
           "filter": {
             "type": "lowpass",
-            "frequencyHz": 700,
-            "resonance": 0.6
+            "frequencyHz": 2000,
+            "resonance": 1
+          },
+          "unison": {
+            "count": 7,
+            "spreadCents": 32
           }
         }
       },
