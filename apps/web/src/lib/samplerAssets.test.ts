@@ -40,7 +40,9 @@ function collectSamplerReferences(packs: readonly GenrePack[]): SamplerReference
     for (const [role, options] of Object.entries(pack.soundOptions ?? {})) {
       for (const option of options as SoundOption[]) {
         const { preset } = option;
-        if (!('kind' in preset)) {
+        // ⚠️ synth-kit (ערכת-תופים מסונתזת) מצהיר kind אבל אין לו קבצים על הדיסק בכלל —
+        // סינתזה טהורה, בדיוק כמו פריסט-סינת' רגיל (kind-less) שגם מדולג כאן.
+        if (!('kind' in preset) || preset.kind === 'synth-kit') {
           continue;
         }
         // ⚠️ ערכה ודגימה מאוחסנות אותו דבר על הדיסק — ההבדל הוא רק מה המפתחות מייצגים

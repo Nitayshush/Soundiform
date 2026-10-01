@@ -88,7 +88,7 @@ export const DEFAULT_SYNTH_PRESET: SynthPresetConfig = {
   polyphonic: true,
 };
 
-type ToneVoice = Synth | PolySynth;
+export type ToneVoice = Synth | PolySynth;
 
 /** 'fat' == כמה קולות unison מוסטים-detuning זה מזה — טריק עיצוב-סאונד סטנדרטי לגוון "גדול"
  * יותר מגל בודד, בלי דגימות/תלות חדשה (Tone.js תומך בזה built-in). count/spread שמרניים
@@ -183,18 +183,77 @@ function createToneVoice(layer: SynthLayerConfig, polyphonic: boolean): ToneVoic
   return polySynth;
 }
 
-interface LayerVoice {
+export interface LayerVoice {
   voice: ToneVoice;
   gain: Gain;
   filterNode: Filter | null;
   distortionNode: Distortion | null;
 }
 
-function disposeLayerVoice(layerVoice: LayerVoice): void {
+export function disposeLayerVoice(layerVoice: LayerVoice): void {
   layerVoice.voice.dispose();
   layerVoice.filterNode?.dispose();
   layerVoice.distortionNode?.dispose();
   layerVoice.gain.dispose();
+}
+
+export interface SynthVoiceGraph {
+  layerVoices: LayerVoice[];
+  presetFilterNode: Filter | null;
+}
+
+/**
+ * ⭐ 2026-09-28 (ערכת-תופים מסונתזת): בניית-גרף-הקול מ-`SynthPresetConfig` — חולצה מתוך
+ * `SynthProvider.load()` כדי ש-`SynthKitProvider` (קול נפרד לכל חלק-ערכה) תוכל לבנות כמה
+ * גרפים כאלה, אחד לכל חלק, בלי לשכפל את הלוגיקה (מקור-אמת יחיד ל"איך פריסט הופך ל-Tone.js
+ * nodes" — כולל התיקון מ-2026-08-25 ש-`preset.filter` מתעלם כש-`layers` מוגדר).
+ */
+export function buildSynthVoiceGraph(
+  preset: SynthPresetConfig,
+  polyphonic: boolean,
+  outputGain: Gain,
+): SynthVoiceGraph {
+  const hasExplicitLayers = Boolean(preset.layers && preset.layers.length > 0);
+  const layers = resolveLayers(preset);
+  const presetFilterConfig = hasExplicitLayers ? undefined : preset.filter;
+  const sumNode = presetFilterConfig ? new Gain(1) : outputGain;
+  let presetFilterNode: Filter | null = null;
+  if (presetFilterConfig) {
+    presetFilterNode = new Filter(presetFilterConfig.frequencyHz, presetFilterConfig.type);
+    if (presetFilterConfig.resonance !== undefined) {
+      presetFilterNode.Q.value = presetFilterConfig.resonance;
+    }
+    sumNode.connect(presetFilterNode);
+    presetFilterNode.connect(outputGain);
+  }
+
+  const layerVoices = layers.map((layer) => {
+    const voice = createToneVoice(layer, polyphonic);
+    const layerGain = new Gain(layer.gain);
+    let filterNode: Filter | null = null;
+    let distortionNode: Distortion | null = null;
+    let tail: ToneVoice | Filter | Distortion = voice;
+
+    if (layer.driveAmount !== undefined && layer.driveAmount > 0) {
+      distortionNode = new Distortion(layer.driveAmount);
+      tail.connect(distortionNode);
+      tail = distortionNode;
+    }
+    if (layer.filter) {
+      filterNode = new Filter(layer.filter.frequencyHz, layer.filter.type);
+      if (layer.filter.resonance !== undefined) {
+        filterNode.Q.value = layer.filter.resonance;
+      }
+      tail.connect(filterNode);
+      tail = filterNode;
+    }
+    tail.connect(layerGain);
+    layerGain.connect(sumNode);
+
+    return { voice, gain: layerGain, filterNode, distortionNode };
+  });
+
+  return { layerVoices, presetFilterNode };
 }
 
 /**
@@ -226,55 +285,9 @@ export class SynthProvider implements InstrumentProvider {
 
   // eslint-disable-next-line @typescript-eslint/require-await -- load() חייב Promise לפי InstrumentProvider; אין await אמיתי כרגע (V1 בלי SamplerProvider/רשת).
   async load(_instrumentId: string): Promise<void> {
-    // ⭐ שכבות מרובות מתחברות ל-sumNode משותף (לא ישירות ל-outputGain) — כדי שהפילטר
-    // ברמת-הפריסט (preset.filter, אם מוגדר) יחול על *סכום* השכבות, לא על כל שכבה בנפרד
-    // (שכל שכבה יכולה כבר לקבל פילטר-משלה, layer.filter, לפני הסכימה — ראה §תיעוד למעלה).
-    //
-    // ⭐ 2026-08-25 (תיקון-באג אמיתי): synthPresetSchema מתעד "layers, כשמוגדר, *מחליף* את
-    // oscillatorType/envelope/filter/unison שלמעלה" — אבל הקוד כאן החיל את preset.filter
-    // *תמיד*, גם כש-layers מוגדר. זה גרם לבאג שקט אמיתי: פריסט-תופים עם שכבת-טרנזיינט
-    // highpass (למשל "קליק" גבוה מעל שכבת-סאב) ו-preset.filter ברמה-העליונה שהוא lowpass
-    // (לשכבת-הסאב) — הקומבינציה ביטלה כמעט לחלוטין את שכבת-הטרנזיינט (highpass מעל 1500Hz
-    // דרך lowpass מתחת ל-300Hz = כמעט כלום עובר), בלי שגיאה גלויה. עכשיו preset.filter
-    // מוחל רק כש-layers לא מוגדר (התנהגות ה"שכבה המרומזת" היחידה) — עקבי עם התיעוד.
-    const hasExplicitLayers = Boolean(this.preset.layers && this.preset.layers.length > 0);
-    const layers = resolveLayers(this.preset);
-    const presetFilterConfig = hasExplicitLayers ? undefined : this.preset.filter;
-    const sumNode = presetFilterConfig ? new Gain(1) : this.outputGain;
-    if (presetFilterConfig) {
-      this.presetFilterNode = new Filter(presetFilterConfig.frequencyHz, presetFilterConfig.type);
-      if (presetFilterConfig.resonance !== undefined) {
-        this.presetFilterNode.Q.value = presetFilterConfig.resonance;
-      }
-      sumNode.connect(this.presetFilterNode);
-      this.presetFilterNode.connect(this.outputGain);
-    }
-
-    this.layerVoices = layers.map((layer) => {
-      const voice = createToneVoice(layer, this.preset.polyphonic);
-      const layerGain = new Gain(layer.gain);
-      let filterNode: Filter | null = null;
-      let distortionNode: Distortion | null = null;
-      let tail: ToneVoice | Filter | Distortion = voice;
-
-      if (layer.driveAmount !== undefined && layer.driveAmount > 0) {
-        distortionNode = new Distortion(layer.driveAmount);
-        tail.connect(distortionNode);
-        tail = distortionNode;
-      }
-      if (layer.filter) {
-        filterNode = new Filter(layer.filter.frequencyHz, layer.filter.type);
-        if (layer.filter.resonance !== undefined) {
-          filterNode.Q.value = layer.filter.resonance;
-        }
-        tail.connect(filterNode);
-        tail = filterNode;
-      }
-      tail.connect(layerGain);
-      layerGain.connect(sumNode);
-
-      return { voice, gain: layerGain, filterNode, distortionNode };
-    });
+    const graph = buildSynthVoiceGraph(this.preset, this.preset.polyphonic, this.outputGain);
+    this.layerVoices = graph.layerVoices;
+    this.presetFilterNode = graph.presetFilterNode;
   }
 
   playNote(note: Note, time: number): void {

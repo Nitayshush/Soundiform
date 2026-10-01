@@ -53,6 +53,13 @@ function isDrumKitPreset(preset: SoundPreset): preset is Extract<SoundPreset, { 
   return 'kind' in preset && preset.kind === 'drumkit';
 }
 
+/** ⭐ 2026-09-28: ערכת-תופים מסונתזת — נבנית ע"י provider אחר, ולכן צריכה נבואת-טיפוס משלה. */
+function isSynthKitPreset(
+  preset: SoundPreset,
+): preset is Extract<SoundPreset, { kind: 'synth-kit' }> {
+  return 'kind' in preset && preset.kind === 'synth-kit';
+}
+
 /**
  * ⚠️ תצוגה-מקדימה של ערכה לא יכולה לנגן "תו" — היא חייבת לבחור חלק. קיק הוא הזיהוי המיידי
  * ביותר של ערכה; אם הוא חסר בערכה חלקית, DrumKitProvider נופל לחלק קיים.
@@ -83,6 +90,7 @@ export function usePreviewSound() {
       SynthProvider,
       SamplerProvider,
       DrumKitProvider,
+      SynthKitProvider,
       drumKitToSampleSpec,
       preloadSampledInstrument,
       withGlobalContextLock,
@@ -116,6 +124,8 @@ export function usePreviewSound() {
         created = new SamplerProvider(role, PREVIEW_TEMPO_BPM, preset);
       } else if (isDrumKitPreset(preset)) {
         created = new DrumKitProvider(role, preset);
+      } else if (isSynthKitPreset(preset)) {
+        created = new SynthKitProvider(role, PREVIEW_TEMPO_BPM, preset);
       } else {
         created = new SynthProvider(role, PREVIEW_TEMPO_BPM, preset);
       }
@@ -142,7 +152,9 @@ export function usePreviewSound() {
         durationTicks,
         pitch: PREVIEW_PITCH[role],
         velocity: 0.8,
-        ...(isDrumKitPreset(preset) && { drumPiece: PREVIEW_DRUM_PIECE }),
+        ...((isDrumKitPreset(preset) || isSynthKitPreset(preset)) && {
+          drumPiece: PREVIEW_DRUM_PIECE,
+        }),
       },
       now(),
     );

@@ -1,6 +1,6 @@
 /**
  * @file        loader.test.ts
- * @description בדיקות יחידה לטעינת GenrePacks — כל 5 ה-packs תקפים ופעילים ב-V1.
+ * @description בדיקות יחידה לטעינת GenrePacks — כל 6 ה-packs תקפים ופעילים ב-V1.
  * @author      Soundiform
  * @created     2026-08-18
  *
@@ -8,16 +8,18 @@
  *
  * ⭐ 2026-08-22: רגאיי הוחזר לפעיל (requiresSamples: false — קירוב סינתטי, ראה reggae.json
  * ו-PROJECT.md §5.2) אחרי שהיה מוסתר מאז Sprint 5. loadActiveGenrePacks מחזיר עכשיו 5, לא 4.
+ * ⭐ 2026-09-28 (שלב ד׳, חלק 2): נוסף techno — loadAllGenrePacks/loadActiveGenrePacks מחזירים
+ * עכשיו 6, לא 5.
  */
 
 import { describe, expect, it } from 'vitest';
 import { loadActiveGenrePacks, loadAllGenrePacks, loadGenrePackById } from './loader';
 
 describe('loadAllGenrePacks', () => {
-  it('טוען את כל 5 הסגנונות מ-§5.2', () => {
+  it('טוען את כל 6 הסגנונות מ-§5.2', () => {
     const packs = loadAllGenrePacks();
     const ids = packs.map((pack) => pack.id).sort();
-    expect(ids).toEqual(['chill', 'cinematic', 'house', 'reggae', 'trance']);
+    expect(ids).toEqual(['chill', 'cinematic', 'house', 'reggae', 'techno', 'trance']);
   });
 
   it('לכל pack יש roles תואמים ל-synthMap ו-rhythmPatterns (אין role חסר)', () => {
@@ -38,9 +40,9 @@ describe('loadAllGenrePacks', () => {
 });
 
 describe('loadActiveGenrePacks', () => {
-  it('מחזיר את כל 5 הסגנונות פעילים (רגאיי כבר לא מוסתר — קירוב סינתטי)', () => {
+  it('מחזיר את כל 6 הסגנונות פעילים (רגאיי כבר לא מוסתר — קירוב סינתטי)', () => {
     const active = loadActiveGenrePacks();
-    expect(active).toHaveLength(5);
+    expect(active).toHaveLength(6);
     expect(active.some((pack) => pack.id === 'reggae')).toBe(true);
   });
 

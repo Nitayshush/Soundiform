@@ -138,17 +138,34 @@ export const drumKitPresetSchema = z.object({
 });
 
 /**
+ * ⭐ 2026-09-28 (ערכת-תופים מסונתזת): כמו drumKitPreset, אבל **מסונתז** — כל חלק-ערכה מקבל
+ * `SynthPresetConfig` משלו (גוון, לא רק פיץ') במקום קובץ-דגימה. נבנה כי 7 מ-9 אפשרויות-הצליל
+ * לתופים בטראנס/האוס היו פריסט-סינת' *יחיד* לכל התפקיד — כל חלקי-הערכה מנגנים אותו גל-קול
+ * בגבהים שונים בלבד, ו-autoSelectDrumKit (apps/web) תמיד מעדיף ערכת-דגימות אמיתית כשקיימת,
+ * כך שאותן 7 אפשרויות לא עשו כלום בפועל בבורר. ראה SynthKitProvider.ts (@soundiform/audio).
+ * ⚠️ `pieces` מפתח גנרי (לא DrumPiece-typed) מאותה סיבה בדיוק כמו beatPatterns[].pieces —
+ * לא לשכפל את רשימת חלקי-הערכה כאן; core מצמצם/מוודא מול DrumPiece האמיתי.
+ */
+export const synthKitPresetSchema = z.object({
+  kind: z.literal('synth-kit'),
+  pieces: z.record(z.string(), synthPresetSchema),
+  gain: z.number().min(0).max(1).optional(),
+});
+
+/**
  * ⚠️ הסדר באיחוד חשוב, והוא מה ששומר על תאימות-לאחור: פריסטים קיימים (טראנס/האוס) נכתבו
- * **בלי** שדה `kind`, ולכן הם נופלים לענף הסינת' בדיוק כמו קודם. רק פריסט שמצהיר
- * `kind: 'sampler'` נקרא כדגימה, ורק `kind: 'drumkit'` כערכה. שום קובץ קיים לא צריך להשתנות.
+ * **בלי** שדה `kind`, ולכן הם נופלים לענף הסינת' בדיוק כמו קודם. רק פריסט שמצהיר `kind`
+ * מפורש נקרא לענף המתאים (sampler/drumkit/synth-kit) — שום קובץ קיים לא צריך להשתנות.
  */
 export const soundPresetSchema = z.union([
   samplerPresetSchema,
   drumKitPresetSchema,
+  synthKitPresetSchema,
   synthPresetSchema,
 ]);
 export type SamplerPreset = z.infer<typeof samplerPresetSchema>;
 export type DrumKitPreset = z.infer<typeof drumKitPresetSchema>;
+export type SynthKitPreset = z.infer<typeof synthKitPresetSchema>;
 export type SoundPreset = z.infer<typeof soundPresetSchema>;
 
 export const soundOptionSchema = z.object({

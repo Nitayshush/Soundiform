@@ -14,7 +14,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { loadAllGenrePacks, loadGenrePackById } from '@soundiform/genres';
+import { loadAllGenrePacks, loadGenrePackById, type GenrePack } from '@soundiform/genres';
 import { toGenreAudioConfig } from './genreAdapter';
 
 describe('בחירת ערכה אוטומטית כשנבחר מקצב', () => {
@@ -65,5 +65,82 @@ describe('בחירת ערכה אוטומטית כשנבחר מקצב', () => {
       const config = toGenreAudioConfig(pack!, 'seed');
       expect(config.drumKitPresets?.drums?.instrumentId, genreId).toBe('electronic-kit');
     }
+  });
+});
+
+/**
+ * ⭐ 2026-09-28 (ערכת-תופים מסונתזת): בדיקות עצמאיות על פאק-בדיקה מקומי (לא תלוי בתוכן-
+ * אמיתי בטראנס/האוס, שעדיין לא הומר ל-synth-kit בשלב הזה) — מוכיחות את המנגנון עצמו
+ * לפני שמשקיעים בעיצוב-תוכן לכל 14+ הערכות.
+ */
+function makeDrumKitTestPack(): GenrePack {
+  return {
+    id: 'test-drum-kits',
+    displayName: { he: 'בדיקה', en: 'Test' },
+    tempo: { min: 100, max: 150, default: 120 },
+    grid: { subdivision: 16, swingAmount: 0 },
+    allowedModes: ['aeolian'],
+    defaultMode: 'aeolian',
+    harmonicTendency: 'modal',
+    chordProgression: [0, 5, 3, 4],
+    roles: ['drums'],
+    rhythmPatterns: {},
+    synthMap: {
+      drums: {
+        oscillatorType: 'triangle',
+        envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 },
+        polyphonic: false,
+      },
+    },
+    beatPatterns: [
+      { id: 'four-on-floor', displayName: { he: 'ארבע', en: 'Four' }, stepsPerBar: 16, pieces: { kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0] } },
+    ],
+    soundOptions: {
+      drums: [
+        {
+          id: 'real-kit',
+          displayName: { he: 'ערכה אמיתית', en: 'Real Kit' },
+          preset: { kind: 'drumkit', instrumentId: 'electronic-kit', pieces: ['kick', 'snare'], extension: 'mp3' },
+        },
+        {
+          id: 'test-synth-kit',
+          displayName: { he: 'ערכה מסונתזת', en: 'Synth Kit' },
+          preset: {
+            kind: 'synth-kit',
+            pieces: {
+              kick: { oscillatorType: 'sine', envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.08 }, polyphonic: false },
+              snare: { oscillatorType: 'square', envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 }, polyphonic: false },
+            },
+          },
+        },
+      ],
+    },
+    mixChain: { reverbDecaySeconds: 1, delayTime: '8n', delayFeedback: 0.2 },
+    arrangement: { sectionOrder: ['loop'] },
+    sidechainEnabled: false,
+    requiresSamples: false,
+  };
+}
+
+describe('ערכת-תופים מסונתזת (synth-kit) — בלעדיות ובחירה', () => {
+  it('בלי בחירה מפורשת — ממשיך להעדיף ערכת-דגימות אמיתית (אין שינוי-התנהגות)', () => {
+    const config = toGenreAudioConfig(makeDrumKitTestPack(), 'seed');
+    expect(config.drumKitPresets?.drums?.instrumentId).toBe('electronic-kit');
+    expect(config.synthKitPresets?.drums).toBeUndefined();
+    expect(config.synthPresets.drums).toBeUndefined();
+  });
+
+  it('בחירה מפורשת של synth-kit לא נדרסת ע"י הערכה האוטומטית', () => {
+    const config = toGenreAudioConfig(makeDrumKitTestPack(), 'seed', { drums: ['test-synth-kit'] });
+    expect(config.synthKitPresets?.drums).toBeDefined();
+    expect(config.drumKitPresets?.drums).toBeUndefined();
+    // ⚠️ הסינת' השטוח חייב להיעלם — אחרת הוא מתנגן מתחת לערכה המסונתזת.
+    expect(config.synthPresets.drums).toBeUndefined();
+  });
+
+  it('בחירה מפורשת של ערכה אמיתית עדיין עובדת (לא נשברה ע"י ההרחבה)', () => {
+    const config = toGenreAudioConfig(makeDrumKitTestPack(), 'seed', { drums: ['real-kit'] });
+    expect(config.drumKitPresets?.drums?.instrumentId).toBe('electronic-kit');
+    expect(config.synthKitPresets?.drums).toBeUndefined();
   });
 });

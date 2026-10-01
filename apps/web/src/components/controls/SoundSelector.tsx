@@ -265,14 +265,20 @@ export function SoundSelector() {
                         // ⭐ 2026-09-17: ערכת-תופים אחת בלבד יכולה לנגן בפועל לתפקיד
                         // (genreAdapter.ts's resolveSynthPresets, .find(isDrumKitPreset))
                         // — בלי זה שתי ערכות יכולות "להיבחר" יחד בממשק כשרק אחת נשמעת.
-                        const isDrumKit =
-                          'kind' in option.preset && option.preset.kind === 'drumkit';
-                        const exclusiveGroupIds = isDrumKit
+                        // ⭐ 2026-09-28: ערכה מסונתזת (synth-kit) היא אותה "משפחת-בלעדיות"
+                        // בדיוק כמו ערכת-דגימות אמיתית (drumkit) — שתיהן "ערכה מלאה לתפקיד",
+                        // ורק אחת מהן יכולה לנגן בפועל (resolveSynthPresets בוחר `.find` יחיד
+                        // לכל אחת, אבל שתיהן ביחד עדיין היו "מנצחות" זו את זו בשקט בממשק).
+                        const isKit =
+                          'kind' in option.preset &&
+                          (option.preset.kind === 'drumkit' || option.preset.kind === 'synth-kit');
+                        const exclusiveGroupIds = isKit
                           ? options
                               .filter(
                                 (candidate) =>
                                   'kind' in candidate.preset &&
-                                  candidate.preset.kind === 'drumkit',
+                                  (candidate.preset.kind === 'drumkit' ||
+                                    candidate.preset.kind === 'synth-kit'),
                               )
                               .map((candidate) => candidate.id)
                           : undefined;

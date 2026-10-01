@@ -23,6 +23,8 @@ export * from './providers/SynthProvider';
 // ⭐ 2026-08-30: דגימות אמיתיות — ראה §4.7 (V2) ו-docs/SAMPLES.md לרישיונות.
 export * from './providers/SamplerProvider';
 export * from './providers/DrumKitProvider';
+// ⭐ 2026-09-28: ערכת-תופים מסונתזת — ראה SynthKitProvider.ts.
+export * from './providers/SynthKitProvider';
 export * from './providers/sampleLoader';
 export * from './mixing/mixChain';
 export * from './mixing/loudness';

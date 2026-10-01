@@ -14,12 +14,13 @@
 
 import trance from './packs/trance.json' with { type: 'json' };
 import house from './packs/house.json' with { type: 'json' };
+import techno from './packs/techno.json' with { type: 'json' };
 import chill from './packs/chill.json' with { type: 'json' };
 import cinematic from './packs/cinematic.json' with { type: 'json' };
 import reggae from './packs/reggae.json' with { type: 'json' };
 import { genrePackSchema, type GenrePack } from './schema';
 
-const RAW_PACKS: readonly unknown[] = [trance, house, chill, cinematic, reggae];
+const RAW_PACKS: readonly unknown[] = [trance, house, techno, chill, cinematic, reggae];
 
 function parsePack(raw: unknown): GenrePack {
   const result = genrePackSchema.safeParse(raw);

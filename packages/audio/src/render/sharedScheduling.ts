@@ -24,6 +24,7 @@ import {
 } from '../providers/SynthProvider';
 import { SamplerProvider, type SamplerPresetConfig } from '../providers/SamplerProvider';
 import { DrumKitProvider, type DrumKitPresetConfig } from '../providers/DrumKitProvider';
+import { SynthKitProvider, type SynthKitPresetConfig } from '../providers/SynthKitProvider';
 import type { InstrumentProvider } from '../providers/InstrumentProvider';
 import {
   buildMixChain,
@@ -59,6 +60,12 @@ export interface GenreAudioConfig {
    * **מחליפה** את הסינת' של התפקיד ולא מתנגנת לצידו: שתי ערכות-מקבילות היו מכפילות כל מכה.
    */
   drumKitPresets?: Partial<Record<TrackRole, DrumKitPresetConfig>>;
+  /**
+   * ⭐ 2026-09-28 (ערכת-תופים מסונתזת): ערכה **מסונתזת** לתפקיד — אחת לכל היותר, בדיוק כמו
+   * drumKitPresets (מחליפה את synthPresets[role], לא מתנגנת לצידו — שתי ערכות-מקבילות היו
+   * מכפילות כל מכה). ראה SynthKitProvider.ts.
+   */
+  synthKitPresets?: Partial<Record<TrackRole, SynthKitPresetConfig>>;
   mixCharacter: MixCharacterConfig;
   /** ⭐ 2026-08-22: trance/house — ראה sidechain.ts. undefined/false = בלי pumping. */
   sidechainEnabled?: boolean;
@@ -194,16 +201,23 @@ export async function createTrackRuntime(
 ): Promise<TrackRuntime> {
   const samplerPresets = audioConfig.samplerPresets?.[track.role] ?? [];
   const drumKitPreset = audioConfig.drumKitPresets?.[track.role];
+  const synthKitPreset = audioConfig.synthKitPresets?.[track.role];
   const synthPreset = audioConfig.synthPresets[track.role];
 
   // ⚠️ ברירת המחדל (DEFAULT_SYNTH_PRESET) מוחלת רק כשאין **שום** כלי לתפקיד. כשנבחרו רק
-  // כלים דגומים, הוספת סינת' ברירת-מחדל הייתה משמיעה צליל שהמשתמש לא ביקש.
+  // כלים דגומים/ערכה-מסונתזת, הוספת סינת' ברירת-מחדל הייתה משמיעה צליל שהמשתמש לא ביקש.
   const providers: InstrumentProvider[] = [];
-  if (synthPreset || (samplerPresets.length === 0 && !drumKitPreset)) {
+  if (synthPreset || (samplerPresets.length === 0 && !drumKitPreset && !synthKitPreset)) {
     providers.push(new SynthProvider(track.role, tempoBpm, synthPreset ?? DEFAULT_SYNTH_PRESET));
   }
   for (const samplerPreset of samplerPresets) {
     providers.push(new SamplerProvider(track.role, tempoBpm, samplerPreset));
+  }
+  // ⭐ 2026-09-28: ערכה-מסונתזת מתנהגת בדיוק כמו ערכת-דגימות — מחליפה את הסינת' השטוח,
+  // לא מתנגנת לצידו. drumKitPreset גובר אם שניהם קיימים (לא אמור לקרות — genreAdapter.ts
+  // אוכף בחירת-ערכה יחידה — אבל אין סיבה לנגן שתי ערכות-מקבילות אם זה בכל זאת יקרה).
+  if (synthKitPreset && !drumKitPreset) {
+    providers.push(new SynthKitProvider(track.role, tempoBpm, synthKitPreset));
   }
   if (drumKitPreset) {
     providers.push(new DrumKitProvider(track.role, drumKitPreset));
