@@ -363,7 +363,29 @@
             "type": "lowpass",
             "frequencyHz": 1100,
             "resonance": 2
-          }
+          },
+          "layers": [
+            {
+              "oscillatorType": "sine",
+              "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.45, "release": 0.1 },
+              "gain": 0.6,
+              "detuneSemitones": 0
+            },
+            {
+              "oscillatorType": "square",
+              "envelope": { "attack": 0.005, "decay": 0.1, "sustain": 0.4, "release": 0.1 },
+              "gain": 0.85,
+              "detuneSemitones": 0,
+              "filter": { "type": "lowpass", "frequencyHz": 1100, "resonance": 2 }
+            },
+            {
+              "oscillatorType": "square",
+              "envelope": { "attack": 0.001, "decay": 0.04, "sustain": 0.05, "release": 0.03 },
+              "gain": 0.35,
+              "detuneSemitones": 12,
+              "filter": { "type": "lowpass", "frequencyHz": 2200, "resonance": 1.5 }
+            }
+          ]
         }
       },
       {
@@ -385,7 +407,31 @@
             "type": "lowpass",
             "frequencyHz": 650,
             "resonance": 6.5
-          }
+          },
+          "layers": [
+            {
+              "oscillatorType": "sawtooth",
+              "envelope": { "attack": 0.001, "decay": 0.12, "sustain": 0.25, "release": 0.08 },
+              "gain": 0.9,
+              "detuneSemitones": 0,
+              "filter": { "type": "lowpass", "frequencyHz": 650, "resonance": 6.5 },
+              "driveAmount": 0.6
+            },
+            {
+              "oscillatorType": "square",
+              "envelope": { "attack": 0.001, "decay": 0.1, "sustain": 0.2, "release": 0.06 },
+              "gain": 0.55,
+              "detuneSemitones": 0,
+              "filter": { "type": "lowpass", "frequencyHz": 800, "resonance": 7 },
+              "driveAmount": 0.35
+            },
+            {
+              "oscillatorType": "sine",
+              "envelope": { "attack": 0.001, "decay": 0.12, "sustain": 0.25, "release": 0.08 },
+              "gain": 0.4,
+              "detuneSemitones": 0
+            }
+          ]
         }
       },
       {
@@ -433,7 +479,30 @@
             "type": "lowpass",
             "frequencyHz": 1400,
             "resonance": 2.5
-          }
+          },
+          "layers": [
+            {
+              "oscillatorType": "sine",
+              "envelope": { "attack": 0.001, "decay": 0.05, "sustain": 0.2, "release": 0.05 },
+              "gain": 0.65,
+              "detuneSemitones": 0
+            },
+            {
+              "oscillatorType": "square",
+              "envelope": { "attack": 0.001, "decay": 0.06, "sustain": 0.15, "release": 0.06 },
+              "gain": 0.8,
+              "detuneSemitones": 0,
+              "filter": { "type": "lowpass", "frequencyHz": 1400, "resonance": 2.5 }
+            },
+            {
+              "oscillatorType": "sawtooth",
+              "envelope": { "attack": 0.0005, "decay": 0.02, "sustain": 0.02, "release": 0.02 },
+              "gain": 0.5,
+              "detuneSemitones": 19,
+              "filter": { "type": "highpass", "frequencyHz": 2500, "resonance": 1 },
+              "driveAmount": 0.4
+            }
+          ]
         }
       }
     ],
@@ -913,57 +982,129 @@
           "en": "Classic"
         },
         "preset": {
-          "oscillatorType": "triangle",
-          "envelope": {
-            "attack": 0.001,
-            "decay": 0.15,
-            "sustain": 0,
-            "release": 0.05
-          },
-          "polyphonic": false,
-          "layers": [
-            {
-              "oscillatorType": "triangle",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.15,
-                "sustain": 0,
-                "release": 0.05
+            "kind": "synth-kit",
+            "pieces": {
+              "kick": {
+                "oscillatorType": "sine",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.22,
+                  "sustain": 0.15,
+                  "release": 0.1
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sine",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.22,
+                      "sustain": 0.15,
+                      "release": 0.1
+                    },
+                    "gain": 1,
+                    "detuneSemitones": 0,
+                    "driveAmount": 0.4
+                  },
+                  {
+                    "oscillatorType": "triangle",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.05,
+                      "sustain": 0,
+                      "release": 0.02
+                    },
+                    "gain": 0.7,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 600
+                    }
+                  }
+                ]
               },
-              "gain": 1,
-              "detuneSemitones": 0,
-              "filter": {
-                "type": "lowpass",
-                "frequencyHz": 2500,
-                "resonance": 1
+              "tom": {
+                "oscillatorType": "triangle",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.2,
+                  "sustain": 0.1,
+                  "release": 0.08
+                },
+                "polyphonic": false
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
-              }
-            },
-            {
-              "oscillatorType": "square",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.04,
-                "sustain": 0,
-                "release": 0.02
+              "snare": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.1,
+                  "sustain": 0,
+                  "release": 0.05
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 350
+                }
               },
-              "gain": 0.6,
-              "detuneSemitones": 0,
-              "filter": {
-                "type": "highpass",
-                "frequencyHz": 900,
-                "resonance": 1
+              "clap": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.13,
+                  "sustain": 0,
+                  "release": 0.06
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 900
+                }
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
+              "hihat-closed": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.05,
+                  "sustain": 0,
+                  "release": 0.02
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 3000
+                }
+              },
+              "hihat-open": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.22,
+                  "sustain": 0,
+                  "release": 0.1
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 2600
+                }
+              },
+              "crash": {
+                "oscillatorType": "triangle",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.6,
+                  "sustain": 0,
+                  "release": 0.3
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 2000
+                }
               }
             }
-          ]
-        }
+          }
       },
       {
         "id": "tight-click",
@@ -972,57 +1113,129 @@
           "en": "Tight Click"
         },
         "preset": {
-          "oscillatorType": "square",
-          "envelope": {
-            "attack": 0.001,
-            "decay": 0.09,
-            "sustain": 0,
-            "release": 0.03
-          },
-          "polyphonic": false,
-          "layers": [
-            {
-              "oscillatorType": "square",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.09,
-                "sustain": 0,
-                "release": 0.03
+            "kind": "synth-kit",
+            "pieces": {
+              "kick": {
+                "oscillatorType": "sine",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.16,
+                  "sustain": 0.08,
+                  "release": 0.06
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sine",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.16,
+                      "sustain": 0.08,
+                      "release": 0.06
+                    },
+                    "gain": 1,
+                    "detuneSemitones": 0,
+                    "driveAmount": 0.4
+                  },
+                  {
+                    "oscillatorType": "square",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.02,
+                      "sustain": 0,
+                      "release": 0.01
+                    },
+                    "gain": 0.65,
+                    "detuneSemitones": 12,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 1200
+                    }
+                  }
+                ]
               },
-              "gain": 1,
-              "detuneSemitones": 0,
-              "filter": {
-                "type": "lowpass",
-                "frequencyHz": 3500,
-                "resonance": 1
+              "tom": {
+                "oscillatorType": "triangle",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.1,
+                  "sustain": 0,
+                  "release": 0.04
+                },
+                "polyphonic": false
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
-              }
-            },
-            {
-              "oscillatorType": "triangle",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.03,
-                "sustain": 0,
-                "release": 0.015
+              "snare": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.06,
+                  "sustain": 0,
+                  "release": 0.02
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 700
+                }
               },
-              "gain": 0.5,
-              "detuneSemitones": 0,
-              "filter": {
-                "type": "highpass",
-                "frequencyHz": 1200,
-                "resonance": 1
+              "clap": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.05,
+                  "sustain": 0,
+                  "release": 0.02
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 1400
+                }
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
+              "hihat-closed": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.025,
+                  "sustain": 0,
+                  "release": 0.012
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 4000
+                }
+              },
+              "hihat-open": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.1,
+                  "sustain": 0,
+                  "release": 0.05
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 3600
+                }
+              },
+              "crash": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.3,
+                  "sustain": 0,
+                  "release": 0.15
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 3200
+                }
               }
             }
-          ]
-        }
+          }
       },
       {
         "id": "deep-kick",
@@ -1031,57 +1244,129 @@
           "en": "Deep Kick"
         },
         "preset": {
-          "oscillatorType": "sine",
-          "envelope": {
-            "attack": 0.001,
-            "decay": 0.22,
-            "sustain": 0,
-            "release": 0.1
-          },
-          "polyphonic": false,
-          "layers": [
-            {
-              "oscillatorType": "sine",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.22,
-                "sustain": 0,
-                "release": 0.1
+            "kind": "synth-kit",
+            "pieces": {
+              "kick": {
+                "oscillatorType": "sine",
+                "envelope": {
+                  "attack": 0.005,
+                  "decay": 0.32,
+                  "sustain": 0.3,
+                  "release": 0.2
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sine",
+                    "envelope": {
+                      "attack": 0.005,
+                      "decay": 0.32,
+                      "sustain": 0.3,
+                      "release": 0.2
+                    },
+                    "gain": 1,
+                    "detuneSemitones": -2,
+                    "driveAmount": 0.3
+                  },
+                  {
+                    "oscillatorType": "triangle",
+                    "envelope": {
+                      "attack": 0.005,
+                      "decay": 0.06,
+                      "sustain": 0,
+                      "release": 0.03
+                    },
+                    "gain": 0.55,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 500
+                    }
+                  }
+                ]
               },
-              "gain": 1,
-              "detuneSemitones": -5,
-              "filter": {
-                "type": "lowpass",
-                "frequencyHz": 450,
-                "resonance": 1
+              "tom": {
+                "oscillatorType": "sine",
+                "envelope": {
+                  "attack": 0.003,
+                  "decay": 0.28,
+                  "sustain": 0.15,
+                  "release": 0.15
+                },
+                "polyphonic": false
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
-              }
-            },
-            {
-              "oscillatorType": "triangle",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.03,
-                "sustain": 0,
-                "release": 0.02
+              "snare": {
+                "oscillatorType": "triangle",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.14,
+                  "sustain": 0,
+                  "release": 0.07
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 300
+                }
               },
-              "gain": 0.7,
-              "detuneSemitones": 0,
-              "filter": {
-                "type": "highpass",
-                "frequencyHz": 700,
-                "resonance": 1
+              "clap": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.15,
+                  "sustain": 0,
+                  "release": 0.07
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 700
+                }
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
+              "hihat-closed": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.06,
+                  "sustain": 0,
+                  "release": 0.03
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 2200
+                }
+              },
+              "hihat-open": {
+                "oscillatorType": "triangle",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.25,
+                  "sustain": 0,
+                  "release": 0.12
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 2000
+                }
+              },
+              "crash": {
+                "oscillatorType": "triangle",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.7,
+                  "sustain": 0,
+                  "release": 0.35
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 1600
+                }
               }
             }
-          ]
-        }
+          }
       },
       {
         "id": "sub-boom",
@@ -1090,57 +1375,129 @@
           "en": "Sub Boom"
         },
         "preset": {
-          "oscillatorType": "sine",
-          "envelope": {
-            "attack": 0.001,
-            "decay": 0.2,
-            "sustain": 0,
-            "release": 0.1
-          },
-          "polyphonic": false,
-          "layers": [
-            {
-              "oscillatorType": "sine",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.2,
-                "sustain": 0,
-                "release": 0.1
+            "kind": "synth-kit",
+            "pieces": {
+              "kick": {
+                "oscillatorType": "sine",
+                "envelope": {
+                  "attack": 0.008,
+                  "decay": 0.5,
+                  "sustain": 0.4,
+                  "release": 0.35
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sine",
+                    "envelope": {
+                      "attack": 0.008,
+                      "decay": 0.5,
+                      "sustain": 0.4,
+                      "release": 0.35
+                    },
+                    "gain": 1,
+                    "detuneSemitones": -3,
+                    "driveAmount": 0.3
+                  },
+                  {
+                    "oscillatorType": "triangle",
+                    "envelope": {
+                      "attack": 0.003,
+                      "decay": 0.04,
+                      "sustain": 0,
+                      "release": 0.02
+                    },
+                    "gain": 0.5,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 600
+                    }
+                  }
+                ]
               },
-              "gain": 1,
-              "detuneSemitones": -7,
-              "filter": {
-                "type": "lowpass",
-                "frequencyHz": 240,
-                "resonance": 1
+              "tom": {
+                "oscillatorType": "sine",
+                "envelope": {
+                  "attack": 0.005,
+                  "decay": 0.35,
+                  "sustain": 0.2,
+                  "release": 0.2
+                },
+                "polyphonic": false
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
-              }
-            },
-            {
-              "oscillatorType": "triangle",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.03,
-                "sustain": 0,
-                "release": 0.02
+              "snare": {
+                "oscillatorType": "triangle",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.12,
+                  "sustain": 0,
+                  "release": 0.06
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 350
+                }
               },
-              "gain": 0.75,
-              "detuneSemitones": 0,
-              "filter": {
-                "type": "highpass",
-                "frequencyHz": 800,
-                "resonance": 1
+              "clap": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.13,
+                  "sustain": 0,
+                  "release": 0.06
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 750
+                }
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
+              "hihat-closed": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.04,
+                  "sustain": 0,
+                  "release": 0.02
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 2800
+                }
+              },
+              "hihat-open": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.18,
+                  "sustain": 0,
+                  "release": 0.09
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 2500
+                }
+              },
+              "crash": {
+                "oscillatorType": "triangle",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.65,
+                  "sustain": 0,
+                  "release": 0.3
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 1800
+                }
               }
             }
-          ]
-        }
+          }
       },
       {
         "id": "hard-punch",
@@ -1149,58 +1506,173 @@
           "en": "Hard Punch"
         },
         "preset": {
-          "oscillatorType": "sine",
-          "envelope": {
-            "attack": 0.001,
-            "decay": 0.14,
-            "sustain": 0,
-            "release": 0.06
-          },
-          "polyphonic": false,
-          "layers": [
-            {
-              "oscillatorType": "sine",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.14,
-                "sustain": 0,
-                "release": 0.06
+            "kind": "synth-kit",
+            "pieces": {
+              "kick": {
+                "oscillatorType": "sine",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.2,
+                  "sustain": 0.12,
+                  "release": 0.08
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sine",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.2,
+                      "sustain": 0.12,
+                      "release": 0.08
+                    },
+                    "gain": 1,
+                    "detuneSemitones": -2,
+                    "driveAmount": 0.55
+                  },
+                  {
+                    "oscillatorType": "square",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.03,
+                      "sustain": 0,
+                      "release": 0.015
+                    },
+                    "gain": 0.8,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 800
+                    },
+                    "driveAmount": 0.55
+                  }
+                ]
               },
-              "gain": 1,
-              "detuneSemitones": -7,
-              "filter": {
-                "type": "lowpass",
-                "frequencyHz": 300,
-                "resonance": 1.2
+              "tom": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.15,
+                  "sustain": 0,
+                  "release": 0.06
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "lowpass",
+                  "frequencyHz": 900
+                }
               },
-              "driveAmount": 0.4,
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
-              }
-            },
-            {
-              "oscillatorType": "square",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.02,
-                "sustain": 0,
-                "release": 0.01
+              "snare": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.09,
+                  "sustain": 0,
+                  "release": 0.04
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "square",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.09,
+                      "sustain": 0,
+                      "release": 0.04
+                    },
+                    "gain": 0.85,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 450
+                    },
+                    "driveAmount": 0.4
+                  },
+                  {
+                    "oscillatorType": "triangle",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.05,
+                      "sustain": 0,
+                      "release": 0.02
+                    },
+                    "gain": 0.5,
+                    "detuneSemitones": 12
+                  }
+                ]
               },
-              "gain": 0.8,
-              "detuneSemitones": 0,
-              "filter": {
-                "type": "highpass",
-                "frequencyHz": 900,
-                "resonance": 1
+              "clap": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.12,
+                  "sustain": 0,
+                  "release": 0.05
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "square",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.12,
+                      "sustain": 0,
+                      "release": 0.05
+                    },
+                    "gain": 0.9,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 850
+                    },
+                    "driveAmount": 0.35
+                  }
+                ]
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
+              "hihat-closed": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.04,
+                  "sustain": 0,
+                  "release": 0.018
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 3200
+                }
+              },
+              "hihat-open": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.16,
+                  "sustain": 0,
+                  "release": 0.08
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 2800
+                }
+              },
+              "crash": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.55,
+                  "sustain": 0,
+                  "release": 0.25
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 2000
+                }
               }
             }
-          ]
-        }
+          }
       },
       {
         "id": "distorted-kick",
@@ -1209,58 +1681,189 @@
           "en": "Distorted Kick"
         },
         "preset": {
-          "oscillatorType": "sawtooth",
-          "envelope": {
-            "attack": 0.001,
-            "decay": 0.16,
-            "sustain": 0,
-            "release": 0.07
-          },
-          "polyphonic": false,
-          "layers": [
-            {
-              "oscillatorType": "sawtooth",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.16,
-                "sustain": 0,
-                "release": 0.07
+            "kind": "synth-kit",
+            "pieces": {
+              "kick": {
+                "oscillatorType": "sawtooth",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.18,
+                  "sustain": 0.1,
+                  "release": 0.08
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sawtooth",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.18,
+                      "sustain": 0.1,
+                      "release": 0.08
+                    },
+                    "gain": 1,
+                    "detuneSemitones": -3,
+                    "filter": {
+                      "type": "lowpass",
+                      "frequencyHz": 500
+                    },
+                    "driveAmount": 0.75
+                  },
+                  {
+                    "oscillatorType": "sine",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.2,
+                      "sustain": 0.15,
+                      "release": 0.1
+                    },
+                    "gain": 0.5,
+                    "detuneSemitones": 0
+                  }
+                ]
               },
-              "gain": 1,
-              "detuneSemitones": -5,
-              "filter": {
-                "type": "lowpass",
-                "frequencyHz": 380,
-                "resonance": 1.5
+              "tom": {
+                "oscillatorType": "sawtooth",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.16,
+                  "sustain": 0,
+                  "release": 0.06
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sawtooth",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.16,
+                      "sustain": 0,
+                      "release": 0.06
+                    },
+                    "gain": 0.85,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "lowpass",
+                      "frequencyHz": 700
+                    },
+                    "driveAmount": 0.5
+                  }
+                ]
               },
-              "driveAmount": 0.7,
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
-              }
-            },
-            {
-              "oscillatorType": "square",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.02,
-                "sustain": 0,
-                "release": 0.01
+              "snare": {
+                "oscillatorType": "sawtooth",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.1,
+                  "sustain": 0,
+                  "release": 0.05
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sawtooth",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.1,
+                      "sustain": 0,
+                      "release": 0.05
+                    },
+                    "gain": 0.9,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 400
+                    },
+                    "driveAmount": 0.6
+                  }
+                ]
               },
-              "gain": 0.6,
-              "detuneSemitones": 0,
-              "filter": {
-                "type": "highpass",
-                "frequencyHz": 1000,
-                "resonance": 1
+              "clap": {
+                "oscillatorType": "sawtooth",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.13,
+                  "sustain": 0,
+                  "release": 0.06
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sawtooth",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.13,
+                      "sustain": 0,
+                      "release": 0.06
+                    },
+                    "gain": 0.9,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 800
+                    },
+                    "driveAmount": 0.55
+                  }
+                ]
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
+              "hihat-closed": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.045,
+                  "sustain": 0,
+                  "release": 0.02
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 3000
+                }
+              },
+              "hihat-open": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.18,
+                  "sustain": 0,
+                  "release": 0.09
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 2600
+                }
+              },
+              "crash": {
+                "oscillatorType": "sawtooth",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.6,
+                  "sustain": 0,
+                  "release": 0.3
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sawtooth",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.6,
+                      "sustain": 0,
+                      "release": 0.3
+                    },
+                    "gain": 0.8,
+                    "detuneSemitones": 0,
+                    "filter": {
+                      "type": "highpass",
+                      "frequencyHz": 1800
+                    },
+                    "driveAmount": 0.35
+                  }
+                ]
               }
             }
-          ]
-        }
+          }
       },
       {
         "id": "808-kick",
@@ -1269,57 +1872,113 @@
           "en": "808-Style Kick"
         },
         "preset": {
-          "oscillatorType": "sine",
-          "envelope": {
-            "attack": 0.001,
-            "decay": 0.45,
-            "sustain": 0,
-            "release": 0.25
-          },
-          "polyphonic": false,
-          "layers": [
-            {
-              "oscillatorType": "sine",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.45,
-                "sustain": 0,
-                "release": 0.25
+            "kind": "synth-kit",
+            "pieces": {
+              "kick": {
+                "oscillatorType": "sine",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.55,
+                  "sustain": 0.35,
+                  "release": 0.4
+                },
+                "polyphonic": false,
+                "layers": [
+                  {
+                    "oscillatorType": "sine",
+                    "envelope": {
+                      "attack": 0.001,
+                      "decay": 0.55,
+                      "sustain": 0.35,
+                      "release": 0.4
+                    },
+                    "gain": 1,
+                    "detuneSemitones": -3
+                  }
+                ]
               },
-              "gain": 1,
-              "detuneSemitones": -3,
-              "filter": {
-                "type": "lowpass",
-                "frequencyHz": 190,
-                "resonance": 1
+              "tom": {
+                "oscillatorType": "sine",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.4,
+                  "sustain": 0.2,
+                  "release": 0.25
+                },
+                "polyphonic": false
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
-              }
-            },
-            {
-              "oscillatorType": "triangle",
-              "envelope": {
-                "attack": 0.001,
-                "decay": 0.04,
-                "sustain": 0,
-                "release": 0.02
+              "snare": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.11,
+                  "sustain": 0,
+                  "release": 0.05
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 500
+                }
               },
-              "gain": 0.65,
-              "detuneSemitones": 0,
-              "filter": {
-                "type": "highpass",
-                "frequencyHz": 700,
-                "resonance": 1
+              "clap": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.16,
+                  "sustain": 0,
+                  "release": 0.08
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 1000
+                }
               },
-              "unison": {
-                "count": 1,
-                "spreadCents": 0
+              "hihat-closed": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.035,
+                  "sustain": 0,
+                  "release": 0.015
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 5500
+                }
+              },
+              "hihat-open": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.3,
+                  "sustain": 0,
+                  "release": 0.15
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 5000
+                }
+              },
+              "crash": {
+                "oscillatorType": "square",
+                "envelope": {
+                  "attack": 0.001,
+                  "decay": 0.5,
+                  "sustain": 0,
+                  "release": 0.25
+                },
+                "polyphonic": false,
+                "filter": {
+                  "type": "highpass",
+                  "frequencyHz": 3500
+                }
               }
             }
-          ]
-        }
+          }
       },
       {
         "id": "electronic-kit",
